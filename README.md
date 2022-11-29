@@ -20,6 +20,7 @@
 
 ## Building
 To build Gottvergessen Loader you need:
+* [Example Laravel API](https://github.com/skript023/Gottvergessen-API)
 * Visual Studio 2022
 * [Premake 5.0](https://premake.github.io) in your PATH
 
