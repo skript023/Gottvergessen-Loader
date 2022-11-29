@@ -39,8 +39,7 @@ namespace gottvergessen
 		VersionInfo m_latest_version;
 		VersionInfo m_current_version;
 		std::filesystem::path m_location;
-		const std::string url_test = xorstr("http://localhost:8000/api/v1/binary/shellcode");
-		const std::string url = xorstr("http://gottvergessen.000webhostapp.com/api/v1/binary/shellcode");
+		const std::string url = xorstr("http://localhost:8000/api/v1/binary/shellcode");
 		const std::string file_extension = xorstr(".vpack");
 	};
 

@@ -150,8 +150,7 @@ namespace gottvergessen
 		}
 		VersionInfo m_version_info{};
 	private:
-		const std::string url_test = xorstr("http://localhost:8000/api/v1/binary/version");
-		const std::string url = xorstr("http://gottvergessen.000webhostapp.com/api/v1/binary/version");
+		const std::string url = xorstr("http://localhost:8000/api/v1/binary/version");
 		const std::string extension = xorstr(".json");
 	};
 }
