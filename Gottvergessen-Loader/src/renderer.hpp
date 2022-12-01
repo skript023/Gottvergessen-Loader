@@ -5,20 +5,6 @@ namespace gottvergessen
 {
 	class renderer
 	{
-		struct OverlayWindow
-		{
-			WNDCLASSEX m_window_class;
-			HWND m_hwnd;
-			LPCSTR m_name;
-		};
-
-		struct DirectX9Interface
-		{
-			LPDIRECT3D9 IDirect3D9 = NULL;
-			LPDIRECT3DDEVICE9 pDevice = NULL;
-			D3DPRESENT_PARAMETERS pParameters = { NULL };
-			MSG Message = { NULL };
-		};
 	public:
         explicit renderer();
         ~renderer();
@@ -30,14 +16,16 @@ namespace gottvergessen
 		void reset_device();
 		bool init();
 		static LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-		static void script_exception_handler(PEXCEPTION_POINTERS exp);
 	public:
-		OverlayWindow m_overlay;
-		DirectX9Interface m_directx9;
+		WNDCLASSEX m_window_class;
+		HWND m_hwnd;
+		LPCSTR m_name;
+	public:
+		LPDIRECT3D9 m_d3d9 = nullptr;
+		LPDIRECT3DDEVICE9 m_device = nullptr;
+		D3DPRESENT_PARAMETERS m_parameters = { NULL };
+		MSG m_message = { nullptr };
 	};
 
 	inline renderer* g_renderer{};
-
-#define TRY_CLAUSE  __try
-#define EXCEPT_CLAUSE  __except (renderer::script_exception_handler(GetExceptionInformation()), EXCEPTION_EXECUTE_HANDLER) { }
 }

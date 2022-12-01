@@ -20,10 +20,10 @@ namespace gottvergessen
 		bool check_binary_before_injection();
 
 		bool download(const std::string filename, const std::filesystem::path& location);
-		int get_current_version_machine() const { return m_current_version.m_version_machine; }
-		int get_latest_version_machine() const { return m_latest_version.m_version_machine; }
-		std::string get_current_version() const { return m_current_version.m_version; }
-		std::string get_latest_version() const { return m_latest_version.m_version; }
+		int bin_current_version_machine() const { return m_current_version.m_version_machine; }
+		int bin_latest_version_machine() const { return m_latest_version.m_version_machine; }
+		std::string bin_current_version() const { return m_current_version.m_version; }
+		std::string bin_latest_version() const { return m_latest_version.m_version; }
 
 		template <class InIterator, class OutIterator>
 		void write_binary(InIterator begin, InIterator end, OutIterator result)

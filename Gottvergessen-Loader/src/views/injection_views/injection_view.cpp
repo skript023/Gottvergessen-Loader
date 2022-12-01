@@ -18,7 +18,7 @@ namespace gottvergessen
 		// figure out where we need to move the button to. It's good if you understand why this formula works!
 		float centre_position_for_button = (width - button_size.x) / 2;
 
-		ImGui::TextColored(g_download_binary->get_current_version_machine() < g_download_binary->get_latest_version_machine() ? ImVec4(255, 0, 0, 255) : ImVec4(0, 255, 0, 255), std::format("Current Version: {}", g_download_binary->get_current_version()).c_str());
+		ImGui::TextColored(g_download_binary->bin_current_version_machine() < g_download_binary->bin_latest_version_machine() ? ImVec4(255, 0, 0, 255) : ImVec4(0, 255, 0, 255), std::format("Current Version: {}", g_download_binary->bin_current_version()).c_str());
 		ImGui::Text(std::format("Fullname: {}", g_user_authentication->get_fullname()).c_str());
 		ImGui::Text(std::format("Ownership: {}", g_user_authentication->owned_product_info(g_user_authentication->owned_product())).c_str());
 		ImGui::Text(std::format("Expired Date: {}", g_user_authentication->ownership_expiry_date()).c_str());
