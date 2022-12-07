@@ -69,7 +69,7 @@ namespace gottvergessen
 			try
 			{
 				http::Request req(url);
-				http::Response res = req.send("POST", body.dump(), { content_type });
+				http::Response res = req.send(xorstr("POST"), body.dump(), {content_type});
 
 				nlohmann::json j = nlohmann::json::parse(res.body.begin(), res.body.end());
 
@@ -87,11 +87,11 @@ namespace gottvergessen
 
 		bool download_version_file()
 		{
-			auto folder = g_file_manager->get_project_folder("./Binary");
-			auto base_dir = folder.get_file("./version.json").get_path();
+			auto folder = g_file_manager->get_project_folder(xorstr("./Binary"));
+			auto base_dir = folder.get_file(xorstr("./version.json")).get_path();
 
 			nlohmann::ordered_json body = {
-				{ xorstr("name"), "gottvergessen"}
+				{ xorstr("name"), xorstr("gottvergessen")}
 			};
 
 			std::string content_type = xorstr("Content-Type: application/json");
@@ -101,7 +101,7 @@ namespace gottvergessen
 			try
 			{
 				http::Request req(url);
-				http::Response res = req.send("POST", body.dump(), { content_type });
+				http::Response res = req.send(xorstr("POST"), body.dump(), {content_type});
 
 				nlohmann::json j = nlohmann::json::parse(res.body.begin(), res.body.end());
 
@@ -119,8 +119,8 @@ namespace gottvergessen
 
 		VersionInfo get_current_version()
 		{
-			auto folder = g_file_manager->get_project_folder("./Binary");
-			auto base_dir = folder.get_file("./version.json").get_path();
+			auto folder = g_file_manager->get_project_folder(xorstr("./Binary"));
+			auto base_dir = folder.get_file(xorstr("./version.json")).get_path();
 
 			std::ifstream file(base_dir);
 
@@ -128,11 +128,11 @@ namespace gottvergessen
 
 			if (file.fail())
 			{
-				LOG(HACKER) << "File doesn't exist";
+				LOG(HACKER) << xorstr("File doesn't exist");
 
 				this->ensure_version_file();
 
-				LOG(HACKER) << "Download version from server";
+				LOG(HACKER) << xorstr("Download version from server");
 			}
 
 			if (!file.is_open())
