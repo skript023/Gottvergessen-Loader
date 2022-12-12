@@ -1,6 +1,7 @@
 #pragma once
 #include "common.hpp"
 #include "injection_method.hpp"
+#include "file_manager.hpp"
 
 namespace gottvergessen
 {
@@ -18,7 +19,7 @@ namespace gottvergessen
 	class injection : public injection_method
 	{
 	public:
-		explicit injection(const std::filesystem::path& dllFile);
+		explicit injection(const folder& dllFile);
 
 		~injection() noexcept;
 
@@ -32,7 +33,7 @@ namespace gottvergessen
 		bool inject_library();
 		eValidType validate_file(const std::filesystem::path& dllFile);
 	private:
-		std::filesystem::path filename;
+		folder m_filename;
 	};
 
 	inline injection* g_injection;

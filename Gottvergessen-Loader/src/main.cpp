@@ -18,7 +18,7 @@ int main()
 
 	auto file_manager_instance = std::make_unique<file_manager>(base_dir);
 
-	auto binary_file = g_file_manager->get_project_folder("./Binary").get_file("Gottvergesensense.dll").get_path();
+	auto binary_file = g_file_manager->get_project_folder("./Binary");
 
 	auto logger_instance = std::make_unique<logger>("Gottvergessen Loader");
 

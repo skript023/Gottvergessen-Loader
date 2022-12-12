@@ -6,8 +6,10 @@ namespace gottvergessen
 	{
 	protected:
 		std::uint32_t pid{};
-		const std::string name{ "GTA5.exe" };
+		std::string name{};
 	public:
+		void set_target_process(const std::string process) { name = process; }
+		std::string get_target_process() const { return name; }
 		bool is_process_running()
 		{
 			auto snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);

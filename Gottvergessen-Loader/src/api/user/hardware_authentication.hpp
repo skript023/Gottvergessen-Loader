@@ -6,7 +6,7 @@ namespace gottvergessen
 {
 	struct hardware_information
 	{
-		const std::string m_bios_uuid;
+		const std::string m_computer_uuid;
 		const std::string m_computer_name;
 		const std::string m_processor;
 		const std::string m_core_processor;
@@ -17,7 +17,7 @@ namespace gottvergessen
 	{
 	public:
 		explicit hardware_authentication():
-			m_bios_uuid(initialize_bios_uuid()),
+			m_computer_uuid(initialize_computer_uuid()),
 			m_computer_name(initialize_computer_name()),
 			m_thread_count(std::thread::hardware_concurrency())
 		{}
@@ -28,7 +28,7 @@ namespace gottvergessen
 		hardware_authentication(hardware_authentication&&) noexcept = delete;
 		hardware_authentication& operator=(hardware_authentication&&) noexcept = delete;
 
-		std::string initialize_bios_uuid()
+		std::string initialize_computer_uuid()
 		{
 			subprocess::OutBuffer bios_version = subprocess::check_output("wmic csproduct get uuid");
 			std::string data(bios_version.buf.begin(), bios_version.buf.end());
@@ -47,10 +47,10 @@ namespace gottvergessen
 		}
 
 		uint32_t get_thread_count() const { return m_thread_count; }
-		std::string get_bios() const { return m_bios_uuid; }
+		std::string get_bios() const { return m_computer_uuid; }
 		std::string get_computer_name() const { return m_computer_name; }
 	private:
-		std::string m_bios_uuid;
+		std::string m_computer_uuid;
 		std::string m_computer_name;
 		uint32_t m_thread_count;
 	};

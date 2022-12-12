@@ -1,8 +1,9 @@
 #include "injection.hpp"
+#include "api/remote/download_binary.hpp"
 
 namespace gottvergessen
 {
-	injection::injection(const std::filesystem::path& dllFile) : filename(dllFile)
+	injection::injection(const folder& dllFile) : m_filename(dllFile)
 	{
 		g_injection = this;
 	}
@@ -91,6 +92,9 @@ namespace gottvergessen
 
 	bool injection::inject_library()
 	{
+		auto filename = m_filename.get_file(g_download_binary->get_binary_name()).get_path();
+		this->set_target_process(g_download_binary->injection_target());
+
 		if (!filename.is_absolute())
 			filename = std::filesystem::absolute(filename);
 		LOG(HACKER) << "Unpacking " << filename.filename().string();

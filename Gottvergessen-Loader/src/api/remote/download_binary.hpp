@@ -1,4 +1,5 @@
 #include "common.hpp"
+#include "file_manager.hpp"
 #include "api/http_request.hpp"
 #include "api/url_encryption.hpp"
 #include "api/remote/get_binary_version.hpp"
@@ -8,7 +9,7 @@ namespace gottvergessen
 	class download_binary : private get_version
 	{
 	public:
-		explicit download_binary(const std::filesystem::path& location);
+		explicit download_binary(const folder& location);
 
 		~download_binary();
 
@@ -19,11 +20,14 @@ namespace gottvergessen
 
 		bool check_binary_before_injection();
 
-		bool download(const std::string filename, const std::filesystem::path& location);
-		int bin_current_version_machine() const { return m_current_version.m_version_machine; }
-		int bin_latest_version_machine() const { return m_latest_version.m_version_machine; }
-		std::string bin_current_version() const { return m_current_version.m_version; }
-		std::string bin_latest_version() const { return m_latest_version.m_version; }
+		bool download(const std::string filename, const std::filesystem::path& location) const;
+		bool is_version_valid() const { return m_loader_version.m_valid; }
+		int loader_version_machine() const { return m_loader_version.m_version_machine; }
+		std::string loader_version() const { return m_loader_version.m_version; }
+		void select_binary(const std::string name) { m_selected_binary = name; }
+		std::string selected_binary() const { return m_selected_binary; }
+		std::string get_binary_name() const { return m_filename; }
+		std::string injection_target() const { return m_target_process; }
 
 		template <class InIterator, class OutIterator>
 		void write_binary(InIterator begin, InIterator end, OutIterator result)
@@ -35,12 +39,15 @@ namespace gottvergessen
 				*result++ = *it; i++;
 			}
 		}
+		BinaryName m_binary_name[3] = {
+			{ xorstr("GTA V Mod Menu"), xorstr("gta") },
+			{ xorstr("Scarlet Nexus Trainer"), xorstr("scarlet-nexus") },
+			{ xorstr("Tower of Fantasy"), xorstr("tower-of-fantasy") }
+		};
 	private:
-		VersionInfo m_latest_version;
-		VersionInfo m_current_version;
-		std::filesystem::path m_location;
+		LoaderVersion m_loader_version;
+		folder m_location;
 		const std::string url = xorstr("http://localhost:8000/api/v1/binary/shellcode");
-		const std::string file_extension = xorstr(".vpack");
 	};
 
 	inline download_binary* g_download_binary;

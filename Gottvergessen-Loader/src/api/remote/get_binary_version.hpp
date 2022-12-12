@@ -3,10 +3,22 @@
 #include "file_manager.hpp"
 #include "api/http_request.hpp"
 #include "api/url_encryption.hpp"
+#include "api/user/user_authentication.hpp"
 
 namespace gottvergessen
 {
 	struct VersionInfo
+	{
+		const int m_id;
+		const std::string m_path;
+		const std::string m_target;
+		const std::string m_version;
+		const int m_version_machine;
+		const bool m_supported;
+		const bool m_valid;
+	};
+
+	struct LoaderVersion
 	{
 		const std::string m_path;
 		const std::string m_version;
@@ -15,8 +27,15 @@ namespace gottvergessen
 		const bool m_valid;
 	};
 
+	struct BinaryName
+	{
+		std::string m_name;
+		std::string m_server_name;
+	};
+
 	class get_version
 	{
+		friend class download_binary;
 	public:
 		get_version() = default;
 		virtual ~get_version() noexcept = default;
@@ -26,22 +45,46 @@ namespace gottvergessen
 		get_version(get_version&& that) = delete;
 		get_version& operator=(get_version&& that) = delete;
 
+		LoaderVersion get_loader_version()
+		{
+			try
+			{
+				http::Request req(xorstr("http://localhost:8000/api/v1/version"));
+				http::Response res = req.send("GET", "", { "Accept: application/json" });
+
+				nlohmann::json j = nlohmann::json::parse(res.body.begin(), res.body.end());
+
+				return { j["file"], j["version"], j["version_machine"], j["supported"], j["valid"] };
+			}
+			catch (const std::exception&)
+			{
+				LOG(WARNING) << "Failed to get loader version info, is the host down?";
+			}
+
+			return {};
+		}
+
 		VersionInfo get_version_info()
 		{
 			nlohmann::ordered_json body = {
-				{ xorstr("name"), "gottvergessen"}
+				{ xorstr("name"), m_selected_binary}
 			};
 
 			std::string content_type = xorstr("Content-Type: application/json");
+			std::string accept = xorstr("Accept: application/json");
+			std::string auth = std::format("Authorization: Bearer {}", g_user_authentication->get_token());
 
 			try
 			{
 				http::Request req(url);
-				http::Response res = req.send("POST", body.dump(), { content_type });
+				http::Response res = req.send("POST", body.dump(), { content_type, accept, auth });
 
 				nlohmann::json j = nlohmann::json::parse(res.body.begin(), res.body.end());
 
-				return { j["file"], j["version"], j["version_machine"], j["supported"], true};
+				m_filename = j["file"];
+				m_target_process = j["target"];
+
+				return { j["id"], j["file"], j["target"], j["version"], j["version_machine"], j["supported"], true};
 			}
 			catch (const std::exception&)
 			{
@@ -59,7 +102,7 @@ namespace gottvergessen
 			if (std::filesystem::exists(base_dir)) return true;
 
 			nlohmann::ordered_json body = {
-				{ xorstr("name"), "gottvergessen"}
+				{ xorstr("name"), m_selected_binary}
 			};
 
 			std::string content_type = xorstr("Content-Type: application/json");
@@ -91,7 +134,7 @@ namespace gottvergessen
 			auto base_dir = folder.get_file(xorstr("./version.json")).get_path();
 
 			nlohmann::ordered_json body = {
-				{ xorstr("name"), xorstr("gottvergessen")}
+				{ xorstr("name"), m_selected_binary}
 			};
 
 			std::string content_type = xorstr("Content-Type: application/json");
@@ -128,7 +171,7 @@ namespace gottvergessen
 
 			if (file.fail())
 			{
-				LOG(HACKER) << xorstr("File doesn't exist");
+				LOG(WARNING) << xorstr("File doesn't exist");
 
 				this->ensure_version_file();
 
@@ -144,13 +187,29 @@ namespace gottvergessen
 
 			auto& j = json_file;
 
+			for (auto it = j.begin(); it != j.end(); ++it)
+			{
+				if (it.key().empty())
+				{
+					LOG(WARNING) << "Version file contain null object, attempting to get new version file";
+					this->ensure_version_file();
+					get_current_version();
+				}
+			}
+
 			file.close();
 
-			return { j["file"], j["version"], j["version_machine"], j["supported"], j["valid"]};
+			m_filename = j["file"];
+			m_target_process = j["target"];
+
+			return { j["id"], j["file"], j["target"], j["version"], j["version_machine"], j["supported"], j["valid"]};
 		}
+
 		VersionInfo m_version_info{};
 	private:
+		std::string m_selected_binary;
+		std::string m_target_process;
+		std::string m_filename;
 		const std::string url = xorstr("http://localhost:8000/api/v1/binary/version");
-		const std::string extension = xorstr(".json");
 	};
 }

@@ -55,7 +55,7 @@ namespace gottvergessen
 			nlohmann::ordered_json body = {
 				{ xorstr("username"), username },
 				{ xorstr("password"), password },
-				{ xorstr("bios_uuid"), this->get_bios() },
+				{ xorstr("hardware_uuid"), this->get_bios() },
 				{ xorstr("computer_name"), this->get_computer_name() }
 			};
 
@@ -74,8 +74,9 @@ namespace gottvergessen
 				message = j["message"];
 				expired_date = j["expired_date"];
 			}
-			catch (const std::exception&)
+			catch (const std::exception& ex)
 			{
+				LOG(WARNING) << "Error : " << ex.what();
 				LOG(WARNING) << xorstr("Login failed, is the host down?");
 
 				return false;
