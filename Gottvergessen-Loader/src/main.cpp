@@ -1,5 +1,6 @@
 #include "common.hpp"
 #include "renderer.hpp"
+#include "benchmark.hpp"
 #include "thread_pool.hpp"
 #include "file_manager.hpp"
 
@@ -12,6 +13,8 @@
 int main()
 {
 	using namespace gottvergessen;
+
+	auto benchmark_instance = std::make_unique<benchmark>("Initialization");
 
 	std::filesystem::path base_dir = std::getenv("appdata");
 	base_dir /= "Ellohim Menu";
@@ -31,13 +34,20 @@ int main()
 		auto binary_instance = std::make_unique<download_binary>(binary_file);
 		auto inject_instance = std::make_unique<injection>(binary_file);
 		auto render_instance = std::make_unique<renderer>();
+
+		logger_instance->enable();
+		benchmark_instance->get_runtime();
+		benchmark_instance->reset();
 		
 		render_instance->on_present();
+
+		logger_instance->disable();
 
 		render_instance.reset();
 		inject_instance.reset();
 		binary_instance.reset();
 		costumes_instance.reset();
+		benchmark_instance.reset();
 		user_auth_instance.reset();
 		thread_pool_instance->destroy();
 		thread_pool_instance.reset();

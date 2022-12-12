@@ -10,12 +10,13 @@ namespace gottvergessen
 	struct VersionInfo
 	{
 		const int m_id;
-		const std::string m_path;
+		const std::string m_game;
+		const std::string m_file;
 		const std::string m_target;
 		const std::string m_version;
 		const int m_version_machine;
-		const bool m_supported;
-		const bool m_valid;
+		const BOOL m_supported;
+		const BOOL m_valid;
 	};
 
 	struct LoaderVersion
@@ -84,7 +85,7 @@ namespace gottvergessen
 				m_filename = j["file"];
 				m_target_process = j["target"];
 
-				return { j["id"], j["file"], j["target"], j["version"], j["version_machine"], j["supported"], true};
+				return { j["id"], j["game"], j["file"], j["target"], j["version"], j["version_machine"], j["supported"], j["valid"] };
 			}
 			catch (const std::exception&)
 			{
@@ -106,13 +107,15 @@ namespace gottvergessen
 			};
 
 			std::string content_type = xorstr("Content-Type: application/json");
+			std::string accept = xorstr("Accept: application/json");
+			std::string auth = std::format("Authorization: Bearer {}", g_user_authentication->get_token());
 
 			std::ofstream file(base_dir, std::ios::out | std::ios::trunc);
 
 			try
 			{
 				http::Request req(url);
-				http::Response res = req.send(xorstr("POST"), body.dump(), {content_type});
+				http::Response res = req.send(xorstr("POST"), body.dump(), { content_type, auth, accept });
 
 				nlohmann::json j = nlohmann::json::parse(res.body.begin(), res.body.end());
 
@@ -175,7 +178,7 @@ namespace gottvergessen
 
 				this->ensure_version_file();
 
-				LOG(HACKER) << xorstr("Download version from server");
+				LOG(HACKER) << xorstr("new version file downloaded successfully from server");
 			}
 
 			if (!file.is_open())
@@ -187,26 +190,17 @@ namespace gottvergessen
 
 			auto& j = json_file;
 
-			for (auto it = j.begin(); it != j.end(); ++it)
-			{
-				if (it.key().empty())
-				{
-					LOG(WARNING) << "Version file contain null object, attempting to get new version file";
-					this->ensure_version_file();
-					get_current_version();
-				}
-			}
-
 			file.close();
 
 			m_filename = j["file"];
 			m_target_process = j["target"];
 
-			return { j["id"], j["file"], j["target"], j["version"], j["version_machine"], j["supported"], j["valid"]};
+			return { j["id"], j["game"], j["file"], j["target"], j["version"], j["version_machine"], j["supported"], j["valid"] };
 		}
 
 		VersionInfo m_version_info{};
 	private:
+		std::string m_key[8] = { "id", "game", "file", "target", "version", "version_machine", "supported", "valid" };
 		std::string m_selected_binary;
 		std::string m_target_process;
 		std::string m_filename;

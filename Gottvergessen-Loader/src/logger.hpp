@@ -1,5 +1,7 @@
 #pragma once
 #include "common.hpp"
+#include "server_monitor.hpp"
+
 #include <g3log/g3log.hpp>
 #include <g3log/logworker.hpp>
 
@@ -47,7 +49,7 @@ namespace gottvergessen
 	class logger;
 	inline logger* g_logger{};
 
-	class logger
+	class logger : public server_monitor
 	{
 	public:
 		explicit logger(std::string window_name) :
@@ -152,6 +154,7 @@ namespace gottvergessen
 
 				if (!(level_value & FLAG_NO_CONSOLE))
 				{
+					g_logger->send_info(log_message.toString(format_raw));
 					SetConsoleTextAttribute(g_logger->m_console_handle, static_cast<std::uint16_t>(log_colors[log_message._level.text]));
 					g_logger->m_console_out << log_message.toString(is_raw ? format_raw : format_console) << std::flush;
 				}

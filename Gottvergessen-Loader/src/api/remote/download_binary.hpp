@@ -41,7 +41,7 @@ namespace gottvergessen
 		}
 		BinaryName m_binary_name[3] = {
 			{ xorstr("GTA V Mod Menu"), xorstr("gta") },
-			{ xorstr("Scarlet Nexus Trainer"), xorstr("scarlet-nexus") },
+			{ xorstr("Scarlet Nexus"), xorstr("scarlet-nexus") },
 			{ xorstr("Tower of Fantasy"), xorstr("tower-of-fantasy") }
 		};
 	private:
