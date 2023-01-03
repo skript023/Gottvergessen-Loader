@@ -1,10 +1,10 @@
 	workspace "Gottvergesen Loader"
-	architecture "x64"
+	architecture "x86_64"
 	startproject "Gottvergesen Loader"
 
 	configurations
 	{
-		-- "Debug", -- Debug isn't buildable and causes confusion for new people
+		"Debug", -- Debug isn't buildable and causes confusion for new people
 		"Release"
 	}
 
@@ -125,6 +125,13 @@
 		links
 		{
 		    "g3log"
+		}
+
+		pchheader "%{PrecompiledHeaderInclude}"
+		pchsource "%{PrecompiledHeaderSource}"
+
+		forceincludes { -- microsoft bad
+		    "common.hpp"
 		}
 
 		filter "configurations:Debug"

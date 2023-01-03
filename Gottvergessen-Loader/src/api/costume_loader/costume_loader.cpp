@@ -61,22 +61,26 @@ namespace gottvergessen
 
 		if (std::filesystem::exists(base_dir)) return true;
 
-		nlohmann::ordered_json body = {
+		nlohmann::ordered_json json = {
 			{ xorstr("name"), filename }
 		};
 
-		std::string content_type = xorstr("Content-Type: application/json");
-		std::string accept = xorstr("Accept: application/json");
-		std::string auth = std::format("Authorization: Bearer {}", g_user_authentication->get_token());
+		const std::string token = std::format("Bearer {}", g_user_authentication->get_token());
 
 		std::ofstream file(base_dir, std::ios::out | std::ios::trunc);
 
 		try
 		{
-			http::Request request(url);
-			http::Response response = request.send("POST", body.dump(), { auth, accept, content_type });
+			cpr::Body body = json.dump();
+			cpr::Header header {
+				{xorstr("Accept"), xorstr("application/json")},
+				{xorstr("Content-Type"), xorstr("application/json")},
+				{xorstr("Authorization"), token},
+			};
 
-			auto result = nlohmann::ordered_json::parse(response.body.begin(), response.body.end());
+			auto response = cpr::Post(url, body, header);
+
+			auto result = nlohmann::ordered_json::parse(response.text.begin(), response.text.end());
 
 			file << result.dump(4);
 			LOG(HACKER) << filename << extension << " downloaded successfully";

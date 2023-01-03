@@ -1,4 +1,5 @@
 #include "injection.hpp"
+#include "injector_library.hpp"
 #include "api/remote/download_binary.hpp"
 
 namespace gottvergessen
@@ -85,9 +86,49 @@ namespace gottvergessen
 		return true;
 	}
 
-	bool injection::thread_execution_hijacking(std::string file_name)
+	bool injection::thread_execution_hijacking(std::string filename)
 	{
-		return false;
+		HINSTANCE injection_module = LoadLibrary(GH_INJ_MOD_NAME);
+		auto inject_library = (f_InjectA)GetProcAddress(injection_module, "InjectA");
+
+		auto symbol_state = (f_GetSymbolState)GetProcAddress(injection_module, "GetSymbolState");
+		auto import_state = (f_GetSymbolState)GetProcAddress(injection_module, "GetImportState");
+		auto start_download = (f_StartDownload)GetProcAddress(injection_module, "StartDownload");
+
+		start_download();
+
+		while (symbol_state() != 0)
+		{
+			Sleep(10);
+		}
+
+		while (import_state() != 0)
+		{
+			Sleep(10);
+		}
+
+		if (this->get_process_id_by_name() == NULL)
+		{
+			LOG(WARNING) << "Injection failed, no process id found.";
+
+			return false;
+		}
+
+		INJECTIONDATAA data = {
+			"",
+			this->get_process_id_by_name(),
+			INJECTION_MODE::IM_LdrLoadDll,
+			LAUNCH_METHOD::LM_HijackThread,
+			INJ_HIJACK_HANDLE | INJ_FAKE_HEADER,
+			2000,
+			NULL,
+			NULL,
+			false
+		};
+
+		strcpy(data.szDllPath, filename.c_str());
+
+		return inject_library(&data) == 0;
 	}
 
 	bool injection::inject_library()
@@ -95,8 +136,34 @@ namespace gottvergessen
 		auto filename = m_filename.get_file(g_download_binary->get_binary_name()).get_path();
 		this->set_target_process(g_download_binary->injection_target());
 
+		if (!this->validate_binary(filename)) return false;
+
+		LOG(HACKER) << "Waiting for " << this->name;
+
+		while (!this->is_process_running())
+			std::this_thread::sleep_for(100ms);
+
+		this->pid = this->get_process_id_by_name();
+
+		LOG(HACKER) << "Process " << this->name << " PID : " << this->pid;
+
+		if (!this->create_remote_thread(filename.string()))
+		{
+			LOG(HACKER) << "Could not inject the binary.";
+
+			return false;
+		}
+
+		LOG(HACKER) << "Binary injection done.";
+
+		return true;
+	}
+
+	bool injection::validate_binary(std::filesystem::path filename)
+	{
 		if (!filename.is_absolute())
 			filename = std::filesystem::absolute(filename);
+
 		LOG(HACKER) << "Unpacking " << filename.filename().string();
 
 		switch (this->validate_file(filename))
@@ -125,26 +192,6 @@ namespace gottvergessen
 			LOG(HACKER) << "Binary seems valid, proceeding with injection.";
 
 			break;
-		}
-
-		LOG(HACKER) << "Waiting for " << this->name;
-
-		while (!this->is_process_running())
-			std::this_thread::sleep_for(100ms);
-
-		this->pid = this->get_process_id_by_name();
-
-		LOG(HACKER) << "Process " << this->name << " PID : " << this->pid;
-
-		if (this->create_remote_thread(filename.string()))
-		{
-			LOG(HACKER) << "Binary injection done.";
-		}
-		else
-		{
-			LOG(HACKER) << "Could not inject the binary.";
-			
-			return false;
 		}
 
 		return true;
@@ -214,3 +261,6 @@ namespace gottvergessen
 		return eValidType::VALID;
 	}
 }
+
+//CRM whole sell
+//CRM WIB (NCX WIB)

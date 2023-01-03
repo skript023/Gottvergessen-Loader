@@ -19,35 +19,40 @@ namespace gottvergessen
 		download_binary& operator=(download_binary&& that) = delete;
 
 		bool check_binary_before_injection();
-
+		bool validate_before_injection();
 		bool download(const std::string filename, const std::filesystem::path& location) const;
+		bool generate(const std::string filename);
 		bool is_version_valid() const { return m_loader_version.m_valid; }
-		int loader_version_machine() const { return m_loader_version.m_version_machine; }
-		std::string loader_version() const { return m_loader_version.m_version; }
+		[[nodiscard]] int loader_version_machine() const { return m_loader_version.m_version_machine; }
+		[[nodiscard]] std::string loader_version() const { return m_loader_version.m_version; }
 		void select_binary(const std::string name) { m_selected_binary = name; }
-		std::string selected_binary() const { return m_selected_binary; }
-		std::string get_binary_name() const { return m_filename; }
-		std::string injection_target() const { return m_target_process; }
+		[[nodiscard]] std::string selected_binary() const { return m_selected_binary; }
+		[[nodiscard]] std::string get_binary_name() const { return m_filename; }
+		[[nodiscard]] std::string injection_target() const { return m_target_process; }
+		void set_binary_data(const std::string data) { m_binary_data = {data.begin(), data.end()}; }
+		[[nodiscard]] std::string binary_data() const { return m_binary_data; }
 
 		template <class InIterator, class OutIterator>
-		void write_binary(InIterator begin, InIterator end, OutIterator result)
+		void copy(InIterator begin, InIterator end, OutIterator result)
 		{
 			int i = 0;
 			for (InIterator it = begin; it != end; ++it)
 			{
-				LOG(HACKER) << "Progress : " << i % *it << "%";
+				LOG(HACKER) << "Progress : " << i - end << "%";
 				*result++ = *it; i++;
 			}
 		}
-		BinaryName m_binary_name[3] = {
+		BinaryName m_binary_name[4] = {
 			{ xorstr("GTA V Mod Menu"), xorstr("gta") },
 			{ xorstr("Scarlet Nexus"), xorstr("scarlet-nexus") },
-			{ xorstr("Tower of Fantasy"), xorstr("tower-of-fantasy") }
+			{ xorstr("Tower of Fantasy"), xorstr("tower-of-fantasy") },
+			{ xorstr("Elsword Zero"), xorstr("ElsZero") }
 		};
 	private:
 		LoaderVersion m_loader_version;
 		folder m_location;
-		const std::string url = xorstr("http://localhost:8000/api/v1/binary/shellcode");
+		std::string m_binary_data;
+		const cpr::Url url = xorstr("https://gottvergessen.000webhostapp.com/api/v1/binary/shellcode");
 	};
 
 	inline download_binary* g_download_binary;

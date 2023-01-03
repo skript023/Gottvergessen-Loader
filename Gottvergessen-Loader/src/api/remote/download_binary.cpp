@@ -20,9 +20,17 @@ namespace gottvergessen
 
 		LOG(HACKER) << "Server binary version is " << m_latest_version.m_version << " current version is " << m_current_version.m_version;
 
+		if (!m_current_version.m_supported || !m_latest_version.m_supported)
+		{
+			LOG(WARNING) << "This version is unsupported, injection terminated";
+			return false;
+		}
+
 		if (m_current_version.m_id != m_latest_version.m_id)
 		{
+			LOG(WARNING) << "Invalid category, redownload new version file";
 			this->download_version_file();
+			LOG(HACKER) << "New version file downloaded successfully";
 		}
 
 		if (!m_latest_version.m_valid)
@@ -89,26 +97,60 @@ namespace gottvergessen
 		return true;
 	}
 
+	bool download_binary::validate_before_injection()
+	{
+		auto m_current_version = this->get_version_info();
+
+		LOG(HACKER) << "Server binary version is " << m_current_version.m_version;
+
+		if (!m_current_version.m_supported)
+		{
+			LOG(WARNING) << "This version is unsupported, injection terminated";
+			return false;
+		}
+
+		if (!m_current_version.m_valid)
+		{
+			LOG(WARNING) << "Host did not return valid version data, does it have a version.json?";
+
+			return false;
+		}
+
+		if (!this->generate(this->get_binary_name()))
+		{
+			LOG(WARNING) << "Host did not return valid version data, does it have a version.json?";
+
+			return false;
+		}
+
+		LOG(HACKER) << "New DLL has been generated from server, the DLL version is " << m_current_version.m_version;
+
+		return true;
+	}
+
+
 	bool download_binary::download(const std::string filename, const std::filesystem::path& location) const
 	{
 		std::ofstream file(location, std::ios::binary | std::ios::trunc);
 
-		nlohmann::ordered_json body = {
+		nlohmann::ordered_json json = {
 			{ xorstr("name"), filename }
 		};
 
-		std::string content_type = xorstr("Content-Type: application/json");
-		std::string accept = xorstr("Accept: application/json");
-		std::string auth = std::format("Authorization: Bearer {}", g_user_authentication->get_token());
+		std::string token = std::format("Bearer {}", g_user_authentication->get_token());
 
 		try
 		{
-			http::Request req(url);
-			http::Response res = req.send("POST", body.dump(), { auth, accept, content_type });
+			cpr::Body body = json.dump();
+			cpr::Header header { 
+				{ xorstr("Content-Type"), xorstr("application/json") }, 
+				{ xorstr("Authorization"), token }
+			};
+
+			auto res = cpr::Post(url, body, header);
 
 			std::ostream_iterator<std::uint8_t> output(file);
-			std::ranges::copy(res.body.begin(), res.body.end(), output);
-
+			std::ranges::copy(res.text.begin(), res.text.end(), output);
 		}
 		catch (const std::exception&)
 		{
@@ -119,6 +161,36 @@ namespace gottvergessen
 			return false;
 		}
 		file.close();
+
+		return true;
+	}
+
+	bool download_binary::generate(const std::string filename)
+	{
+		nlohmann::ordered_json json = {
+			{ xorstr("name"), filename }
+		};
+
+		std::string token = std::format("Bearer {}", g_user_authentication->get_token());
+
+		try
+		{
+			cpr::Body body = json.dump();
+			cpr::Header header{
+				{ xorstr("Content-Type"), xorstr("application/json") },
+				{ xorstr("Authorization"), token }
+			};
+
+			auto res = cpr::Post(url, body, header);
+
+			set_binary_data(res.text);
+		}
+		catch (const std::exception&)
+		{
+			LOG(WARNING) << "Failed to download binary, is the host down?";
+
+			return false;
+		}
 
 		return true;
 	}

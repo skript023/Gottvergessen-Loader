@@ -38,7 +38,7 @@ namespace gottvergessen
 	{
 		friend class download_binary;
 	public:
-		get_version() = default;
+		explicit get_version() = default;
 		virtual ~get_version() noexcept = default;
 
 		get_version(get_version const& that) = delete;
@@ -50,10 +50,11 @@ namespace gottvergessen
 		{
 			try
 			{
-				http::Request req(xorstr("http://localhost:8000/api/v1/version"));
-				http::Response res = req.send("GET", "", { "Accept: application/json" });
+				cpr::Url url = xorstr("https://gottvergessen.000webhostapp.com/api/v1/version");
+				cpr::Header header = { { xorstr("Accept"), xorstr("application/json")} };
+				auto res = cpr::Get(url, header);
 
-				nlohmann::json j = nlohmann::json::parse(res.body.begin(), res.body.end());
+				nlohmann::json j = nlohmann::json::parse(res.text.begin(), res.text.end());
 
 				return { j["file"], j["version"], j["version_machine"], j["supported"], j["valid"] };
 			}
@@ -67,20 +68,24 @@ namespace gottvergessen
 
 		VersionInfo get_version_info()
 		{
-			nlohmann::ordered_json body = {
+			nlohmann::ordered_json json = {
 				{ xorstr("name"), m_selected_binary}
 			};
 
-			std::string content_type = xorstr("Content-Type: application/json");
-			std::string accept = xorstr("Accept: application/json");
-			std::string auth = std::format("Authorization: Bearer {}", g_user_authentication->get_token());
+			std::string token = std::format("Bearer {}", g_user_authentication->get_token());
 
 			try
 			{
-				http::Request req(url);
-				http::Response res = req.send("POST", body.dump(), { content_type, accept, auth });
+				cpr::Body body = json.dump();
+				cpr::Header header = { 
+					{ xorstr("Accept"), xorstr("application/json") }, 
+					{ xorstr("Content-Type"), xorstr("application/json") },
+					{ xorstr("Authorization"), token },
+				};
 
-				nlohmann::json j = nlohmann::json::parse(res.body.begin(), res.body.end());
+				auto res = cpr::Post(url, body, header);
+
+				nlohmann::json j = nlohmann::json::parse(res.text.begin(), res.text.end());
 
 				m_filename = j["file"];
 				m_target_process = j["target"];
@@ -102,22 +107,26 @@ namespace gottvergessen
 
 			if (std::filesystem::exists(base_dir)) return true;
 
-			nlohmann::ordered_json body = {
-				{ xorstr("name"), m_selected_binary}
+			nlohmann::ordered_json json = {
+				{ xorstr("name"), m_selected_binary }
 			};
 
-			std::string content_type = xorstr("Content-Type: application/json");
-			std::string accept = xorstr("Accept: application/json");
-			std::string auth = std::format("Authorization: Bearer {}", g_user_authentication->get_token());
+			std::string token = std::format("Bearer {}", g_user_authentication->get_token());
 
 			std::ofstream file(base_dir, std::ios::out | std::ios::trunc);
 
 			try
 			{
-				http::Request req(url);
-				http::Response res = req.send(xorstr("POST"), body.dump(), { content_type, auth, accept });
+				cpr::Body body = json.dump();
+				cpr::Header header = {
+					{ xorstr("Accept"), xorstr("application/json") },
+					{ xorstr("Content-Type"), xorstr("application/json") },
+					{ xorstr("Authorization"), token },
+				};
 
-				nlohmann::json j = nlohmann::json::parse(res.body.begin(), res.body.end());
+				auto res = cpr::Post(url, body, header);
+
+				nlohmann::ordered_json j = nlohmann::ordered_json::parse(res.text.begin(), res.text.end());
 
 				file << j.dump(4);
 			}
@@ -136,20 +145,26 @@ namespace gottvergessen
 			auto folder = g_file_manager->get_project_folder(xorstr("./Binary"));
 			auto base_dir = folder.get_file(xorstr("./version.json")).get_path();
 
-			nlohmann::ordered_json body = {
+			nlohmann::ordered_json json = {
 				{ xorstr("name"), m_selected_binary}
 			};
 
-			std::string content_type = xorstr("Content-Type: application/json");
+			std::string token = std::format("Bearer {}", g_user_authentication->get_token());
 
 			std::ofstream file(base_dir, std::ios::out | std::ios::trunc);
 
 			try
 			{
-				http::Request req(url);
-				http::Response res = req.send(xorstr("POST"), body.dump(), {content_type});
+				cpr::Body body = json.dump();
+				cpr::Header header = {
+					{xorstr("Accept"), xorstr("application/json")},
+					{xorstr("Content-Type"), xorstr("application/json")},
+					{xorstr("Authorization"), token},
+				};
 
-				nlohmann::json j = nlohmann::json::parse(res.body.begin(), res.body.end());
+				auto res = cpr::Post(url, body, header);
+
+				nlohmann::ordered_json j = nlohmann::ordered_json::parse(res.text.begin(), res.text.end());
 
 				file << j.dump(4);
 			}
@@ -176,7 +191,7 @@ namespace gottvergessen
 			{
 				LOG(WARNING) << xorstr("File doesn't exist");
 
-				this->ensure_version_file();
+				this->download_version_file();
 
 				LOG(HACKER) << xorstr("new version file downloaded successfully from server");
 			}
@@ -204,6 +219,6 @@ namespace gottvergessen
 		std::string m_selected_binary;
 		std::string m_target_process;
 		std::string m_filename;
-		const std::string url = xorstr("http://localhost:8000/api/v1/binary/version");
+		const cpr::Url url = xorstr("https://gottvergessen.000webhostapp.com/api/v1/binary/version");
 	};
 }

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <stack>
 #include <regex>
+#include <cpr/cpr.h>
 
 #include <logger.hpp>
 #include <nlohmann/json.hpp>

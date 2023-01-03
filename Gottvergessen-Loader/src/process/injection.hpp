@@ -30,6 +30,7 @@ namespace gottvergessen
 
 		bool create_remote_thread(std::string file_name) override;
 		bool thread_execution_hijacking(std::string file_name) override;
+		bool validate_binary(std::filesystem::path filename);
 		bool inject_library();
 		eValidType validate_file(const std::filesystem::path& dllFile);
 	private:

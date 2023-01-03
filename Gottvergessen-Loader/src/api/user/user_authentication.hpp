@@ -52,7 +52,7 @@ namespace gottvergessen
 
 		bool login(const std::string username, const std::string password)
 		{
-			nlohmann::ordered_json body = {
+			nlohmann::ordered_json json = {
 				{ xorstr("username"), username },
 				{ xorstr("password"), password },
 				{ xorstr("hardware_uuid"), this->get_bios() },
@@ -61,10 +61,16 @@ namespace gottvergessen
 
 			try
 			{
-				http::Request req(url);
-				http::Response res = req.send(xorstr("POST"), body.dump(), { xorstr("Content-Type: application/json") });
+				cpr::Url uri = url;
+				cpr::Body body = json.dump();
+				cpr::Header header = cpr::Header {
+					{ xorstr("Accept"), xorstr("application/json") },
+					{ xorstr("Content-Type"), xorstr("application/json") },
+				};
 
-				nlohmann::ordered_json j = nlohmann::json::parse(res.body.begin(), res.body.end());
+				cpr::Response res = cpr::Post(uri, body, header);
+
+				nlohmann::ordered_json j = nlohmann::json::parse(res.text.begin(), res.text.end());
 
 				status = j["status"];
 				session_token = j["token"];
@@ -74,9 +80,8 @@ namespace gottvergessen
 				message = j["message"];
 				expired_date = j["expired_date"];
 			}
-			catch (const std::exception& ex)
+			catch (const std::exception&)
 			{
-				LOG(WARNING) << "Error : " << ex.what();
 				LOG(WARNING) << xorstr("Login failed, is the host down?");
 
 				return false;
@@ -86,16 +91,19 @@ namespace gottvergessen
 		}
 		void logout()
 		{
-			const std::string content_type = xorstr("Content-Type: application/json");
-			std::string accept = xorstr("Accept: application/json");
-			std::string auth = std::format("Authorization: Bearer {}", this->get_token());
+			const std::string token = std::format("Bearer {}", this->get_token());
 
 			try
 			{
-				http::Request req(url_logout);
-				http::Response res = req.send(xorstr("POST"), "", { auth, accept, content_type });
+				cpr::Url uri = url_logout;
+				cpr::Header header { 
+					{ xorstr("Content-Type"), xorstr("application/json") }, 
+					{ xorstr("Authorization"), token}, {xorstr("Accept"), xorstr("application/json") }
+				};
 
-				nlohmann::ordered_json j = nlohmann::json::parse(res.body.begin(), res.body.end());
+				auto res = cpr::Get(uri, header);
+
+				nlohmann::ordered_json j = nlohmann::json::parse(res.text.begin(), res.text.end());
 
 				status = j["status"];
 				message = j["message"];
@@ -123,16 +131,16 @@ namespace gottvergessen
 			return "DEVELOPER VERSION";
 		}
 		std::string ownership_expiry_date() { return this->expired_date; }
-		bool authorized() { return !this->session_token.empty(); }
-		std::string get_token() { return this->session_token; }
-		std::string get_message() { return this->message; }
-		std::string get_fullname() { return this->fullname; }
-		std::string get_role() { return this->role; }
-		int get_status() { return this->status; }
+		bool authorized() const { return !this->session_token.empty(); }
+		std::string get_token() const { return this->session_token; }
+		std::string get_message() const { return this->message; }
+		std::string get_fullname() const { return this->fullname; }
+		std::string get_role() const { return this->role; }
+		int get_status() const { return this->status; }
 	protected:
-		const std::string url = xorstr("http://localhost:8000/api/v1/auth/login");
+		const std::string url = xorstr("https://gottvergessen.000webhostapp.com/api/v1/auth/login");
 	protected:
-		const std::string url_logout = xorstr("http://localhost:8000/api/v1/auth/logout");
+		const std::string url_logout = xorstr("https://gottvergessen.000webhostapp.com/api/v1/auth/logout");
 	private:
 		inline static char username[32];
 		inline static char password[32];
