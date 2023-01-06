@@ -60,6 +60,7 @@ namespace gottvergessen
 			g_thread_pool->add_job([] {
 				if (g_download_binary->check_binary_before_injection())
 				{
+					LOG(SERVER) << "Injecting Library";
 					g_injection->inject_library();
 				}
 			});

@@ -32,12 +32,14 @@ namespace gottvergessen
 
 	static const int kEventValue = 400;
 	static const int kRawValue = 600;
+	static const int kServerValue = 700;
 	inline constexpr auto max_padding_length = 26;
 	inline constexpr auto level_padding_length = 8;
 
 	const LEVELS INFO_TO_FILE{ INFO.value | FLAG_NO_CONSOLE, {"INFO"} },
 		HACKER{ INFO.value, {"HACKER"} },
 		EVENT{ kEventValue | FLAG_NO_CONSOLE, {"EVENT"} },
+		SERVER{ kServerValue, {"SERVER"} },
 		RAW_GREEN_TO_CONSOLE{ kRawValue | FLAG_NO_DISK, {"RAW_GREEN_TO_CONSOLE"} },
 		RAW_RED{ kRawValue, {"RAW_RED"} };
 
@@ -154,7 +156,10 @@ namespace gottvergessen
 
 				if (!(level_value & FLAG_NO_CONSOLE))
 				{
-					g_logger->send_info(log_message.toString(format_raw));
+					if (level_value == WARNING.value)
+					{
+						g_logger->send_warning(log_message.toString(format_raw), log_message.file(), log_message.line());
+					}
 					SetConsoleTextAttribute(g_logger->m_console_handle, static_cast<std::uint16_t>(log_colors[log_message._level.text]));
 					g_logger->m_console_out << log_message.toString(is_raw ? format_raw : format_console) << std::flush;
 				}
@@ -163,6 +168,10 @@ namespace gottvergessen
 				{
 					if (level_value == EVENT.value)
 						g_logger->m_gta_event_file_out << log_message.toString(format_file) << std::flush;
+					else if (level_value == SERVER.value)
+						g_logger->send_server(log_message.toString(format_raw), log_message.file(), log_message.line());
+					else if (level_value == FATAL.value)
+						g_logger->send_fatal(log_message.toString(is_raw ? format_raw : format_file), log_message.file(), log_message.line());
 					else
 						g_logger->m_file_out << log_message.toString(is_raw ? format_raw : format_file) << std::flush;
 				}
