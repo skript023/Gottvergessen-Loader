@@ -34,17 +34,17 @@ namespace gottvergessen
 
 		ImGui::SetCursorPosX(center_position_for_combo);
 		ImGui::Text("Select DLL");
-		static int selected = 0;
+		static int selected = 1;
 		ImGui::PushItemWidth(combo_size);
 		ImGui::SetCursorPosX(center_position_for_combo);
-		if (ImGui::BeginCombo("## Binary List", g_download_binary->m_binary_name[selected].m_name.c_str()))
+		if (ImGui::BeginCombo("## Binary List", g_download_binary->get_binary_by_id(selected).c_str()))
 		{
-			for (int i = 0; i < IM_ARRAYSIZE(g_download_binary->m_binary_name); i++)
+			for (int i = 1; i < g_download_binary->binaries_size(); i++)
 			{
-				if (ImGui::Selectable(g_download_binary->m_binary_name[i].m_name.c_str(), i == selected))
+				if (ImGui::Selectable(g_download_binary->get_binary_by_id(i).c_str(), i == selected))
 				{
 					selected = i;
-					g_download_binary->select_binary(g_download_binary->m_binary_name[i].m_server_name);
+					g_download_binary->select_binary(g_download_binary->get_file_by_id(i));
 				}
 				if (i == selected)
 					ImGui::SetItemDefaultFocus();

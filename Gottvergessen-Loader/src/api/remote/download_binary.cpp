@@ -5,6 +5,7 @@ namespace gottvergessen
 {
 	download_binary::download_binary(const folder& location) : m_location(location), m_loader_version(get_loader_version())
 	{
+		this->generate_binaries();
 		g_download_binary = this;
 	}
 
@@ -184,6 +185,36 @@ namespace gottvergessen
 			auto res = cpr::Post(url, body, header);
 
 			set_binary_data(res.text);
+		}
+		catch (const std::exception&)
+		{
+			LOG(WARNING) << "Failed to download binary, is the host down?";
+
+			return false;
+		}
+
+		return true;
+	}
+
+	bool download_binary::generate_binaries()
+	{
+		std::string token = std::format("Bearer {}", g_user_authentication->get_token());
+
+		try
+		{
+			cpr::Header header{
+				{ xorstr("Content-Type"), xorstr("application/json") },
+				{ xorstr("Authorization"), token }
+			};
+
+			cpr::Url url = xorstr("https://gottvergessen.000webhostapp.com/api/v1/binary/all");
+
+			auto res = cpr::Get(url, header);
+
+			this->m_binaries = nlohmann::ordered_json::parse(res.text);
+			auto& data = this->m_binaries.begin().value();
+
+			LOG(HACKER) << data["game"].get<std::string>();
 		}
 		catch (const std::exception&)
 		{

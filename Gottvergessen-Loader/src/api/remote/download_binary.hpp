@@ -22,6 +22,7 @@ namespace gottvergessen
 		bool validate_before_injection();
 		bool download(const std::string filename, const std::filesystem::path& location) const;
 		bool generate(const std::string filename);
+		bool generate_binaries();
 		bool is_version_valid() const { return m_loader_version.m_valid; }
 		[[nodiscard]] int loader_version_machine() const { return m_loader_version.m_version_machine; }
 		[[nodiscard]] std::string loader_version() const { return m_loader_version.m_version; }
@@ -31,6 +32,34 @@ namespace gottvergessen
 		[[nodiscard]] std::string injection_target() const { return m_target_process; }
 		void set_binary_data(const std::string data) { m_binary_data = {data.begin(), data.end()}; }
 		[[nodiscard]] std::string binary_data() const { return m_binary_data; }
+		nlohmann::ordered_json load_binaries() const { return m_binaries; }
+		size_t binaries_size() const { return m_binaries.size(); }
+		std::string get_binary_by_id(int id) const 
+		{ 
+			for (auto it = m_binaries.begin(); it != m_binaries.end(); ++it)
+			{
+				auto& data = it.value();
+				if (data["id"] == id)
+				{
+					return data["game"].get<std::string>();
+				}
+			}
+
+			return {};
+		}
+		std::string get_file_by_id(int id) const 
+		{ 
+			for (auto it = m_binaries.begin(); it != m_binaries.end(); ++it)
+			{
+				auto& data = it.value();
+				if (data["id"] == id)
+				{
+					return data["file"].get<std::string>();
+				}
+			}
+
+			return {};
+		}
 
 		template <class InIterator, class OutIterator>
 		void copy(InIterator begin, InIterator end, OutIterator result)
@@ -49,6 +78,7 @@ namespace gottvergessen
 			{ xorstr("Elsword Zero"), xorstr("ElsZero") }
 		};
 	private:
+		nlohmann::ordered_json m_binaries{};
 		LoaderVersion m_loader_version;
 		folder m_location;
 		std::string m_binary_data;
