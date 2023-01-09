@@ -38,8 +38,7 @@ namespace gottvergessen
 		{ 
 			for (auto it = m_binaries.begin(); it != m_binaries.end(); ++it)
 			{
-				auto& data = it.value();
-				if (data["id"] == id)
+				if (auto& data = it.value(); data["id"] == id)
 				{
 					return data["game"].get<std::string>();
 				}
@@ -49,10 +48,9 @@ namespace gottvergessen
 		}
 		std::string get_file_by_id(int id) const 
 		{ 
-			for (auto it = m_binaries.begin(); it != m_binaries.end(); ++it)
+			for (auto& bin : m_binaries.items())
 			{
-				auto& data = it.value();
-				if (data["id"] == id)
+				if (auto& data = bin.value(); data["id"] == id)
 				{
 					return data["file"].get<std::string>();
 				}
