@@ -11,6 +11,7 @@ namespace gottvergessen
 	{
 		const int m_id;
 		const std::string m_game;
+		const unsigned int m_code;
 		const std::string m_file;
 		const std::string m_target;
 		const std::string m_version;
@@ -90,7 +91,7 @@ namespace gottvergessen
 				m_filename = j["file"];
 				m_target_process = j["target"];
 
-				return { j["id"], j["game"], j["file"], j["target"], j["version"], j["version_machine"], j["supported"], j["valid"] };
+				return { j["id"], j["game"], j["code"], j["file"], j["target"], j["version"], j["version_machine"], j["supported"], j["valid"] };
 			}
 			catch (const std::exception&)
 			{
@@ -210,7 +211,7 @@ namespace gottvergessen
 			m_filename = j["file"];
 			m_target_process = j["target"];
 
-			return { j["id"], j["game"], j["file"], j["target"], j["version"], j["version_machine"], j["supported"], j["valid"] };
+			return { j["id"], j["game"], j["code"], j["file"], j["target"], j["version"], j["version_machine"], j["supported"], j["valid"] };
 		}
 
 		VersionInfo m_version_info{};
