@@ -6,7 +6,7 @@
     <img src="https://img.shields.io/github/license/skript023/Gottvergessen-Loader.svg?style=flat-square"/>
    </a>
   <a href="https://github.com/skript023/Gottvergessen-Loader/actions">
-      <img src="https://img.shields.io/github/workflow/status/skript023/Gottvergessen-Loader/CI/main?style=flat-square"/>
+      <img src="https://img.shields.io/github/actions/workflow/status/skript023/Gottvergessen-Loader/main.yml?branch=main&style=flat-square"/>
    </a>
   <br>
   DLL Injector remote through REST API strictly for educational purposes.
