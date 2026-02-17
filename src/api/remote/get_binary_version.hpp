@@ -103,7 +103,7 @@ namespace gottvergessen
 
 		bool ensure_version_file()
 		{
-			auto folder = g_file_manager->get_project_folder("./Binary");
+			auto folder = file_manager::get_project_folder("./Binary");
 			auto base_dir = folder.get_file("./version.json").get_path();
 
 			if (std::filesystem::exists(base_dir)) return true;
@@ -143,7 +143,7 @@ namespace gottvergessen
 
 		bool download_version_file()
 		{
-			auto folder = g_file_manager->get_project_folder(xorstr("./Binary"));
+			auto folder = file_manager::get_project_folder(xorstr("./Binary"));
 			auto base_dir = folder.get_file(xorstr("./version.json")).get_path();
 
 			nlohmann::ordered_json json = {
@@ -181,7 +181,7 @@ namespace gottvergessen
 
 		VersionInfo get_current_version()
 		{
-			auto folder = g_file_manager->get_project_folder(xorstr("./Binary"));
+			auto folder = file_manager::get_project_folder(xorstr("./Binary"));
 			auto base_dir = folder.get_file(xorstr("./version.json")).get_path();
 
 			std::ifstream file(base_dir);

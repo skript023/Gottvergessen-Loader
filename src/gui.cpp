@@ -88,14 +88,53 @@ namespace gottvergessen
 		ImGui::SetNextWindowSize(ImVec2(window_size.x, window_size.y));
 		ImGui::Begin("Gottvergessen Sense Loader", &m_opened, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
 
+		if (ImGui::BeginMenuBar())
+		{
+			if (ImGui::BeginMenu("File"))
+			{
+				if (ImGui::MenuItem("Exit"))
+					PostQuitMessage(0);
+				ImGui::EndMenu();
+			}
+
+			if (ImGui::BeginMenu("Help"))
+			{
+				ImGui::MenuItem("Version 1.0");
+				ImGui::EndMenu();
+			}
+
+			ImGui::EndMenuBar();
+		}
+
+		// ===== SIDEBAR =====
+		ImGui::BeginChild("Sidebar", ImVec2(180, 0), true);
+
+		ImGui::Text("Navigation");
+		ImGui::Separator();
+
+		static int selected = 0;
+
+		if (ImGui::Selectable("Login", selected == 0)) selected = 0;
+		if (ImGui::Selectable("Injection", selected == 1)) selected = 1;
+		if (ImGui::Selectable("Settings", selected == 2)) selected = 2;
+
+		ImGui::EndChild();
+
+		ImGui::SameLine();
+
+		// ===== MAIN CONTENT =====
+		ImGui::BeginChild("Content", ImVec2(0, 0), false);
+
 		if (!g_user_authentication->authorized())
 		{
 			views::login_view();
 		}
-		else if (g_user_authentication->authorized())
+		else
 		{
 			views::injection_view();
 		}
+
+		ImGui::EndChild();
 		ImGui::End();
 	}
 }

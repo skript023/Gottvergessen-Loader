@@ -56,7 +56,7 @@ namespace gottvergessen
 	}
 	bool costume_loader::download(const std::string filename)
 	{
-		auto folder = g_file_manager->get_project_folder("./costumes");
+		auto folder = file_manager::get_project_folder("./costumes");
 		auto base_dir = folder.get_file("./" + filename + ".json").get_path();
 
 		if (std::filesystem::exists(base_dir)) return true;

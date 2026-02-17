@@ -5,65 +5,50 @@
 
 namespace gottvergessen
 {
-	class file_manager;
-	inline file_manager* g_file_manager{};
-
 	class file_manager final
 	{
+		static file_manager& instance()
+		{
+			static file_manager i{};
+
+			return i;
+		}
+
 	public:
+		file_manager() = default;
+		virtual ~file_manager() = default;
+		file_manager(const file_manager&) = delete;
+		file_manager(file_manager&&) noexcept = delete;
+		file_manager& operator=(const file_manager&) = delete;
+		file_manager& operator=(file_manager&&) noexcept = delete;
 
-		file_manager(std::filesystem::path base_dir)
-			: m_base_dir(base_dir)
+		static bool init(std::filesystem::path const& base_dir)
 		{
-			file_manager::ensure_folder_exists(m_base_dir);
-
-			g_file_manager = this;
+			return instance().init_impl(base_dir);
 		}
-		~file_manager()
+		static std::filesystem::path get_base_dir()
 		{
-			g_file_manager = nullptr;
+			return instance().get_base_dir_impl();
 		}
-
-		std::filesystem::path get_base_dir()
+		static file get_project_file(std::filesystem::path file_path)
 		{
-			return m_base_dir;
+			return instance().get_project_file_impl(file_path);
 		}
-
-		file get_project_file(std::filesystem::path file_path)
+		static folder get_project_folder(std::filesystem::path folder_path)
 		{
-			if (file_path.is_absolute())
-				throw std::exception("Project files are relative to the BaseDir, don't use absolute paths!");
-
-			return file(this, file_path);
+			return instance().get_project_folder_impl(folder_path);
 		}
-		folder get_project_folder(std::filesystem::path folder_path)
-		{
-			if (folder_path.is_absolute())
-				throw std::exception("Project folders are relative to the BaseDir, don't use absolute paths!");
+		static std::filesystem::path ensure_file_can_be_created(const std::filesystem::path file_path);
+		static std::filesystem::path ensure_folder_exists(const std::filesystem::path folder_path);
 
-			return folder(this, folder_path);
-		}
+	private:
+		bool init_impl(const std::filesystem::path& base_dir);
 
-		static std::filesystem::path ensure_file_can_be_created(const std::filesystem::path file_path)
-		{
-			file_manager::ensure_folder_exists(file_path.parent_path());
+		const std::filesystem::path& get_base_dir_impl();
 
-			return file_path;
-		}
-		static std::filesystem::path ensure_folder_exists(const std::filesystem::path folder_path)
-		{
-			bool create_path = !std::filesystem::exists(folder_path);
+		file get_project_file_impl(std::filesystem::path file_path) const;
 
-			if (!create_path && !std::filesystem::is_directory(folder_path))
-			{
-				std::filesystem::remove(folder_path);
-				create_path = true;
-			}
-			if (create_path)
-				std::filesystem::create_directory(folder_path);
-
-			return folder_path;
-		}
+		folder get_project_folder_impl(std::filesystem::path folder_path);
 
 	private:
 		std::filesystem::path m_base_dir;

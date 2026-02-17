@@ -19,9 +19,9 @@ int main()
 	std::filesystem::path base_dir = std::getenv("appdata");
 	base_dir /= "Ellohim Menu";
 
-	auto file_manager_instance = std::make_unique<file_manager>(base_dir);
+	file_manager::init(base_dir);
 
-	auto binary_file = g_file_manager->get_project_folder("./Binary");
+	auto binary_file = file_manager::get_project_folder("./Binary");
 
 	auto logger_instance = std::make_unique<logger>("Gottvergessen Loader");
 
