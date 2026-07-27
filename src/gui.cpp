@@ -90,167 +90,150 @@ namespace gottvergessen
 
 	void gui::dx_on_tick(renderer* renderer)
 	{
-		ImVec2 screen_res{ 0, 0 };
-		ImVec2 window_pos{ 0, 0 };
-		ImVec2 window_size{ 600, 400 };
-		if (m_init_pos == false)
-		{
-			RECT screen_rect;
-			GetWindowRect(GetDesktopWindow(), &screen_rect);
-			screen_res = ImVec2(float(screen_rect.right), float(screen_rect.bottom));
-			window_pos.x = (screen_res.x - window_size.x) * 0.5f;
-			window_pos.y = (screen_res.y - window_size.y) * 0.5f;
-			m_init_pos = true;
-		}
+		HWND hwnd = (renderer && renderer->m_hwnd) ? renderer->m_hwnd : (g_renderer ? g_renderer->m_hwnd : NULL);
 
-		ImGui::SetNextWindowPos(ImVec2(window_pos.x, window_pos.y), ImGuiCond_Once);
-		ImGui::SetNextWindowSize(ImVec2(window_size.x, window_size.y), ImGuiCond_FirstUseEver);
+        // Kunci ImGui selalu di (0,0) internal HWND dan ukurannya selalu menyamai HWND Client Area
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(io.DisplaySize, ImGuiCond_Always);
 
-		// Window Flags tanpa border bawaan ImGui agar tampilan murni seperti custom desktop app
-		ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar 
-									| ImGuiWindowFlags_NoCollapse 
-									| ImGuiWindowFlags_NoSavedSettings 
-									| ImGuiWindowFlags_NoBringToFrontOnFocus
-									| ImGuiWindowFlags_MenuBar;
+        // Window Flags dikunci agar posisi dan ukuran ImGui tidak terlepas dari HWND
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar 
+                                      | ImGuiWindowFlags_NoCollapse 
+                                      | ImGuiWindowFlags_NoSavedSettings 
+                                      | ImGuiWindowFlags_NoMove
+                                      | ImGuiWindowFlags_NoBringToFrontOnFocus;
 
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-		
-		ImGui::Begin("DesktopMainWindow", &m_opened, window_flags);
-		ImGui::PopStyleVar(3);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        
+        ImGui::Begin("DesktopMainWindow", &m_opened, window_flags);
+        ImGui::PopStyleVar(3);
 
-		// =========================================================================
-		// 1. TAMPILAN CUSTOM TITLE BAR (DESAIN DESKTOP MODERN)
-		// =========================================================================
-		float titlebar_height = 36.0f;
-		ImVec2 titlebar_size(ImGui::GetWindowWidth(), titlebar_height);
+		ImVec2 current_size = ImGui::GetWindowSize();
+        if (hwnd && ((int)current_size.x != (int)io.DisplaySize.x || (int)current_size.y != (int)io.DisplaySize.y))
+        {
+            ::SetWindowPos(hwnd, NULL, 0, 0, (int)current_size.x, (int)current_size.y, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+        // =========================================================================
+        // 1. TAMPILAN CUSTOM TITLE BAR
+        // =========================================================================
+        float titlebar_height = 36.0f;
+        ImVec2 titlebar_size(ImGui::GetWindowWidth(), titlebar_height);
 
-		// Frame background untuk titlebar (Sleek Dark Theme)
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.09f, 0.09f, 0.11f, 1.0f));
-		ImGui::BeginChild("CustomTitleBar", titlebar_size, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-		{
-			// App Icon & Title Visual
-			ImGui::SetCursorPos(ImVec2(12, 8));
-			ImGui::TextColored(ImVec4(0.40f, 0.60f, 1.0f, 1.0f), "[G]"); // Accent Logo
-			ImGui::SameLine(0, 8);
-			ImGui::SetCursorPosY(8);
-			ImGui::TextColored(ImVec4(0.92f, 0.92f, 0.95f, 1.0f), "Gottvergessen Sense Loader");
+        // Frame background untuk titlebar
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.09f, 0.09f, 0.11f, 1.0f));
+        ImGui::BeginChild("CustomTitleBar", titlebar_size, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+        {
+			float ibutton_width = 44.0f;
+            float drag_width = ImGui::GetWindowWidth() - (ibutton_width * 3);
+            ImGui::SetCursorPos(ImVec2(0, 0));
+            ImGui::InvisibleButton("##titlebar_drag_zone", ImVec2(drag_width, titlebar_height));
+            if (ImGui::IsItemActive() && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            {
+                if (hwnd)
+                {
+                    ::ReleaseCapture();
+                    ::SendMessage(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
 
-			// Status Badge / Version Tag Visual
-			ImGui::SameLine(0, 10);
-			ImGui::SetCursorPosY(7);
-			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.18f, 0.22f, 1.0f));
-			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 12.0f);
-			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 2));
-			ImGui::Button("v1.0.4 - ONLINE");
-			ImGui::PopStyleVar(2);
-			ImGui::PopStyleColor();
+					io.MouseDown[0] = false;
+                    io.MouseClicked[0] = false;
+                }
+            }
 
-			// Visual Window Controls di Kanan Atas (Minimize, Maximize, Close)
-			float button_width = 44.0f;
-			ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - (button_width * 3), 0));
+            // App Icon & Title Visual
+            ImGui::SetCursorPos(ImVec2(12, 8));
+            ImGui::TextColored(ImVec4(0.40f, 0.60f, 1.0f, 1.0f), "[G]");
+            ImGui::SameLine(0, 8);
+            ImGui::SetCursorPosY(8);
+            ImGui::TextColored(ImVec4(0.92f, 0.92f, 0.95f, 1.0f), "Gottvergessen Sense Loader");
 
-			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
-			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0)); // Flat transparan
-			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.22f, 0.27f, 1.0f));
-			ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.15f, 0.17f, 0.20f, 1.0f));
+            // Status Badge / Version Tag Visual
+            ImGui::SameLine(0, 10);
+            ImGui::SetCursorPosY(7);
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.18f, 0.22f, 1.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 12.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 2));
+            ImGui::Button("v1.0.4 - ONLINE");
+            ImGui::PopStyleVar(2);
+            ImGui::PopStyleColor();
 
-			// Tampilan Tombol MINIMIZE (-)
-			if (ImGui::Button(ICON_FA_WINDOW_MINIMIZE, ImVec2(button_width, titlebar_height)))
-			{
-				// Tampilan visual saja
-			}
+            // Visual Window Controls di Kanan Atas (Minimize, Maximize, Close)
+            float button_width = 44.0f;
+            ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - (button_width * 3), 0));
 
-			ImGui::SameLine(0, 0);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.22f, 0.27f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.15f, 0.17f, 0.20f, 1.0f));
 
-			// Tampilan Tombol MAXIMIZE ([ ])
-			if (ImGui::Button(ICON_FA_WINDOW_MAXIMIZE, ImVec2(button_width, titlebar_height)))
-			{
-				// Tampilan visual saja
-			}
+            // Tombol MINIMIZE
+            if (ImGui::Button(ICON_FA_WINDOW_MINIMIZE, ImVec2(button_width, titlebar_height)))
+            {
+                if (hwnd)
+                    ShowWindow(hwnd, SW_MINIMIZE);
+            }
 
-			ImGui::SameLine(0, 0);
+            ImGui::SameLine(0, 0);
 
-			// Tampilan Tombol CLOSE (X) - Merah saat Hover
-			ImGui::PopStyleColor(2); // Pop Hovered & Active
-			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.85f, 0.20f, 0.20f, 1.0f));
-			ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.65f, 0.10f, 0.10f, 1.0f));
+            // Tombol MAXIMIZE / RESTORE
+            const char* max_icon = (hwnd && IsZoomed(hwnd)) ? ICON_FA_WINDOW_RESTORE : ICON_FA_WINDOW_MAXIMIZE;
+            if (ImGui::Button(max_icon, ImVec2(button_width, titlebar_height)))
+            {
+                if (hwnd)
+                {
+                    if (IsZoomed(hwnd))
+                        ShowWindow(hwnd, SW_RESTORE);
+                    else
+                        ShowWindow(hwnd, SW_MAXIMIZE);
+                }
+            }
 
-			if (ImGui::Button("X", ImVec2(button_width, titlebar_height)))
-			{
-				m_opened = false;
-			}
+            ImGui::SameLine(0, 0);
 
-			ImGui::PopStyleColor(3); // Pop Button, Hovered, Active
-			ImGui::PopStyleVar();    // Pop FrameRounding
-		}
-		ImGui::EndChild();
-		ImGui::PopStyleColor(); // Pop Titlebar Background
+            // Tombol CLOSE
+            ImGui::PopStyleColor(2);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.85f, 0.20f, 0.20f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.65f, 0.10f, 0.10f, 1.0f));
 
-		// =========================================================================
-		// 2. TAMPILAN NAVIGATION & MENU BAR
-		// =========================================================================
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 6));
-		ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4(0.12f, 0.12f, 0.15f, 1.0f));
-		if (ImGui::BeginMenuBar())
-		{
-			if (ImGui::BeginMenu("File"))
-			{
-				if (ImGui::MenuItem("Exit", "Alt+F4"))
-				{
-					m_opened = false;
-					PostQuitMessage(0);
-				}
-				ImGui::EndMenu();
-			}
+            if (ImGui::Button("X", ImVec2(button_width, titlebar_height)))
+            {
+                m_opened = false;
+            }
 
-			if (ImGui::BeginMenu("Theme"))
-			{
-				ImGui::MenuItem("Dark Theme (Active)");
-				ImGui::MenuItem("Cyberpunk Theme");
-				ImGui::EndMenu();
-			}
+            ImGui::PopStyleColor(3);
+            ImGui::PopStyleVar();
+        }
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
 
-			if (ImGui::BeginMenu("Help"))
-			{
-				ImGui::MenuItem("Documentation");
-				ImGui::MenuItem("About");
-				ImGui::EndMenu();
-			}
+        // =========================================================================
+        // 2. TAMPILAN KONTEN UTAMA
+        // =========================================================================
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(20, 20));
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.07f, 0.07f, 0.09f, 0.50f));
+        
+        ImGui::BeginChild("MainContentContainer", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysAutoResize);
+        {
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "WELCOME TO GOTTVERGESSEN");
+            ImGui::TextDisabled("Select an option below to proceed with authentication or configuration.");
+            ImGui::Separator();
+            ImGui::Spacing();
 
-			ImGui::EndMenuBar();
-		}
-		ImGui::PopStyleColor();
-		ImGui::PopStyleVar();
+            if (!g_user_authentication->authorized())
+            {
+                views::login_view();
+            }
+            else
+            {
+                views::injection_view();
+            }
+        }
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
 
-		// =========================================================================
-		// 3. TAMPILAN KONTEN UTAMA (DESAIN LAYOUT MODERN)
-		// =========================================================================
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(20, 20));
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.07f, 0.07f, 0.09f, 0.50f));
-		
-		ImGui::BeginChild("MainContentContainer", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysAutoResize);
-		{
-			// Visual Header Dashboard / Loader Title
-			ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "WELCOME TO GOTTVERGESSEN");
-			ImGui::TextDisabled("Select an option below to proceed with authentication or configuration.");
-			ImGui::Separator();
-			ImGui::Spacing();
-
-			if (!g_user_authentication->authorized())
-			{
-				views::login_view();
-			}
-			else
-			{
-				views::injection_view();
-			}
-		}
-		ImGui::EndChild();
-		ImGui::PopStyleColor();
-		ImGui::PopStyleVar();
-
-		ImGui::End();
+        ImGui::End();
 	}
 }

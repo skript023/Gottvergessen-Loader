@@ -128,11 +128,16 @@ namespace gottvergessen
 
         RegisterClassEx(&m_window_class);
 
-        // [FIX] Hapus WS_EX_TRANSPARENT dan WS_EX_NOACTIVATE dari CreateWindowExA!
-        m_hwnd = CreateWindowExA(WS_EX_TOPMOST | WS_EX_LAYERED, m_window_class.lpszClassName, m_name, WS_POPUP,
-            0, 0, screen_res.x, screen_res.y, NULL, NULL, m_window_class.hInstance, NULL);
+        // Ukuran fisik awal HWND (600x400) dan diposisikan tepat di tengah layar
+        int win_w = 600;
+        int win_h = 400;
+        int win_x = (screen_res.x - win_w) / 2;
+        int win_y = (screen_res.y - win_h) / 2;
 
-        // [FIX] Set Layered saja tanpa mengunci WS_EX_TRANSPARENT secara permanen
+        // Menggunakan WS_POPUP | WS_THICKFRAME tanpa WS_EX_LAYERED agar DirectX 11 render solid & tidak hilang
+        m_hwnd = CreateWindowExA(WS_EX_TOPMOST | WS_EX_LAYERED, m_window_class.lpszClassName, m_name, WS_POPUP,
+            win_x, win_y, win_w, win_h, NULL, NULL, m_window_class.hInstance, NULL);
+
         SetWindowLong(m_hwnd, GWL_EXSTYLE, GetWindowLong(m_hwnd, GWL_EXSTYLE) | WS_EX_LAYERED | WS_EX_TOPMOST);
         SetLayeredWindowAttributes(m_hwnd, RGB(0, 0, 0), BYTE(255), LWA_ALPHA);
 
@@ -146,13 +151,8 @@ namespace gottvergessen
             POINT diff{};
             ClientToScreen(m_hwnd, &diff);
 
-            const MARGINS margins = {
-                window_area.left + (diff.x - window_area.left),
-                window_area.top + (diff.y - window_area.top),
-                client_area.right,
-                client_area.bottom
-            };
-
+            // Menggunakan margin 1px agar Windows 11 memberikan efek rounded corner & shadow tanpa latar putih
+            const MARGINS margins = { -1, -1, -1, -1 };
             DwmExtendFrameIntoClientArea(m_hwnd, &margins);
         }
         
@@ -167,12 +167,14 @@ namespace gottvergessen
 
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
-        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        ImGuiIO& io = ImGui::GetIO(); (void)io;
+        
+        // Nonaktifkan ViewportsEnable agar ImGui tidak membuat jendela OS sekunder yang berwarna putih
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        io.IniFilename = NULL;
 
         ImGui_ImplWin32_Init(m_hwnd);
-        ImGui_ImplWin32_EnableAlphaCompositing(m_hwnd);
         ImGui_ImplDX11_Init(m_device, m_device_context);
         ZeroMemory(&m_message, sizeof(m_message));
 
@@ -269,6 +271,14 @@ namespace gottvergessen
 
         switch (msg)
         {
+        case WM_SIZE:
+            if (g_renderer && g_renderer->m_device != NULL && wParam != SIZE_MINIMIZED)
+            {
+                g_renderer->cleanup_render_target();
+                g_renderer->m_swap_chain->ResizeBuffers(0, (UINT)LOWORD(lParam), (UINT)HIWORD(lParam), DXGI_FORMAT_UNKNOWN, 0);
+                g_renderer->create_render_target();
+            }
+            return 0;
         case WM_SYSCOMMAND:
             if ((wParam & 0xfff0) == SC_KEYMENU)
                 return 0;
