@@ -150,7 +150,7 @@ namespace gottvergessen
 				{ xorstr("Authorization"), token }
 			};
 
-			auto res = cpr::Post(url, body, header);
+			//auto res = cpr::Post(url, body, header);
 
 			std::ostream_iterator<std::uint8_t> output(file);
 			http_client::download_with_progress(url, location, header, cpr::Parameters{}, [&](float progress)
@@ -213,7 +213,7 @@ namespace gottvergessen
 				{ xorstr("Authorization"), token }
 			};
 
-			cpr::Url url = xorstr("https://gottvergessen.000webhostapp.com/api/v1/binary/all");
+			cpr::Url url = xorstr("http://localhost:8000/api/v1/binary/all");
 
 			auto res = cpr::Get(url, header);
 

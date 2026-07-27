@@ -139,9 +139,9 @@ namespace gottvergessen
 		std::string get_role() const { return this->role; }
 		int get_status() const { return this->status; }
 	protected:
-		const std::string url = xorstr("https://gottvergessen.000webhostapp.com/api/v1/auth/login");
+		const std::string url = xorstr("http://localhost:8000/api/v1/auth/login");
 	protected:
-		const std::string url_logout = xorstr("https://gottvergessen.000webhostapp.com/api/v1/auth/logout");
+		const std::string url_logout = xorstr("http://localhost:8000/api/v1/auth/logout");
 	private:
 		inline static char username[32];
 		inline static char password[32];

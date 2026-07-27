@@ -7,7 +7,7 @@ namespace gottvergessen
 	{
 	public:
 		void dx_init();
-		void dx_on_tick();
+		void dx_on_tick(class renderer* renderer);
 	public:
 		bool m_opened = true;
 	private:

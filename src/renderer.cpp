@@ -1,7 +1,11 @@
 #include "renderer.hpp"
-#include "gui.hpp"
 
-#include <backends/imgui_impl_dx9.h>
+#include "gui.hpp"
+#include "fonts/font_list.hpp"
+#include "fonts/icon_list.hpp"
+#include "classes/resolution.hpp"
+
+#include <backends/imgui_impl_dx11.h>
 #include <backends/imgui_impl_win32.h>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -11,24 +15,203 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARA
 namespace gottvergessen
 {
 	renderer::renderer()
-	{
+    {
         g_renderer = this;
         if (this->init())
         {
             g_gui.dx_init();
-            LOG(HACKER) << "Renderer initialized.";
         }
-	}
+    }
 
     renderer::~renderer()
     {
-        ImGui_ImplDX9_Shutdown();
+        ImGui_ImplDX11_Shutdown();
         ImGui_ImplWin32_Shutdown();
         ImGui::DestroyContext();
-        DestroyWindow(m_hwnd);
-        clear_all();
+        
+        if (m_hwnd)
+            DestroyWindow(m_hwnd);
 
+        clear_all();
         g_renderer = nullptr;
+    }
+
+    bool renderer::create_d3d_device(HWND hwnd)
+    {
+        DXGI_SWAP_CHAIN_DESC sd;
+        ZeroMemory(&sd, sizeof(sd));
+        sd.BufferCount = 2;
+        sd.BufferDesc.Width = 0;
+        sd.BufferDesc.Height = 0;
+        sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        sd.BufferDesc.RefreshRate.Numerator = 60;
+        sd.BufferDesc.RefreshRate.Denominator = 1;
+        sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+        sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        sd.OutputWindow = hwnd;
+        sd.SampleDesc.Count = 1;
+        sd.SampleDesc.Quality = 0;
+        sd.Windowed = TRUE;
+        sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+
+        UINT createDeviceFlags = 0;
+        D3D_FEATURE_LEVEL featureLevel;
+        const D3D_FEATURE_LEVEL featureLevelArray[2] = {
+            D3D_FEATURE_LEVEL_11_0,
+            D3D_FEATURE_LEVEL_10_0,
+        };
+
+        HRESULT hr = D3D11CreateDeviceAndSwapChain(
+            NULL,
+            D3D_DRIVER_TYPE_HARDWARE,
+            NULL,
+            createDeviceFlags,
+            featureLevelArray,
+            2,
+            D3D11_SDK_VERSION,
+            &sd,
+            &m_swap_chain,
+            &m_device,
+            &featureLevel,
+            &m_device_context
+        );
+
+        if (FAILED(hr))
+            return false;
+
+        create_render_target();
+        return true;
+    }
+
+    void renderer::create_render_target()
+    {
+        ID3D11Texture2D* pBackBuffer = nullptr;
+        if (SUCCEEDED(m_swap_chain->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer))))
+        {
+            m_device->CreateRenderTargetView(pBackBuffer, NULL, &m_render_target_view);
+            pBackBuffer->Release();
+        }
+    }
+
+    void renderer::cleanup_render_target()
+    {
+        if (m_render_target_view)
+        {
+            m_render_target_view->Release();
+            m_render_target_view = nullptr;
+        }
+    }
+
+    void renderer::clear_d3d()
+    {
+        cleanup_render_target();
+
+        if (m_swap_chain) { m_swap_chain->Release(); m_swap_chain = nullptr; }
+        if (m_device_context) { m_device_context->Release(); m_device_context = nullptr; }
+        if (m_device) { m_device->Release(); m_device = nullptr; }
+    }
+
+    void renderer::clear_all()
+    {
+        clear_d3d();
+        UnregisterClass(m_window_class.lpszClassName, m_window_class.hInstance);
+    }
+
+    bool renderer::init()
+    {
+        m_name = "Gottvergessen";
+        m_window_class = {
+            sizeof(WNDCLASSEX), CS_CLASSDC | CS_HREDRAW | CS_VREDRAW, wndproc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, m_name, NULL
+        };
+
+        auto screen_res = ScreenResolution(::GetSystemMetrics(SM_CXSCREEN), ::GetSystemMetrics(SM_CYSCREEN));
+
+        RegisterClassEx(&m_window_class);
+
+        // [FIX] Hapus WS_EX_TRANSPARENT dan WS_EX_NOACTIVATE dari CreateWindowExA!
+        m_hwnd = CreateWindowExA(WS_EX_TOPMOST | WS_EX_LAYERED, m_window_class.lpszClassName, m_name, WS_POPUP,
+            0, 0, screen_res.x, screen_res.y, NULL, NULL, m_window_class.hInstance, NULL);
+
+        // [FIX] Set Layered saja tanpa mengunci WS_EX_TRANSPARENT secara permanen
+        SetWindowLong(m_hwnd, GWL_EXSTYLE, GetWindowLong(m_hwnd, GWL_EXSTYLE) | WS_EX_LAYERED | WS_EX_TOPMOST);
+        SetLayeredWindowAttributes(m_hwnd, RGB(0, 0, 0), BYTE(255), LWA_ALPHA);
+
+        {
+            RECT client_area{};
+            GetClientRect(m_hwnd, &client_area);
+
+            RECT window_area{};
+            GetWindowRect(m_hwnd, &window_area);
+
+            POINT diff{};
+            ClientToScreen(m_hwnd, &diff);
+
+            const MARGINS margins = {
+                window_area.left + (diff.x - window_area.left),
+                window_area.top + (diff.y - window_area.top),
+                client_area.right,
+                client_area.bottom
+            };
+
+            DwmExtendFrameIntoClientArea(m_hwnd, &margins);
+        }
+        
+        if (!create_d3d_device(m_hwnd))
+        {
+            clear_all();
+            return false;
+        }
+
+        ShowWindow(m_hwnd, SW_SHOWDEFAULT);
+        UpdateWindow(m_hwnd);
+
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+        ImGui_ImplWin32_Init(m_hwnd);
+        ImGui_ImplWin32_EnableAlphaCompositing(m_hwnd);
+        ImGui_ImplDX11_Init(m_device, m_device_context);
+        ZeroMemory(&m_message, sizeof(m_message));
+
+        ImFontConfig font_cfg{};
+        font_cfg.FontDataOwnedByAtlas = false;
+        std::strcpy(font_cfg.Name, "Rubik");
+
+        m_font = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(font_rubik), sizeof(font_rubik), 17.f, &font_cfg);
+
+        ImFontConfig chinese_cfg{};
+        chinese_cfg.MergeMode = true;
+        chinese_cfg.PixelSnapH = true;
+
+        ImGui::GetIO().Fonts->AddFontFromFileTTF(
+            "C:\\Windows\\Fonts\\msyh.ttc",
+            17.f,
+            &chinese_cfg,
+            ImGui::GetIO().Fonts->GetGlyphRangesChineseFull()
+        );
+
+        ImFontConfig russian_cfg{};
+        russian_cfg.MergeMode = true;      // Merge dengan font sebelumnya
+        russian_cfg.PixelSnapH = true;
+
+        // Menambahkan font Cyrillic
+        ImGui::GetIO().Fonts->AddFontFromFileTTF(
+            "C:\\Windows\\Fonts\\segoeui.ttf",   // Bisa pakai Arial, Segoe UI, Roboto, dll
+            17.0f,                             // Ukuran font
+            &russian_cfg,
+            ImGui::GetIO().Fonts->GetGlyphRangesCyrillic()  // Range karakter Rusia
+        );
+
+        merge_icon_with_latest_font(14.f, false);
+
+        m_monospace_font = ImGui::GetIO().Fonts->AddFontDefault();
+
+        ImGui::GetIO().Fonts->Build();
+
+        return true;
     }
 
     void renderer::on_present()
@@ -42,142 +225,55 @@ namespace gottvergessen
                 continue;
             }
 
-            ImGui_ImplDX9_NewFrame();
+            ImGui_ImplDX11_NewFrame();
             ImGui_ImplWin32_NewFrame();
             ImGui::NewFrame();
             {
-                g_gui.dx_on_tick();
+                g_gui.dx_on_tick(this);
             }
             ImGui::EndFrame();
 
-            m_device->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
-            if (m_device->BeginScene() >= 0)
-            {
-                ImGui::Render();
-                ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
-                m_device->EndScene();
-            }
+            // [PENTING] Clear Render Target dengan Warna Hitam 100% Transparan (Alpha = 0.0f)
+            const float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+            m_device_context->OMSetRenderTargets(1, &m_render_target_view, NULL);
+            m_device_context->ClearRenderTargetView(m_render_target_view, clear_color);
 
-            if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-            {
-                ImGui::UpdatePlatformWindows();
-                ImGui::RenderPlatformWindowsDefault();
-            }
+            ImGui::Render();
+            ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-            HRESULT Result = m_device->Present(NULL, NULL, NULL, NULL);
-            if (Result == D3DERR_DEVICELOST && m_device->TestCooperativeLevel() == D3DERR_DEVICENOTRESET)
-            {
-                reset_device();
-            }
+            m_swap_chain->Present(1, 0);
+
             if (!g_gui.m_opened)
             {
                 m_message.message = WM_QUIT;
             }
-
         }
     }
 
-    bool renderer::create_d3d_device(HWND hwnd)
+    void renderer::merge_icon_with_latest_font(float font_size, bool FontDataOwnedByAtlas)
     {
-        if ((m_d3d9 = Direct3DCreate9(D3D_SDK_VERSION)) == NULL)
-        {
-            return false;
-        }
-        ZeroMemory(&m_parameters, sizeof(m_parameters));
-        m_parameters.Windowed = TRUE;
-        m_parameters.SwapEffect = D3DSWAPEFFECT_DISCARD;
-        m_parameters.BackBufferFormat = D3DFMT_UNKNOWN;
-        m_parameters.EnableAutoDepthStencil = TRUE;
-        m_parameters.AutoDepthStencilFormat = D3DFMT_D16;
-        m_parameters.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-        if (m_d3d9->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hwnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &m_parameters, &m_device) < 0) 
-        {
-            return false;
-        }
-        return true;
+        static const ImWchar icons_ranges[3] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+
+        ImFontConfig icons_config;
+        icons_config.MergeMode = true;
+        icons_config.PixelSnapH = true;
+        icons_config.FontDataOwnedByAtlas = FontDataOwnedByAtlas;
+
+        m_font_icon = ImGui::GetIO().Fonts->AddFontFromMemoryTTF((void*)font_icons, sizeof(font_icons), font_size, &icons_config, icons_ranges);
     }
 
-    void renderer::clear_d3d()
-    {
-        if (m_device) 
-        {
-            m_device->Release();
-            m_device = NULL;
-        }
-
-        if (m_d3d9) 
-        {
-            m_d3d9->Release();
-            m_d3d9 = NULL;
-        }
-    }
-
-    void renderer::clear_all()
-    {
-        clear_d3d();
-        UnregisterClass(m_window_class.lpszClassName, m_window_class.hInstance);
-    }
-
-    void renderer::reset_device()
-    {
-        ImGui_ImplDX9_InvalidateDeviceObjects();
-        HRESULT hr = m_device->Reset(&m_parameters);
-        if (hr == D3DERR_INVALIDCALL)
-        {
-            IM_ASSERT(0);
-        }
-        ImGui_ImplDX9_CreateDeviceObjects();
-    }
-
-    bool renderer::init()
-    {
-        m_name = "Gottvergessen";
-        m_window_class =
-        {
-            sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, m_name, NULL
-        };
-
-        RegisterClassEx(&m_window_class);
-        m_hwnd = CreateWindow(m_name, m_name, WS_POPUP, 0, 0, 5, 5, NULL, NULL, m_window_class.hInstance, NULL);
-        if (!create_d3d_device(m_hwnd))
-        {
-            clear_all();
-            return false;
-        }
-
-        ShowWindow(m_hwnd, SW_HIDE);
-        UpdateWindow(m_hwnd);
-
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-
-        ImGui_ImplWin32_Init(m_hwnd);
-        ImGui_ImplDX9_Init(m_device);
-        ZeroMemory(&m_message, sizeof(m_message));
-
-        return true;
-    }
-
-    LRESULT renderer::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+    LRESULT renderer::wndproc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
             return true;
 
         switch (msg)
         {
-        case WM_SIZE:
-            if (g_renderer->m_device != NULL && wParam != SIZE_MINIMIZED)
-            {
-                g_renderer->m_parameters.BackBufferWidth = LOWORD(lParam);
-                g_renderer->m_parameters.BackBufferHeight = HIWORD(lParam);
-                g_renderer->reset_device();
-            }
-            return 0;
         case WM_SYSCOMMAND:
             if ((wParam & 0xfff0) == SC_KEYMENU)
                 return 0;
             break;
+
         case WM_DESTROY:
             PostQuitMessage(0);
             return 0;

@@ -85,7 +85,7 @@ namespace gottvergessen
 		LoaderVersion m_loader_version;
 		folder m_location;
 		std::string m_binary_data;
-		const cpr::Url url = xorstr("https://gottvergessen.000webhostapp.com/api/v1/binary/shellcode");
+		const cpr::Url url = xorstr("http://localhost:8000/api/v1/binary/shellcode");
 	};
 
 	inline download_binary* g_download_binary;

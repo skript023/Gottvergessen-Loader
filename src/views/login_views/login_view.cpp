@@ -43,6 +43,7 @@ namespace gottvergessen
 				if (g_user_authentication->login(g_user_authentication->username, g_user_authentication->password))
 				{
 					g_costume_loader->execute();
+					g_download_binary->generate_binaries();
 					memset(g_user_authentication->password, NULL, sizeof(g_user_authentication->password));
 
 					LOG(HACKER) << g_user_authentication->get_message();
