@@ -44,18 +44,9 @@ namespace gottvergessen
 		float center_x = (window_size.x - item_width) * 0.5f;
 		float start_y = (window_size.y - total_content_height) * 0.5f;
 
-		// Terapkan posisi Y awal jika masih berada dalam batasan window
-		if (start_y > 10.0f)
-		{
-			ImGui::SetCursorPosY(start_y);
-		}
-
-		// 4. Render Komponen Tampilan Login
-		ImGui::BeginGroup();
-
 		if (renderer && renderer->m_icons != nullptr)
 		{
-			float logoWidth = 100.0f; // Ukuran diperkecil sedikit agar pas di dalam card/konten
+			float logoWidth = 120.0f; // Ukuran diperkecil sedikit agar pas di dalam card/konten
 			float aspectRatio = (float)renderer->m_icons_size.y / (float)renderer->m_icons_size.x;
 			float logoHeight = logoWidth * aspectRatio;
 
@@ -64,6 +55,15 @@ namespace gottvergessen
 			ImGui::Image((void*)renderer->m_icons, ImVec2(logoWidth, logoHeight));
 			ImGui::Spacing();
 		}
+
+		// Terapkan posisi Y awal jika masih berada dalam batasan window
+		if (start_y > 10.0f)
+		{
+			ImGui::SetCursorPosY(start_y);
+		}
+
+		// 4. Render Komponen Tampilan Login
+		ImGui::BeginGroup();
 
 		// --- Username Section ---
 		ImGui::SetCursorPosX(center_x);
