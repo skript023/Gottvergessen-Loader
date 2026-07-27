@@ -143,8 +143,22 @@ namespace gottvergessen
             }
 
             // App Icon & Title Visual
-            ImGui::SetCursorPos(ImVec2(12, 8));
-            ImGui::TextColored(ImVec4(0.40f, 0.60f, 1.0f, 1.0f), "[G]");
+            ImGui::SetCursorPos(ImVec2(12, (titlebar_height - 20.0f) * 0.5f)); // Centered vertically in 36px height
+
+            if (renderer && renderer->m_icons != nullptr)
+            {
+                // Logo dikecilkan agar pas di title bar (tinggi misal 20px)
+                float logoHeight = 20.0f;
+                float aspectRatio = (float)renderer->m_icons_size.x / (float)renderer->m_icons_size.y;
+                float logoWidth = logoHeight * aspectRatio;
+
+                ImGui::Image((void*)renderer->m_icons, ImVec2(logoWidth, logoHeight));
+            }
+            else
+            {
+                ImGui::TextColored(ImVec4(0.40f, 0.60f, 1.0f, 1.0f), "[G]");
+            }
+
             ImGui::SameLine(0, 8);
             ImGui::SetCursorPosY(8);
             ImGui::TextColored(ImVec4(0.92f, 0.92f, 0.95f, 1.0f), "Gottvergessen Sense Loader");
@@ -216,14 +230,30 @@ namespace gottvergessen
         
         ImGui::BeginChild("MainContentContainer", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysAutoResize);
         {
-            ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "WELCOME TO GOTTVERGESSEN");
-            ImGui::TextDisabled("Select an option below to proceed with authentication or configuration.");
+            auto TextCentered = [](const char* text, const ImVec4& color = ImVec4(1, 1, 1, 1), bool disabled = false) {
+				float windowWidth = ImGui::GetWindowSize().x;
+				float textWidth   = ImGui::CalcTextSize(text).x;
+
+				// Geser kursor ke posisi tengah
+				ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
+
+				if (disabled) {
+					ImGui::TextDisabled("%s", text);
+				} else {
+					ImGui::TextColored(color, "%s", text);
+				}
+			};
+
+			// Render Teks Rata Tengah
+			TextCentered("WELCOME TO GOTTVERGESSEN");
+			TextCentered("Select an option below to proceed with authentication or configuration.", ImVec4(), true);
+			
             ImGui::Separator();
             ImGui::Spacing();
 
             if (!g_user_authentication->authorized())
             {
-                views::login_view();
+                views::login_view(renderer);
             }
             else
             {

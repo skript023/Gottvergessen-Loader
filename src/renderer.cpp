@@ -3,6 +3,8 @@
 #include "gui.hpp"
 #include "fonts/font_list.hpp"
 #include "fonts/icon_list.hpp"
+#include "images/images.hpp"
+#include "textures/textures.hpp"
 #include "classes/resolution.hpp"
 
 #include <backends/imgui_impl_dx11.h>
@@ -16,11 +18,12 @@ namespace gottvergessen
 {
 	renderer::renderer()
     {
-        g_renderer = this;
         if (this->init())
         {
             g_gui.dx_init();
         }
+
+        g_renderer = this;
     }
 
     renderer::~renderer()
@@ -212,6 +215,11 @@ namespace gottvergessen
         m_monospace_font = ImGui::GetIO().Fonts->AddFontDefault();
 
         ImGui::GetIO().Fonts->Build();
+
+        if (!textures::load_from_memory(quantum_icons, _ARRAYSIZE(quantum_icons), m_device, &m_icons, &m_icons_size.x, &m_icons_size.y))
+        {
+            LOG(WARNING) << "Failed load textures";
+        }
 
         return true;
     }

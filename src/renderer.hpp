@@ -2,6 +2,8 @@
 #include "common.hpp"
 #include "imgui.h"
 
+#include "classes/images_dimension.hpp"
+
 namespace gottvergessen
 {
 	class renderer
@@ -34,6 +36,9 @@ namespace gottvergessen
 		IDXGISwapChain* m_swap_chain = nullptr;
 		ID3D11RenderTargetView* m_render_target_view = nullptr;
 		MSG m_message = { nullptr };
+
+		ID3D11ShaderResourceView* m_icons{};
+		ImageDimensions m_icons_size = { 0, 0 };
 	};
 
 	inline renderer* g_renderer{};
