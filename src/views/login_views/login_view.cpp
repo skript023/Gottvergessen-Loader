@@ -55,7 +55,7 @@ namespace gottvergessen
 
 		if (renderer && renderer->m_icons != nullptr)
 		{
-			float logoWidth = 40.0f; // Ukuran diperkecil sedikit agar pas di dalam card/konten
+			float logoWidth = 100.0f; // Ukuran diperkecil sedikit agar pas di dalam card/konten
 			float aspectRatio = (float)renderer->m_icons_size.y / (float)renderer->m_icons_size.x;
 			float logoHeight = logoWidth * aspectRatio;
 

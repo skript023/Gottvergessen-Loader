@@ -132,8 +132,8 @@ namespace gottvergessen
         RegisterClassEx(&m_window_class);
 
         // Ukuran fisik awal HWND (600x400) dan diposisikan tepat di tengah layar
-        int win_w = 600;
-        int win_h = 400;
+        int win_w = 800;
+        int win_h = 600;
         int win_x = (screen_res.x - win_w) / 2;
         int win_y = (screen_res.y - win_h) / 2;
 
