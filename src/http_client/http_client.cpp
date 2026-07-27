@@ -55,6 +55,11 @@ namespace gottvergessen
 
 		auto res = m_session.Download(of);
 
+		LOG(INFO) << "Status      : " << res.status_code;
+		LOG(INFO) << "Error Code  : " << static_cast<int>(res.error.code);
+		LOG(INFO) << "Error Msg   : " << res.error.message;
+		LOG(INFO) << "Response    : " << res.text;
+
 		m_session.SetProgressCallback(cpr::ProgressCallback()); // penting, reset biar gak nempel
 
 		of.close();

@@ -153,10 +153,17 @@ namespace gottvergessen
 			//auto res = cpr::Post(url, body, header);
 
 			std::ostream_iterator<std::uint8_t> output(file);
-			http_client::download_with_progress(url, location, header, cpr::Parameters{}, [&](float progress)
+			auto ok = http_client::download_with_progress(url, location, header, cpr::Parameters{ { "name", filename } }, [&](float progress)
 			{
-				LOG(INFO) << "Progress: " << static_cast<int>(progress * 100.0f) << "%";
+				LOG(INFO) << "Progress: " << static_cast<int>(progress) << "%";
 			});
+
+			if (!ok)
+			{
+				LOG(WARNING) << "Failed to download bin";
+
+				return false;
+			}
 			//std::ranges::copy(res.text.begin(), res.text.end(), output);
 		}
 		catch (const std::exception&)

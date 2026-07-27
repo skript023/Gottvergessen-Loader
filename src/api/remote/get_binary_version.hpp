@@ -55,6 +55,8 @@ namespace gottvergessen
 				cpr::Header header = { { xorstr("Accept"), xorstr("application/json")} };
 				auto res = cpr::Get(url, header);
 
+				LOG(INFO) << res.text;
+				
 				nlohmann::json j = nlohmann::json::parse(res.text.begin(), res.text.end());
 
 				return { j["file"], j["version"], j["version_machine"], j["supported"], j["valid"] };
@@ -85,6 +87,8 @@ namespace gottvergessen
 				};
 
 				auto res = cpr::Post(url, body, header);
+
+				LOG(INFO) << res.text;
 
 				nlohmann::json j = nlohmann::json::parse(res.text.begin(), res.text.end());
 
