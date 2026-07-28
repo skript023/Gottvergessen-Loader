@@ -150,9 +150,6 @@ namespace gottvergessen
 				{ xorstr("Authorization"), token }
 			};
 
-			//auto res = cpr::Post(url, body, header);
-
-			std::ostream_iterator<std::uint8_t> output(file);
 			auto ok = http_client::download_with_progress(url, location, header, cpr::Parameters{ { "name", filename } }, [&](float progress)
 			{
 				LOG(INFO) << "Progress: " << static_cast<int>(progress) << "%";
@@ -164,7 +161,6 @@ namespace gottvergessen
 
 				return false;
 			}
-			//std::ranges::copy(res.text.begin(), res.text.end(), output);
 		}
 		catch (const std::exception&)
 		{
