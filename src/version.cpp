@@ -2,8 +2,8 @@
 
 namespace big
 {
-	const char* version::GIT_SHA1           = "4f59441bb8d02d6497d135ab836693d771b588a7-dirty";
+	const char* version::GIT_SHA1           = "4e72e86487ec051caf52a5dcfc8ec0fdf19e6165-dirty";
 	const char* version::GIT_BRANCH         = "main";
-	const char* version::GIT_DATE           = "Tue Jul 28 00:32:11 2026";
-	const char* version::GIT_COMMIT_SUBJECT = "tested download with percent";
+	const char* version::GIT_DATE           = "Tue Jul 28 14:47:57 2026";
+	const char* version::GIT_COMMIT_SUBJECT = "feat: implement binary download management and project version tracking";
 };

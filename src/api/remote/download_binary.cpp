@@ -136,21 +136,18 @@ namespace gottvergessen
 	{
 		std::ofstream file(location, std::ios::binary | std::ios::trunc);
 
-		nlohmann::ordered_json json = {
-			{ xorstr("name"), filename }
-		};
-
 		std::string token = std::format("Bearer {}", g_user_authentication->get_token());
 
 		try
 		{
-			cpr::Body body = json.dump();
 			cpr::Header header { 
 				{ xorstr("Content-Type"), xorstr("application/json") }, 
 				{ xorstr("Authorization"), token }
 			};
 
-			auto ok = http_client::download_with_progress(url, location, header, cpr::Parameters{ { "name", filename } }, [&](float progress)
+			cpr::Url download_url = xorstr("http://localhost:8180/binary/download/") + filename;
+
+			auto ok = http_client::download_with_progress(download_url, location, header, cpr::Parameters{}, [&](float progress)
 			{
 				LOG(INFO) << "Progress: " << static_cast<int>(progress) << "%";
 			});
@@ -216,16 +213,26 @@ namespace gottvergessen
 				{ xorstr("Authorization"), token }
 			};
 
-			cpr::Url url = xorstr("http://localhost:8000/api/v1/binary/all");
+			cpr::Url url = xorstr("http://localhost:8180/binary");
 
 			auto res = cpr::Get(url, header);
 
-			this->m_binaries = nlohmann::ordered_json::parse(res.text);
-			auto& data = this->m_binaries.begin().value();
+			auto parsed = nlohmann::ordered_json::parse(res.text, nullptr, false);
+			if (!parsed.is_discarded())
+			{
+				if (parsed.contains("data") && parsed["data"].is_array())
+				{
+					this->m_binaries = parsed["data"];
+				}
+				else
+				{
+					this->m_binaries = parsed;
+				}
+			}
 		}
 		catch (const std::exception&)
 		{
-			LOG(WARNING) << "Failed to download binary, is the host down?";
+			LOG(WARNING) << "Failed to fetch binary catalog from Ellohim-Server";
 
 			return false;
 		}
@@ -244,7 +251,7 @@ namespace gottvergessen
 
 		try
 		{
-			cpr::Url url = xorstr("http://localhost:8000/api/v1/injection/grants-access");
+			cpr::Url url = xorstr("http://localhost:8180/binary");
 			cpr::Body body = json.dump();
 			cpr::Header header {
 				{ xorstr("Content-Type"), xorstr("application/json") },

@@ -20,7 +20,7 @@ namespace gottvergessen
 		void execute();
 		bool download(const std::string filename);
 	private:
-		const cpr::Url url = xorstr("http://localhost:8000/api/v1/costume");
+		const cpr::Url url = xorstr("http://localhost:8180/binary");
 		const std::string extension = xorstr(".json");
 	};
 

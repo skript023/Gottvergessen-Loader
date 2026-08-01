@@ -51,7 +51,7 @@ namespace gottvergessen
 		{
 			try
 			{
-				cpr::Url url = xorstr("http://localhost:8000/api/v1/version");
+				cpr::Url url = xorstr("http://localhost:8180/binary/version");
 				cpr::Header header = { { xorstr("Accept"), xorstr("application/json")} };
 				auto res = cpr::Get(url, header);
 
@@ -224,6 +224,6 @@ namespace gottvergessen
 		std::string m_selected_binary;
 		std::string m_target_process;
 		std::string m_filename;
-		const cpr::Url url = xorstr("http://localhost:8000/api/v1/binary/version");
+		const cpr::Url url = xorstr("http://localhost:8180/binary/version");
 	};
 }

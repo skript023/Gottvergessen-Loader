@@ -50,11 +50,54 @@ namespace gottvergessen
 		user_authentication(user_authentication&& that) = delete;
 		user_authentication& operator=(user_authentication&& that) = delete;
 
-		bool login(const std::string username, const std::string password)
+		bool fetch_profile()
+		{
+			if (session_token.empty()) return false;
+			const std::string token = std::format("Bearer {}", this->get_token());
+			try
+			{
+				cpr::Url uri = url_profile;
+				cpr::Header header {
+					{ xorstr("Accept"), xorstr("application/json") },
+					{ xorstr("Content-Type"), xorstr("application/json") },
+					{ xorstr("Authorization"), token }
+				};
+
+				auto res = cpr::Get(uri, header);
+				auto j = nlohmann::ordered_json::parse(res.text.begin(), res.text.end(), nullptr, false);
+				if (!j.is_discarded() && j.value("success", false) && j.contains("data"))
+				{
+					auto& user_data = j["data"];
+					if (user_data.contains("firstname") && user_data["firstname"].is_string())
+					{
+						std::string fn = user_data["firstname"].get<std::string>();
+						std::string ln = user_data.value("lastname", "");
+						fullname = ln.empty() ? fn : (fn + " " + ln);
+					}
+					if (user_data.contains("username") && user_data["username"].is_string())
+					{
+						std::string u = user_data["username"].get<std::string>();
+						strncpy_s(username, sizeof(username), u.c_str(), _TRUNCATE);
+					}
+					if (user_data.contains("role") && user_data["role"].is_string())
+					{
+						role = user_data["role"].get<std::string>();
+					}
+				}
+			}
+			catch (const std::exception&)
+			{
+				LOG(WARNING) << xorstr("Failed to fetch user profile from server.");
+				return false;
+			}
+			return true;
+		}
+
+		bool login(const std::string username_param, const std::string password_param)
 		{
 			nlohmann::ordered_json json = {
-				{ xorstr("username"), username },
-				{ xorstr("password"), password },
+				{ xorstr("username"), username_param },
+				{ xorstr("password"), password_param },
 				{ xorstr("hardware_uuid"), this->get_bios() },
 				{ xorstr("computer_name"), this->get_computer_name() }
 			};
@@ -70,20 +113,50 @@ namespace gottvergessen
 
 				cpr::Response res = cpr::Post(uri, body, header);
 
-				nlohmann::ordered_json j = nlohmann::json::parse(res.text.begin(), res.text.end());
+				auto j = nlohmann::ordered_json::parse(res.text.begin(), res.text.end(), nullptr, false);
+				if (j.is_discarded())
+				{
+					LOG(WARNING) << xorstr("Failed to parse login response JSON.");
+					return false;
+				}
 
-				status = j["status"];
-				session_token = j["token"];
-				fullname = j["fullname"];
-				role = j["role"];
-				ownership = j["ownership"].get<ProductGrade>();
-				message = j["message"];
-				expired_date = j["expired_date"];
+				if (j.contains("data") && j["data"].is_object() && j["data"].contains("token"))
+				{
+					session_token = j["data"]["token"].get<std::string>();
+				}
+				else if (j.contains("token"))
+				{
+					session_token = j["token"].get<std::string>();
+				}
+
+				bool is_success = j.value("success", false) || !session_token.empty();
+
+				if (!is_success)
+				{
+					message = j.value("message", "Login failed, invalid credentials.");
+					return false;
+				}
+
+				status = 200;
+				message = j.value("message", "Login success");
+				fullname = j.contains("fullname") && j["fullname"].is_string() ? j["fullname"].get<std::string>() : username_param;
+				role = j.contains("role") && j["role"].is_string() ? j["role"].get<std::string>() : "Customer";
+				expired_date = j.contains("expired_date") && j["expired_date"].is_string() ? j["expired_date"].get<std::string>() : "Lifetime Access";
+				if (j.contains("ownership") && j["ownership"].is_number_integer())
+				{
+					ownership = j["ownership"].get<ProductGrade>();
+				}
+				else
+				{
+					ownership = ProductGrade::GOLD;
+				}
+
+				// Fetch profile from /user/profile
+				fetch_profile();
 			}
 			catch (const std::exception&)
 			{
 				LOG(WARNING) << xorstr("Login failed, is the host down?");
-
 				return false;
 			}
 
@@ -102,16 +175,15 @@ namespace gottvergessen
 				};
 
 				auto res = cpr::Get(uri, header);
-
-				nlohmann::ordered_json j = nlohmann::json::parse(res.text.begin(), res.text.end());
-
-				status = j["status"];
-				message = j["message"];
 			}
 			catch (const std::exception&)
 			{
 				LOG(WARNING) << xorstr("Logout failed, is the host down?");
 			}
+
+			session_token.clear();
+			fullname.clear();
+			role.clear();
 		}
 		ProductGrade owned_product() { return this->ownership; }
 		std::string owned_product_info(ProductGrade product_grade)
@@ -139,9 +211,10 @@ namespace gottvergessen
 		std::string get_role() const { return this->role; }
 		int get_status() const { return this->status; }
 	protected:
-		const std::string url = xorstr("http://localhost:8000/api/v1/auth/login");
+		const std::string url = xorstr("http://localhost:8180/auth/login");
 	protected:
-		const std::string url_logout = xorstr("http://localhost:8000/api/v1/auth/logout");
+		const std::string url_logout = xorstr("http://localhost:8180/auth/logout");
+		const std::string url_profile = xorstr("http://localhost:8180/user/profile");
 	private:
 		inline static char username[32];
 		inline static char password[32];

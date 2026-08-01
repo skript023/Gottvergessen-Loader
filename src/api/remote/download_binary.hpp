@@ -34,32 +34,65 @@ namespace gottvergessen
 		void set_binary_data(const std::string data) { m_binary_data = {data.begin(), data.end()}; }
 		[[nodiscard]] std::string binary_data() const { return m_binary_data; }
 		nlohmann::ordered_json load_binaries() const { return m_binaries; }
-		size_t binaries_size() const { return m_binaries.size(); }
+		size_t binaries_size() const 
+		{ 
+			if (m_binaries.is_array()) return m_binaries.size() > 0 ? m_binaries.size() : 4;
+			if (m_binaries.is_object()) return m_binaries.size() > 0 ? m_binaries.size() : 4;
+			return 4;
+		}
 		std::string get_binary_by_id(int id) const 
 		{ 
-			int index = 0;
-			for (auto it = m_binaries.begin(); it != m_binaries.end(); ++it)
+			if (m_binaries.is_array() && id >= 0 && id < (int)m_binaries.size())
 			{
-				if (auto& data = it.value(); index == id)
-				{
-					return data["game"].get<std::string>();
-				}
-				index++;
+				auto& data = m_binaries[id];
+				if (data.contains("name") && data["name"].is_string()) return data["name"].get<std::string>();
+				if (data.contains("game") && data["game"].is_string()) return data["game"].get<std::string>();
 			}
+			else if (m_binaries.is_object())
+			{
+				int index = 0;
+				for (auto it = m_binaries.begin(); it != m_binaries.end(); ++it)
+				{
+					if (index == id)
+					{
+						auto& data = it.value();
+						if (data.contains("name") && data["name"].is_string()) return data["name"].get<std::string>();
+						if (data.contains("game") && data["game"].is_string()) return data["game"].get<std::string>();
+					}
+					index++;
+				}
+			}
+
+			if (id >= 0 && id < 4)
+				return m_binary_name[id].m_name;
 
 			return {};
 		}
 		std::string get_file_by_id(int id) const 
 		{ 
-			int index = 0;
-			for (auto& bin : m_binaries.items())
+			if (m_binaries.is_array() && id >= 0 && id < (int)m_binaries.size())
 			{
-				if (auto& data = bin.value(); index == id)
-				{
-					return data["file"].get<std::string>();
-				}
-				index++;
+				auto& data = m_binaries[id];
+				if (data.contains("file_name") && data["file_name"].is_string()) return data["file_name"].get<std::string>();
+				if (data.contains("file") && data["file"].is_string()) return data["file"].get<std::string>();
 			}
+			else if (m_binaries.is_object())
+			{
+				int index = 0;
+				for (auto& bin : m_binaries.items())
+				{
+					if (index == id)
+					{
+						auto& data = bin.value();
+						if (data.contains("file_name") && data["file_name"].is_string()) return data["file_name"].get<std::string>();
+						if (data.contains("file") && data["file"].is_string()) return data["file"].get<std::string>();
+					}
+					index++;
+				}
+			}
+
+			if (id >= 0 && id < 4)
+				return m_binary_name[id].m_server_name;
 
 			return {};
 		}
@@ -85,7 +118,7 @@ namespace gottvergessen
 		LoaderVersion m_loader_version;
 		folder m_location;
 		std::string m_binary_data;
-		const cpr::Url url = xorstr("http://localhost:8000/api/v1/binary/shellcode");
+		const cpr::Url url = xorstr("http://localhost:8180/binary");
 	};
 
 	inline download_binary* g_download_binary;
