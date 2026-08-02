@@ -8,7 +8,6 @@
 #include "process/injection.hpp"
 #include "api/remote/download_binary.hpp"
 #include "api/user/user_authentication.hpp"
-#include "api/costume_loader/costume_loader.hpp"
 
 namespace gottvergessen
 {
@@ -95,7 +94,6 @@ namespace gottvergessen
 			g_thread_pool->add_job([] {
 				if (g_user_authentication->login(g_user_authentication->username, g_user_authentication->password))
 				{
-					g_costume_loader->execute();
 					g_download_binary->generate_binaries();
 					
 					// Menggunakan 0 alih-alih NULL untuk clear buffer memory

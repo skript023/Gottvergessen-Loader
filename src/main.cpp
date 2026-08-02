@@ -8,7 +8,6 @@
 
 #include "api/remote/download_binary.hpp"
 #include "api/user/user_authentication.hpp"
-#include "api/costume_loader/costume_loader.hpp"
 
 int main()
 {
@@ -29,7 +28,6 @@ int main()
 	{
 		auto thread_pool_instance = std::make_unique<thread_pool>();
 		auto user_auth_instance = std::make_unique<user_authentication>();
-		auto costumes_instance = std::make_unique<costume_loader>();
 
 		auto binary_instance = std::make_unique<download_binary>(binary_file);
 		auto inject_instance = std::make_unique<injection>(binary_file);
@@ -46,7 +44,6 @@ int main()
 		render_instance.reset();
 		inject_instance.reset();
 		binary_instance.reset();
-		costumes_instance.reset();
 		benchmark_instance.reset();
 		user_auth_instance.reset();
 		thread_pool_instance->destroy();

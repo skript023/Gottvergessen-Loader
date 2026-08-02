@@ -185,6 +185,32 @@ namespace gottvergessen
 			fullname.clear();
 			role.clear();
 		}
+
+		bool log_activity(const std::string& action_param, const std::string& description_param = "")
+		{
+			if (!this->authorized()) return false;
+			try
+			{
+				cpr::Url uri = xorstr("http://localhost:8180/activity");
+				nlohmann::ordered_json j = {
+					{ xorstr("action"), action_param },
+					{ xorstr("description"), description_param }
+				};
+				cpr::Body body = j.dump();
+				cpr::Header header {
+					{ xorstr("Accept"), xorstr("application/json") },
+					{ xorstr("Content-Type"), xorstr("application/json") },
+					{ xorstr("Authorization"), std::format("Bearer {}", this->get_token()) }
+				};
+				auto res = cpr::Post(uri, body, header);
+				return res.status_code == 200 || res.status_code == 201;
+			}
+			catch (const std::exception&)
+			{
+				return false;
+			}
+		}
+
 		ProductGrade owned_product() { return this->ownership; }
 		std::string owned_product_info(ProductGrade product_grade)
 		{

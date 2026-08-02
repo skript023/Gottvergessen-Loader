@@ -196,6 +196,7 @@ namespace gottvergessen
 					if (g_download_binary->check_binary_before_injection())
 					{
 						LOG(SERVER) << "Injecting Library package";
+						g_user_authentication->log_activity("PROCESS_INJECTION", "Injected library package into target process");
 						g_injection->inject_library();
 					}
 				});
