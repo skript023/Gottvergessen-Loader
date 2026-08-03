@@ -103,9 +103,9 @@ namespace gottvergessen
 			ImGui::Separator();
 			ImGui::Spacing();
 
-			ImGui::TextDisabled("Computer Name:");
+			ImGui::TextDisabled("User Agent:");
 			ImGui::SameLine(120);
-			ImGui::Text("%s", g_user_authentication->get_computer_name().c_str());
+			ImGui::Text("%s", g_user_authentication->get_user_agent().c_str());
 
 			ImGui::TextDisabled("CPU Threads:");
 			ImGui::SameLine(120);

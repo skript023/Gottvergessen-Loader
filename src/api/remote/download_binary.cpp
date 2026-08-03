@@ -243,8 +243,6 @@ namespace gottvergessen
 	{
 		nlohmann::ordered_json json = {
 			{ xorstr("username"), g_user_authentication->get_username() },
-			{ xorstr("hardware_uuid"), g_user_authentication->get_bios() },
-			{ xorstr("computer_name"), g_user_authentication->get_computer_name() },
 			{ xorstr("role"), g_user_authentication->get_role() },
 			{ xorstr("token"), g_user_authentication->get_token() }
 		};
@@ -255,6 +253,7 @@ namespace gottvergessen
 			cpr::Body body = json.dump();
 			cpr::Header header {
 				{ xorstr("Content-Type"), xorstr("application/json") },
+				{ xorstr("User-Agent"), g_user_authentication->get_user_agent() }
 			};
 
 			auto res = cpr::Post(url, body, header);

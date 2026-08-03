@@ -104,6 +104,14 @@ namespace gottvergessen
 			});
 		}
 
+		if (g_user_authentication && !g_user_authentication->get_message().empty())
+		{
+			ImGui::Spacing();
+			ImGui::SetCursorPosX(center_x);
+			ImVec4 msg_color = g_user_authentication->authorized() ? ImVec4(0.3f, 0.9f, 0.4f, 1.0f) : ImVec4(0.95f, 0.35f, 0.35f, 1.0f);
+			ImGui::TextColored(msg_color, "%s", g_user_authentication->get_message().c_str());
+		}
+
 		ImGui::EndGroup();
 	}
 }
