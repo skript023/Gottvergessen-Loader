@@ -134,7 +134,7 @@ namespace gottvergessen
 			ImGui::Separator();
 			ImGui::Spacing();
 
-			// Selected Binary Details & Action Row
+			// Selected Binary Details & Target Process Configuration
 			std::string current_name = total_bins > 0 ? g_download_binary->get_binary_by_id(selected_idx) : "No Binary Selected";
 			std::string current_file = total_bins > 0 ? g_download_binary->get_file_by_id(selected_idx) : "-";
 			if (current_name.empty()) current_name = "Selected Binary";
@@ -146,37 +146,110 @@ namespace gottvergessen
 
 			ImGui::Spacing();
 
+			// Target Process Selector / Input
+			static char target_proc_buf[64] = "notepad.exe";
+			if (g_download_binary)
+			{
+				std::string current_target = g_download_binary->injection_target();
+				if (!current_target.empty() && strcmp(target_proc_buf, "notepad.exe") == 0)
+				{
+					strncpy(target_proc_buf, current_target.c_str(), sizeof(target_proc_buf) - 1);
+				}
+			}
+
+			ImGui::Text("Target Process Name:");
+			ImGui::SetNextItemWidth(260.0f);
+			if (ImGui::InputText("##TargetProcessInput", target_proc_buf, sizeof(target_proc_buf)))
+			{
+				if (g_download_binary)
+				{
+					g_download_binary->set_target_process(target_proc_buf);
+				}
+			}
+			ImGui::SameLine();
+			ImGui::TextDisabled("(e.g., notepad.exe, GTA5.exe)");
+
+			ImGui::Spacing();
+
 			float avail_w = ImGui::GetContentRegionAvail().x;
 			float btn_w = (avail_w - 16.0f) * 0.5f;
 			bool can_act = (total_bins > 0);
 
-			if (ui::primary_button(ICON_FA_DOWNLOAD "  DOWNLOAD BINARY", ImVec2(btn_w, 44), can_act))
+			if (ui::primary_button(ICON_FA_DOWNLOAD "  DOWNLOAD BINARY", ImVec2(btn_w, 44), can_act && !ui_instance->m_is_downloading))
 			{
 				g_thread_pool->add_job([ui_instance, current_file] {
 					ui_instance->m_is_downloading = true;
 					ui_instance->m_download_progress = 0.0f;
 					LOG(SERVER) << "Downloading binary stream: " << current_file;
-					g_download_binary->check_binary_before_injection();
+					bool ok = g_download_binary->download(g_download_binary->get_selected_uuid().empty() ? current_file : g_download_binary->get_selected_uuid(), g_download_binary->get_binary_name());
 					ui_instance->m_is_downloading = false;
-					ui_instance->m_binary_downloaded = true;
-					ui_instance->show_toast("Download Complete", "Binary streamed & verified successfully.", ImVec4(0.16f, 0.72f, 0.53f, 1.0f));
+					if (ok)
+					{
+						ui_instance->m_binary_downloaded = true;
+						ui_instance->show_toast("Download Complete", "Binary streamed & verified successfully.", ImVec4(0.16f, 0.72f, 0.53f, 1.0f));
+					}
+					else
+					{
+						ui_instance->show_toast("Download Failed", "Could not stream binary payload from server.", ImVec4(0.95f, 0.30f, 0.30f, 1.0f));
+					}
 				});
 			}
 
 			ImGui::SameLine(0, 16.0f);
 
-			if (ui::primary_button(ICON_FA_ROCKET "  INJECT BINARY", ImVec2(btn_w, 44), can_act))
+			if (ui::primary_button(ICON_FA_ROCKET "  INJECT BINARY", ImVec2(btn_w, 44), can_act && !ui_instance->m_is_downloading))
 			{
+				if (g_download_binary)
+				{
+					g_download_binary->set_target_process(target_proc_buf);
+				}
+
 				g_thread_pool->add_job([ui_instance] {
 					if (g_download_binary->check_binary_before_injection())
 					{
-						LOG(SERVER) << "Injecting binary payload into target process";
-						g_user_authentication->log_activity("PROCESS_INJECTION", "Injected binary into target process");
-						g_injection->inject_library();
-						ui_instance->m_injected = true;
-						ui_instance->show_toast("Injection Successful", "Payload injected into target process.", ImVec4(0.16f, 0.72f, 0.53f, 1.0f));
+						LOG(SERVER) << "Injecting binary payload into target process: " << g_download_binary->injection_target();
+						g_user_authentication->log_activity("PROCESS_INJECTION", "Injected binary into target process: " + g_download_binary->injection_target());
+						if (g_injection->inject_library())
+						{
+							ui_instance->m_injected = true;
+							ui_instance->show_toast("Injection Successful", "Payload injected into target process.", ImVec4(0.16f, 0.72f, 0.53f, 1.0f));
+						}
+						else
+						{
+							ui_instance->show_toast("Injection Failed", "Process not running or injection error.", ImVec4(0.95f, 0.30f, 0.30f, 1.0f));
+						}
 					}
 				});
+			}
+
+			// =========================================================================
+			// DOWNLOAD PROGRESS MODAL DIALOGUE
+			// =========================================================================
+			if (ui_instance->m_is_downloading)
+			{
+				ImGui::OpenPopup("Downloading Binary Stream");
+			}
+
+			ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+			ImGui::SetNextWindowSize(ImVec2(420.0f, 160.0f));
+			if (ImGui::BeginPopupModal("Downloading Binary Stream", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize))
+			{
+				ImGui::TextColored(ImVec4(0.23f, 0.51f, 0.96f, 1.0f), ICON_FA_DOWNLOAD "  Streaming & Decrypting Payload...");
+				ImGui::Spacing();
+				ImGui::TextDisabled("Target File: %s", current_file.c_str());
+				ImGui::Spacing();
+
+				float pct = ui_instance->m_download_progress;
+				char overlay[32];
+				snprintf(overlay, sizeof(overlay), "%.0f%%", pct * 100.0f);
+				ImGui::ProgressBar(pct, ImVec2(-1, 28), overlay);
+
+				if (!ui_instance->m_is_downloading)
+				{
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::EndPopup();
 			}
 		}
 		ui::card_end();

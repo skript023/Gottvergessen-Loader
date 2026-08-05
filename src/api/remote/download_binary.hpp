@@ -42,6 +42,7 @@ namespace gottvergessen
 			std::string fn = get_file_by_id(m_selected_index);
 			return fn.empty() ? (m_filename.empty() ? "binary.dll" : m_filename) : fn; 
 		}
+		void set_target_process(const std::string& process_name) { m_target_process = process_name; }
 		[[nodiscard]] std::string injection_target() const { return m_target_process.empty() ? "notepad.exe" : m_target_process; }
 		void set_binary_data(const std::string data) { m_binary_data = {data.begin(), data.end()}; }
 		[[nodiscard]] std::string binary_data() const { return m_binary_data; }

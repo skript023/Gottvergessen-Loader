@@ -1,6 +1,7 @@
 #include "http_client/http_client.hpp"
 #include "download_binary.hpp"
 #include "gui.hpp"
+#include "ui/ui.hpp"
 
 namespace gottvergessen
 {
@@ -101,6 +102,10 @@ namespace gottvergessen
 			auto ok = http_client::download_with_progress(download_url, location, header, cpr::Parameters{}, [&](float progress)
 			{
 				LOG(INFO) << "Progress: " << static_cast<int>(progress) << "%";
+				if (g_ui)
+				{
+					g_ui->m_download_progress = progress / 100.0f;
+				}
 			});
 
 			if (!ok)
