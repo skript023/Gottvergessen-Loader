@@ -17,84 +17,35 @@ namespace gottvergessen
 
 	bool download_binary::check_binary_before_injection()
 	{
-		auto m_latest_version = this->get_version_info();
-		auto m_current_version = this->get_current_version();
+		std::string uuid = this->get_selected_uuid();
+		std::string file_name = this->get_binary_name();
+		if (file_name.empty()) file_name = "binary_package.dll";
 
-		LOG(HACKER) << "Server binary version is " << m_latest_version.m_version << " current version is " << m_current_version.m_version;
+		auto location = m_location.get_file(file_name).get_path();
 
-		if (!m_current_version.m_supported || !m_latest_version.m_supported)
-		{
-			LOG(WARNING) << "This version is unsupported, injection terminated";
-			return false;
-		}
-
-		if (m_current_version.m_id != m_latest_version.m_id)
-		{
-			LOG(WARNING) << "Invalid category, redownload new version file";
-			this->download_version_file();
-			this->check_binary_before_injection();
-			LOG(HACKER) << "New version file downloaded successfully";
-		}
-
-		if (!m_latest_version.m_valid)
-		{
-			LOG(WARNING) << "Host did not return valid version data, does it have a version.json?";
-
-			return false;
-		}
-
-		LOG(HACKER) << "Checking binary From Server";
-
-		auto location = m_location.get_file(this->get_binary_name()).get_path();
+		LOG(HACKER) << "Checking binary from Server for payload: " << file_name << " (UUID: " << uuid << ")";
 
 		std::ifstream fileStream(location, std::ios::binary | std::ios::ate);
-
-		const auto file_size = fileStream.tellg();
-		if (std::filesystem::exists(location) && file_size < 0x1000)
+		std::streamoff file_size = -1;
+		if (fileStream.is_open())
 		{
+			file_size = static_cast<std::streamoff>(fileStream.tellg());
 			fileStream.close();
-
-			LOG(WARNING) << "DLL file seems inconceivably small probably file corrupted, request to inject ignored.";
-
-			LOG(HACKER) << "Redownloading binary from server, please wait...";
-
-			if (!this->download(this->get_binary_name(), location))
-			{
-				LOG(WARNING) << "Host did not return valid version data, does it have a version.json?";
-
-				return false;
-			}
-
-			LOG(HACKER) << "New DLL has been downloaded from remote, new binary version is " << m_latest_version.m_version;
 		}
 
-		if (!std::filesystem::exists(location))
-		{
-			LOG(HACKER) << "Downloading DLL from server, please wait...";
-			if (!this->download(this->get_binary_name(), location))
-			{
-				LOG(WARNING) << "Host did not return valid version data, does it have a version.json?";
+		std::string download_target = uuid.empty() ? file_name : uuid;
 
+		if (!std::filesystem::exists(location) || file_size < 0x1000)
+		{
+			LOG(HACKER) << "Downloading binary payload from server (" << download_target << ")...";
+
+			if (!this->download(download_target, location))
+			{
+				LOG(WARNING) << "Failed to download binary from Ellohim-Server.";
 				return false;
 			}
 
-			LOG(HACKER) << "New DLL has been downloaded from remote, new binary version is " << m_latest_version.m_version;
-		}
-
-		if (m_current_version.m_version_machine < m_latest_version.m_version_machine)
-		{
-			LOG(HACKER) << "DLL is outdated or request remote not valid, request updating binary from server...";
-			LOG(HACKER) << "Updating DLL from server, please wait...";
-			if (!this->download(this->get_binary_name(), location))
-			{
-				LOG(WARNING) << "Host did not return valid version data, does it have a version.json?";
-
-				return false;
-			}
-
-			this->download_version_file();
-
-			LOG(HACKER) << "New DLL has been downloaded from remote, new binary version is " << m_latest_version.m_version;
+			LOG(HACKER) << "New binary payload downloaded successfully: " << file_name;
 		}
 
 		return true;
@@ -213,7 +164,7 @@ namespace gottvergessen
 				{ xorstr("Authorization"), token }
 			};
 
-			cpr::Url url = xorstr("http://localhost:8180/binary");
+			cpr::Url url = xorstr("http://localhost:8180/binary/my-binaries");
 
 			auto res = cpr::Get(url, header);
 
@@ -228,6 +179,7 @@ namespace gottvergessen
 				{
 					this->m_binaries = parsed;
 				}
+				LOG(INFO) << "Loaded " << this->m_binaries.size() << " user binaries from GET /binary/my-binaries";
 			}
 		}
 		catch (const std::exception&)

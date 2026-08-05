@@ -27,18 +27,52 @@ namespace gottvergessen
 		bool is_version_valid() const { return m_loader_version.m_valid; }
 		[[nodiscard]] int loader_version_machine() const { return m_loader_version.m_version_machine; }
 		[[nodiscard]] std::string loader_version() const { return m_loader_version.m_version; }
+		void select_binary_index(int index) { m_selected_index = index; }
+		[[nodiscard]] int selected_index() const { return m_selected_index; }
 		void select_binary(const std::string name) { m_selected_binary = name; }
 		[[nodiscard]] std::string selected_binary() const { return m_selected_binary; }
-		[[nodiscard]] std::string get_binary_name() const { return m_filename; }
-		[[nodiscard]] std::string injection_target() const { return m_target_process; }
+		[[nodiscard]] std::string get_selected_uuid() const { return get_uuid_by_id(m_selected_index); }
+		[[nodiscard]] std::string get_selected_file_name() const 
+		{ 
+			std::string fn = get_file_by_id(m_selected_index); 
+			return fn.empty() ? m_filename : fn; 
+		}
+		[[nodiscard]] std::string get_binary_name() const 
+		{ 
+			std::string fn = get_file_by_id(m_selected_index);
+			return fn.empty() ? (m_filename.empty() ? "binary.dll" : m_filename) : fn; 
+		}
+		[[nodiscard]] std::string injection_target() const { return m_target_process.empty() ? "notepad.exe" : m_target_process; }
 		void set_binary_data(const std::string data) { m_binary_data = {data.begin(), data.end()}; }
 		[[nodiscard]] std::string binary_data() const { return m_binary_data; }
 		nlohmann::ordered_json load_binaries() const { return m_binaries; }
 		size_t binaries_size() const 
 		{ 
-			if (m_binaries.is_array()) return m_binaries.size() > 0 ? m_binaries.size() : 4;
-			if (m_binaries.is_object()) return m_binaries.size() > 0 ? m_binaries.size() : 4;
-			return 4;
+			if (m_binaries.is_array()) return m_binaries.size();
+			if (m_binaries.is_object()) return m_binaries.size();
+			return 0;
+		}
+		std::string get_uuid_by_id(int id) const 
+		{ 
+			if (m_binaries.is_array() && id >= 0 && id < (int)m_binaries.size())
+			{
+				auto& data = m_binaries[id];
+				if (data.contains("id") && data["id"].is_string()) return data["id"].get<std::string>();
+			}
+			else if (m_binaries.is_object())
+			{
+				int index = 0;
+				for (auto it = m_binaries.begin(); it != m_binaries.end(); ++it)
+				{
+					if (index == id)
+					{
+						auto& data = it.value();
+						if (data.contains("id") && data["id"].is_string()) return data["id"].get<std::string>();
+					}
+					index++;
+				}
+			}
+			return {};
 		}
 		std::string get_binary_by_id(int id) const 
 		{ 
@@ -62,9 +96,6 @@ namespace gottvergessen
 					index++;
 				}
 			}
-
-			if (id >= 0 && id < 4)
-				return m_binary_name[id].m_name;
 
 			return {};
 		}
@@ -91,9 +122,6 @@ namespace gottvergessen
 				}
 			}
 
-			if (id >= 0 && id < 4)
-				return m_binary_name[id].m_server_name;
-
 			return {};
 		}
 
@@ -114,6 +142,7 @@ namespace gottvergessen
 			{ xorstr("Elsword Zero"), xorstr("ElsZero") }
 		};
 	private:
+		int m_selected_index{0};
 		nlohmann::ordered_json m_binaries{};
 		LoaderVersion m_loader_version;
 		folder m_location;

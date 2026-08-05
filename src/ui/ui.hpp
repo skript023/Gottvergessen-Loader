@@ -8,53 +8,12 @@
 
 namespace gottvergessen
 {
-	// Enum Navigasi Tab Dashboard Web App
+	// Enum Navigasi Tab Loader UI
 	enum class NavTab
 	{
-		Dashboard = 0,
-		ProductsCatalog,
-		CheckoutOrder,
-		TransactionPayment,
+		BinaryDownload = 0,
 		MyLicenses,
-		BinaryDownload,
 		Settings
-	};
-
-	// Status Transaksi Alur Ellohim-Server
-	enum class TransactionStatus
-	{
-		None,
-		PendingPayment,
-		SettlementSuccess,
-		Failed
-	};
-
-	// Item Dalam Produk / Cart
-	struct ProductItem
-	{
-		std::string id;
-		std::string name;
-		std::string category;
-		double price;
-		std::string version;
-		std::string description;
-		bool selected = false;
-	};
-
-	// Model Data Order Transaksi
-	struct OrderTransaction
-	{
-		std::string order_id;
-		std::string transaction_id;
-		std::string merchant_id = "MCH-987654";
-		std::string payment_type = "qris";
-		std::string va_number = "936009990001";
-		double gross_amount = 0.0;
-		double discount_amount = 0.0;
-		std::string applied_promo_code;
-		TransactionStatus status = TransactionStatus::None;
-		std::string transaction_time;
-		std::vector<ProductItem> items;
 	};
 
 	// Model Data Lisensi Pengguna
@@ -99,19 +58,13 @@ namespace gottvergessen
 
 	public:
 		// Navigation State
-		NavTab m_active_tab = NavTab::Dashboard;
+		NavTab m_active_tab = NavTab::BinaryDownload;
 
-		// Workflow Transaction Data (Ellohim-Server match)
-		std::vector<ProductItem> m_available_products;
-		OrderTransaction m_current_order;
+		// User Licenses
 		std::vector<UserLicense> m_user_licenses;
-		std::vector<OrderTransaction> m_order_history;
 
 		// Data loading state
 		bool m_data_loaded = false;
-
-		// Promo Voucher Input
-		char m_promo_input[64] = "ELLOHIMPROMO10";
 
 		// Binary Download & Injection State
 		std::string m_remote_version = "v1.0.4";
@@ -122,11 +75,12 @@ namespace gottvergessen
 		bool m_binary_downloaded = false;
 		bool m_injected = false;
 
+		void fetch_data_from_server();
+
 	private:
 		void render_sidebar();
 		void render_top_header();
 		void render_content_area(class renderer* renderer_ptr);
-		void fetch_data_from_server();
 
 		// Dynamic Toast Notification structure
 		struct ToastNotification

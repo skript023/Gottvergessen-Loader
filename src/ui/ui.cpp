@@ -2,6 +2,7 @@
 #include "ui/ui_views.hpp"
 #include "renderer.hpp"
 #include "api/user/user_authentication.hpp"
+#include "api/remote/download_binary.hpp"
 #include <imgui_internal.h>
 #include <algorithm>
 
@@ -15,9 +16,7 @@ namespace gottvergessen
 	void ui::init()
 	{
 		// Data will be loaded from server when user is authorized
-		m_available_products.clear();
 		m_user_licenses.clear();
-		m_order_history.clear();
 		m_data_loaded = false;
 	}
 
@@ -173,13 +172,9 @@ namespace gottvergessen
 				ImGui::Spacing();
 			};
 
-			render_nav_item(NavTab::Dashboard,          "Dashboard",      ICON_FA_CHART_PIE);
-			render_nav_item(NavTab::ProductsCatalog,    "Products",       ICON_FA_SHOPPING_CART);
-			render_nav_item(NavTab::CheckoutOrder,      "Checkout Order", ICON_FA_FILE_INVOICE);
-			render_nav_item(NavTab::TransactionPayment, "Payment Gateway",ICON_FA_CREDIT_CARD);
-			render_nav_item(NavTab::MyLicenses,         "My Licenses",    ICON_FA_KEY);
-			render_nav_item(NavTab::BinaryDownload,     "Binary & Launch",ICON_FA_ROCKET);
-			render_nav_item(NavTab::Settings,           "Settings",       ICON_FA_COG);
+			render_nav_item(NavTab::BinaryDownload, "Binary & Launch", ICON_FA_ROCKET);
+			render_nav_item(NavTab::MyLicenses,     "My Licenses",    ICON_FA_KEY);
+			render_nav_item(NavTab::Settings,       "Settings",       ICON_FA_COG);
 
 			// Bottom Profile / Session Card
 			ImGui::SetCursorPosY(ImGui::GetWindowHeight() - 75.0f);
@@ -209,12 +204,8 @@ namespace gottvergessen
 		{
 			// Title Breadcrumb
 			const char* tab_titles[] = {
-				"Overview & Activity Dashboard",
-				"Product Catalog & Subscription Store",
-				"Stage 1: Checkout & Order Summary",
-				"Stage 2: Payment Gateway & License Generation",
-				"Stage 2: User License Management",
-				"Stage 3: Binary Verification & Launch Engine",
+				"Binary Verification & Launch Engine",
+				"User License Management",
 				"Application Settings & Diagnostic Log"
 			};
 			int tab_idx = static_cast<int>(m_active_tab);
@@ -256,23 +247,11 @@ namespace gottvergessen
 		{
 			switch (m_active_tab)
 			{
-			case NavTab::Dashboard:
-				ui_views::render_dashboard_overview(this);
-				break;
-			case NavTab::ProductsCatalog:
-				ui_views::render_products_catalog(this);
-				break;
-			case NavTab::CheckoutOrder:
-				ui_views::render_checkout_order(this);
-				break;
-			case NavTab::TransactionPayment:
-				ui_views::render_transaction_payment(this);
+			case NavTab::BinaryDownload:
+				ui_views::render_binary_download(this, renderer_ptr);
 				break;
 			case NavTab::MyLicenses:
 				ui_views::render_my_licenses(this);
-				break;
-			case NavTab::BinaryDownload:
-				ui_views::render_binary_download(this, renderer_ptr);
 				break;
 			case NavTab::Settings:
 				ui_views::render_settings(this);
@@ -291,66 +270,19 @@ namespace gottvergessen
 		if (!g_user_authentication || !g_user_authentication->authorized())
 			return;
 
-		m_data_loaded = true; // Set early to prevent re-entry
+		m_data_loaded = true;
 
 		try
 		{
-			// ---- Fetch Products from GET /product ----
-			auto products_json = g_user_authentication->api_get(xorstr("http://localhost:8180/product"));
-			if (!products_json.is_discarded() && products_json.value("success", false) && products_json.contains("data"))
+			// ---- Fetch User Binaries from GET /binary/my-binaries ----
+			if (g_download_binary)
 			{
-				m_available_products.clear();
-				auto& data = products_json["data"];
-				if (data.is_array())
-				{
-					for (auto& p : data)
-					{
-						ProductItem item;
-						item.id = p.value("id", "");
-						item.name = p.value("name", "Unknown");
-						item.category = "Product";
-						item.description = p.value("description", "");
-						// price comes as string from server
-						std::string price_str = p.value("price", "0");
-						try { item.price = std::stod(price_str); } catch (...) { item.price = 0.0; }
-						item.version = "";
-						item.selected = false;
-						m_available_products.push_back(item);
-					}
-				}
+				g_download_binary->generate_binaries();
 			}
 
-			// ---- Fetch Orders from GET /order ----
-			auto orders_json = g_user_authentication->api_get(xorstr("http://localhost:8180/order"));
-			if (!orders_json.is_discarded() && orders_json.value("success", false) && orders_json.contains("data"))
-			{
-				m_order_history.clear();
-				auto& data = orders_json["data"];
-				if (data.is_array())
-				{
-					for (auto& o : data)
-					{
-						OrderTransaction order;
-						order.order_id = o.value("id", "");
-						order.gross_amount = o.value("total_amount", 0.0);
-						std::string status_str = o.value("status", "pending");
-						if (status_str == "settlement" || status_str == "completed")
-							order.status = TransactionStatus::SettlementSuccess;
-						else if (status_str == "pending")
-							order.status = TransactionStatus::PendingPayment;
-						else if (status_str == "failed" || status_str == "cancelled")
-							order.status = TransactionStatus::Failed;
-						else
-							order.status = TransactionStatus::None;
-						order.transaction_time = o.value("created_at", "");
-						m_order_history.push_back(order);
-					}
-				}
-			}
-
-			// ---- Fetch Licenses from GET /license ----
-			auto licenses_json = g_user_authentication->api_get(xorstr("http://localhost:8180/license"));
-			if (!licenses_json.is_discarded() && licenses_json.value("success", false) && licenses_json.contains("data"))
+			// ---- Fetch My Licenses from GET /license/my-licenses ----
+			auto licenses_json = g_user_authentication->api_get(xorstr("http://localhost:8180/license/my-licenses"));
+			if (!licenses_json.is_discarded() && licenses_json.contains("data"))
 			{
 				m_user_licenses.clear();
 				auto& data = licenses_json["data"];
@@ -360,23 +292,31 @@ namespace gottvergessen
 					{
 						UserLicense lic;
 						lic.license_id = l.value("id", "");
-						lic.product_name = l.value("product_id", ""); // Will show product_id for now
+
+						// Extract product name from nested product object if included, or fallbacks
+						if (l.contains("product") && l["product"].is_object() && l["product"].contains("name"))
+						{
+							lic.product_name = l["product"].value("name", "");
+						}
+						if (lic.product_name.empty())
+						{
+							lic.product_name = l.value("product_name", l.value("product_id", "Product License"));
+						}
+
 						lic.license_key = l.value("license_key", "");
-						lic.issued_at = l.value("issued_at", "");
-						lic.expiry_date = l.value("expiry_date", "");
+						lic.issued_at = l.value("issued_at", l.value("created_at", ""));
+						lic.expiry_date = l.value("expiry_date", "Lifetime");
 						lic.status = l.value("status", "ACTIVE");
 						m_user_licenses.push_back(lic);
 					}
 				}
 			}
 
-			LOG(INFO) << "Fetched " << m_available_products.size() << " products, "
-			          << m_order_history.size() << " orders, "
-			          << m_user_licenses.size() << " licenses from server.";
+			LOG(INFO) << "Fetched " << m_user_licenses.size() << " licenses from server.";
 		}
-		catch (const std::exception&)
+		catch (const std::exception& ex)
 		{
-			LOG(WARNING) << xorstr("Failed to fetch data from server.");
+			LOG(WARNING) << xorstr("Failed to fetch data from server: ") << ex.what();
 		}
 	}
 
