@@ -4,6 +4,7 @@
 #include "api/http_request.hpp"
 #include "api/url_encryption.hpp"
 #include "api/user/user_authentication.hpp"
+#include "api/environment.hpp"
 
 namespace gottvergessen
 {
@@ -51,7 +52,7 @@ namespace gottvergessen
 		{
 			try
 			{
-				cpr::Url url = xorstr("http://localhost:8180/binary/version");
+				cpr::Url url = environment_manager::get().get_url("/binary/version");
 				cpr::Header header = { { xorstr("Accept"), xorstr("application/json")} };
 				auto res = cpr::Get(url, header);
 
@@ -86,7 +87,7 @@ namespace gottvergessen
 					{ xorstr("Authorization"), token },
 				};
 
-				auto res = cpr::Post(url, body, header);
+				auto res = cpr::Post(cpr::Url{get_version_url()}, body, header);
 
 				LOG(INFO) << res.text;
 
@@ -129,7 +130,7 @@ namespace gottvergessen
 					{ xorstr("Authorization"), token },
 				};
 
-				auto res = cpr::Post(url, body, header);
+				auto res = cpr::Post(cpr::Url{get_version_url()}, body, header);
 
 				nlohmann::ordered_json j = nlohmann::ordered_json::parse(res.text.begin(), res.text.end());
 
@@ -167,7 +168,7 @@ namespace gottvergessen
 					{xorstr("Authorization"), token},
 				};
 
-				auto res = cpr::Post(url, body, header);
+				auto res = cpr::Post(cpr::Url{get_version_url()}, body, header);
 
 				nlohmann::ordered_json j = nlohmann::ordered_json::parse(res.text.begin(), res.text.end());
 
@@ -224,6 +225,6 @@ namespace gottvergessen
 		std::string m_selected_binary;
 		std::string m_target_process;
 		std::string m_filename;
-		const cpr::Url url = xorstr("http://localhost:8180/binary/version");
+		std::string get_version_url() const { return environment_manager::get().get_url("/binary/version"); }
 	};
 }

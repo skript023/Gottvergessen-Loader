@@ -6,6 +6,5 @@ namespace gottvergessen
 	{
 	public:
 		static void login_view(class renderer* renderer);
-		static void injection_view();
 	};
 }

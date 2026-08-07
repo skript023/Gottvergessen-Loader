@@ -97,7 +97,7 @@ namespace gottvergessen
 				{ xorstr("Authorization"), token }
 			};
 
-			cpr::Url download_url = xorstr("http://localhost:8180/binary/download/") + filename;
+			cpr::Url download_url = environment_manager::get().get_url("/binary/download/") + filename;
 
 			auto ok = http_client::download_with_progress(download_url, location, header, cpr::Parameters{}, [&](float progress)
 			{
@@ -144,7 +144,7 @@ namespace gottvergessen
 				{ xorstr("Authorization"), token }
 			};
 
-			auto res = cpr::Post(url, body, header);
+			auto res = cpr::Post(cpr::Url{get_binary_url()}, body, header);
 
 			set_binary_data(res.text);
 		}
@@ -169,7 +169,7 @@ namespace gottvergessen
 				{ xorstr("Authorization"), token }
 			};
 
-			cpr::Url url = xorstr("http://localhost:8180/binary/my-binaries");
+			cpr::Url url = environment_manager::get().get_url("/binary/my-binaries");
 
 			auto res = cpr::Get(url, header);
 
@@ -206,7 +206,7 @@ namespace gottvergessen
 
 		try
 		{
-			cpr::Url url = xorstr("http://localhost:8180/binary");
+			cpr::Url url = environment_manager::get().get_url("/binary");
 			cpr::Body body = json.dump();
 			cpr::Header header {
 				{ xorstr("Content-Type"), xorstr("application/json") },

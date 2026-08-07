@@ -99,13 +99,13 @@ namespace gottvergessen
 			}
 
 			ImGui::SameLine(0, 8);
-			ImGui::SetCursorPosY(8);
+			ImGui::SetCursorPosY((titlebar_height - ImGui::GetTextLineHeight()) * 0.5f);
 			ImGui::TextColored(ImVec4(0.92f, 0.92f, 0.95f, 1.0f),
 			    "Gottvergessen Dashboard Loader");
 
 			// Status Badge / Version Tag Visual
 			ImGui::SameLine(0, 10);
-			ImGui::SetCursorPosY(7);
+			ImGui::SetCursorPosY((titlebar_height - (ImGui::GetTextLineHeight() + 4.0f)) * 0.5f);
 			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.18f, 0.22f, 1.0f));
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 12.0f);
 			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 2));

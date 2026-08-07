@@ -8,6 +8,7 @@
 #include "process/injection.hpp"
 #include "api/remote/download_binary.hpp"
 #include "api/user/user_authentication.hpp"
+#include "api/environment.hpp"
 
 namespace gottvergessen
 {
@@ -17,17 +18,13 @@ namespace gottvergessen
 		float font_size = ImGui::GetFontSize();
 
 		// 2. Skala dinamis berbasis proporsi window & skala font
-		// Gunakan persentase window (misal 45%) tetapi dinaikkan batas minimum & maksimumnya
-		// agar terlihat proporsional di layar 1080p/2K/4K.
 		float target_width = window_size.x * 0.45f;
 		
-		// Batas dinamis berbasis font size (18em - 32em) agar adaptif terhadap DPI/Font scale
 		float min_width = std::max(260.0f, font_size * 18.0f); 
 		float max_width = std::max(550.0f, font_size * 32.0f); 
 		
 		float item_width = std::clamp(target_width, min_width, max_width);
 
-		// Tinggi tombol & frame dibuat proporsional terhadap ukuran font (misal 2.2x font size)
 		float button_height = font_size * 2.2f;
 		ImVec2 button_size = ImVec2{ item_width, button_height };
 
@@ -36,29 +33,36 @@ namespace gottvergessen
 		float frame_height = ImGui::GetFrameHeight();
 		float item_spacing = ImGui::GetStyle().ItemSpacing.y;
 
-		// Total tinggi = (2x Label Text) + (2x Input Box) + (1x Button) + Spacing
-		float total_content_height = (text_height * 2.0f) + (frame_height * 2.0f) + button_size.y + (item_spacing * 5.0f);
+		float logoWidth = 120.0f;
+		float logoHeight = 0.0f;
+		if (renderer && renderer->m_icons != nullptr && renderer->m_icons_size.x > 0)
+		{
+			float aspectRatio = (float)renderer->m_icons_size.y / (float)renderer->m_icons_size.x;
+			logoHeight = logoWidth * aspectRatio;
+		}
+
+		// Total tinggi = Logo + (3x Label Text) + (3x Input Box) + (1x Button) + Spacing
+		float total_content_height = (text_height * 3.0f) + (frame_height * 3.0f) + button_size.y + (item_spacing * 8.0f);
+		if (logoHeight > 0.0f)
+		{
+			total_content_height += logoHeight + (item_spacing * 2.0f);
+		}
 
 		// Hitung offset koordinat awal
 		float center_x = (window_size.x - item_width) * 0.5f;
 		float start_y = (window_size.y - total_content_height) * 0.5f;
 
-		if (renderer && renderer->m_icons != nullptr)
-		{
-			float logoWidth = 120.0f; // Ukuran diperkecil sedikit agar pas di dalam card/konten
-			float aspectRatio = (float)renderer->m_icons_size.y / (float)renderer->m_icons_size.x;
-			float logoHeight = logoWidth * aspectRatio;
-
-			float windowWidth = ImGui::GetWindowSize().x;
-			ImGui::SetCursorPosX((windowWidth - logoWidth) * 0.5f);
-			ImGui::Image((void*)renderer->m_icons, ImVec2(logoWidth, logoHeight));
-			ImGui::Spacing();
-		}
-
-		// Terapkan posisi Y awal jika masih berada dalam batasan window
 		if (start_y > 10.0f)
 		{
 			ImGui::SetCursorPosY(start_y);
+		}
+
+		if (logoHeight > 0.0f)
+		{
+			ImGui::SetCursorPosX((window_size.x - logoWidth) * 0.5f);
+			ImGui::Image((void*)renderer->m_icons, ImVec2(logoWidth, logoHeight));
+			ImGui::Spacing();
+			ImGui::Spacing();
 		}
 
 		// 4. Render Komponen Tampilan Login
@@ -82,6 +86,26 @@ namespace gottvergessen
 		ImGui::SetCursorPosX(center_x);
 		ImGui::PushItemWidth(item_width);
 		ImGui::InputText(xorstr("##Password"), g_user_authentication->password, IM_ARRAYSIZE(g_user_authentication->password), ImGuiInputTextFlags_Password);
+		ImGui::PopItemWidth();
+
+		ImGui::Spacing();
+
+		// --- Server Environment Section ---
+		ImGui::SetCursorPosX(center_x);
+		ImGui::TextUnformatted("Server Environment");
+
+		ImGui::SetCursorPosX(center_x);
+		ImGui::PushItemWidth(item_width);
+		int current_env = static_cast<int>(environment_manager::get().get_current_environment());
+		const char* env_items[] = {
+			"Localhost (http://localhost:8180)",
+			"Production (https://apie.rena.my.id)",
+			"Custom"
+		};
+		if (ImGui::Combo(xorstr("##EnvironmentComboLogin"), &current_env, env_items, IM_ARRAYSIZE(env_items)))
+		{
+			environment_manager::get().set_environment(static_cast<Environment>(current_env));
+		}
 		ImGui::PopItemWidth();
 
 		ImGui::Spacing();

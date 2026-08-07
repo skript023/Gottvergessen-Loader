@@ -6,6 +6,7 @@
 #include "images/images.hpp"
 #include "textures/textures.hpp"
 #include "classes/resolution.hpp"
+#include "resource.h"
 
 #include <backends/imgui_impl_dx11.h>
 #include <backends/imgui_impl_win32.h>
@@ -134,6 +135,12 @@ namespace gottvergessen
 	bool renderer::init()
 	{
 		m_name = "Gottvergessen";
+		HICON h_icon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_ICON1));
+		if (!h_icon)
+		{
+			h_icon = LoadIcon(NULL, IDI_APPLICATION);
+		}
+
 		m_window_class = {
 		    sizeof(WNDCLASSEX),
 		    CS_CLASSDC | CS_HREDRAW | CS_VREDRAW,
@@ -141,12 +148,12 @@ namespace gottvergessen
 		    0L,
 		    0L,
 		    GetModuleHandle(NULL),
-		    NULL,
-		    NULL,
+		    h_icon,
+		    LoadCursor(NULL, IDC_ARROW),
 		    NULL,
 		    NULL,
 		    m_name,
-		    NULL};
+		    h_icon};
 
 		auto screen_res = ScreenResolution(::GetSystemMetrics(SM_CXSCREEN), ::GetSystemMetrics(SM_CYSCREEN));
 
@@ -158,11 +165,17 @@ namespace gottvergessen
 		int win_x = (screen_res.x - win_w) / 2;
 		int win_y = (screen_res.y - win_h) / 2;
 
-		// Menggunakan WS_POPUP | WS_THICKFRAME tanpa WS_EX_LAYERED agar DirectX 11 render solid & tidak hilang
-		m_hwnd = CreateWindowExA(WS_EX_LAYERED, m_window_class.lpszClassName, m_name, WS_POPUP, win_x, win_y, win_w, win_h, NULL, NULL, m_window_class.hInstance, NULL);
+		// Menggunakan WS_EX_APPWINDOW agar window muncul di taskbar dengan icon
+		m_hwnd = CreateWindowExA(WS_EX_APPWINDOW | WS_EX_LAYERED, m_window_class.lpszClassName, m_name, WS_POPUP, win_x, win_y, win_w, win_h, NULL, NULL, m_window_class.hInstance, NULL);
 
-		SetWindowLong(m_hwnd, GWL_EXSTYLE, GetWindowLong(m_hwnd, GWL_EXSTYLE) | WS_EX_LAYERED | WS_EX_TOPMOST);
+		SetWindowLong(m_hwnd, GWL_EXSTYLE, GetWindowLong(m_hwnd, GWL_EXSTYLE) | WS_EX_APPWINDOW | WS_EX_LAYERED | WS_EX_TOPMOST);
 		SetLayeredWindowAttributes(m_hwnd, RGB(0, 0, 0), BYTE(255), LWA_ALPHA);
+
+		if (h_icon)
+		{
+			SendMessage(m_hwnd, WM_SETICON, ICON_BIG, (LPARAM)h_icon);
+			SendMessage(m_hwnd, WM_SETICON, ICON_SMALL, (LPARAM)h_icon);
+		}
 
 		{
 			RECT client_area{};

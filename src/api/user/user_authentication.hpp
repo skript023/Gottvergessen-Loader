@@ -1,9 +1,16 @@
 #pragma once
+#include <mutex>
+#include <thread>
+#include <atomic>
+#include <vector>
 #include "common.hpp"
 #include "api/http_request.hpp"
 #include "api/url_encryption.hpp"
 #include "hardware_authentication.hpp"
 #include "file_manager.hpp"
+#include "api/environment.hpp"
+#include "textures/textures.hpp"
+#include "renderer.hpp"
 
 namespace gottvergessen
 {
@@ -41,7 +48,110 @@ namespace gottvergessen
 
 		virtual ~user_authentication()
 		{
+			clear_avatar_texture();
 			g_user_authentication = nullptr;
+		}
+
+		void clear_avatar_texture()
+		{
+			std::lock_guard<std::mutex> lock(this->avatar_mutex);
+			if (avatar_srv)
+			{
+				textures::destroy_texture(&avatar_srv);
+				avatar_srv = nullptr;
+			}
+			avatar_loaded = false;
+			avatar_loading = false;
+			avatar_bytes_ready = false;
+			avatar_raw_bytes.clear();
+			avatar_raw_bytes.shrink_to_fit();
+		}
+
+		void trigger_avatar_download()
+		{
+			if (avatar_url.empty() && !user_id.empty())
+			{
+				avatar_url = "/user/avatar/" + user_id;
+			}
+
+			if (avatar_url.empty())
+				return;
+
+			if (avatar_loading || avatar_loaded)
+				return;
+
+			std::string full_url;
+			if (avatar_url.rfind("http://", 0) == 0 || avatar_url.rfind("https://", 0) == 0)
+			{
+				full_url = avatar_url;
+			}
+			else
+			{
+				full_url = environment_manager::get().get_url(avatar_url);
+			}
+
+			avatar_loading = true;
+			std::thread([this, full_url, token = this->get_token()]() {
+				try
+				{
+					cpr::Header header{
+					    {xorstr("Accept"), xorstr("image/*, */*")},
+					    {xorstr("Authorization"), std::format("Bearer {}", token)},
+					    {xorstr("User-Agent"), this->get_user_agent()}};
+					auto res = cpr::Get(cpr::Url{full_url}, header);
+					if (res.status_code == 200 && !res.text.empty())
+					{
+						std::lock_guard<std::mutex> lock(this->avatar_mutex);
+						this->avatar_raw_bytes.assign(res.text.begin(), res.text.end());
+						this->avatar_bytes_ready = true;
+						LOG(INFO) << xorstr("Downloaded avatar binary successfully (") << res.text.size() << xorstr(" bytes) from ") << full_url;
+					}
+					else
+					{
+						LOG(WARNING) << xorstr("Failed to download avatar from ") << full_url << xorstr(" status: ") << res.status_code;
+					}
+				}
+				catch (const std::exception& e)
+				{
+					LOG(WARNING) << xorstr("Exception downloading avatar: ") << e.what();
+				}
+				this->avatar_loading = false;
+			}).detach();
+		}
+
+		ID3D11ShaderResourceView* get_avatar_texture()
+		{
+			if (!avatar_loaded && !avatar_loading && (!avatar_url.empty() || !user_id.empty()))
+			{
+				trigger_avatar_download();
+			}
+
+			if (avatar_bytes_ready)
+			{
+				std::lock_guard<std::mutex> lock(this->avatar_mutex);
+				avatar_bytes_ready = false;
+				if (g_renderer && g_renderer->m_device && !avatar_raw_bytes.empty())
+				{
+					if (avatar_srv)
+					{
+						textures::destroy_texture(&avatar_srv);
+						avatar_srv = nullptr;
+					}
+					int w = 0, h = 0;
+					if (textures::load_from_memory(avatar_raw_bytes.data(), static_cast<int>(avatar_raw_bytes.size()), g_renderer->m_device, &avatar_srv, &w, &h))
+					{
+						avatar_loaded = true;
+						LOG(INFO) << xorstr("Successfully created avatar D3D11 texture: ") << w << "x" << h;
+					}
+					else
+					{
+						LOG(WARNING) << xorstr("Failed to decode avatar binary memory with stb_image.");
+					}
+					avatar_raw_bytes.clear();
+					avatar_raw_bytes.shrink_to_fit();
+				}
+			}
+			return avatar_srv;
 		}
 
 		user_authentication(user_authentication const& that) = delete;
@@ -76,7 +186,7 @@ namespace gottvergessen
 				}
 
 				// Try to refresh the token via /auth/refresh
-				cpr::Url uri = url_refresh;
+				cpr::Url uri = environment_manager::get().get_url("/auth/refresh");
 				cpr::Header header{
 				    {xorstr("Accept"), xorstr("application/json")},
 				    {xorstr("Content-Type"), xorstr("application/json")},
@@ -141,7 +251,7 @@ namespace gottvergessen
 			const std::string token = std::format("Bearer {}", this->get_token());
 			try
 			{
-				cpr::Url uri = url_profile;
+				cpr::Url uri = environment_manager::get().get_url("/user/profile");
 				cpr::Header header{
 				    {xorstr("Accept"), xorstr("application/json")},
 				    {xorstr("Content-Type"), xorstr("application/json")},
@@ -153,6 +263,15 @@ namespace gottvergessen
 				if (!j.is_discarded() && j.value("success", false) && j.contains("data"))
 				{
 					auto& user_data = j["data"];
+					if (user_data.contains("id") && user_data["id"].is_string())
+					{
+						user_id = user_data["id"].get<std::string>();
+					}
+					else if (user_data.contains("user_id") && user_data["user_id"].is_string())
+					{
+						user_id = user_data["user_id"].get<std::string>();
+					}
+
 					if (user_data.contains("firstname") && user_data["firstname"].is_string())
 					{
 						std::string fn = user_data["firstname"].get<std::string>();
@@ -168,6 +287,21 @@ namespace gottvergessen
 					{
 						role = user_data["role"].get<std::string>();
 					}
+					if (user_data.contains("avatar") && user_data["avatar"].is_string())
+					{
+						avatar_url = user_data["avatar"].get<std::string>();
+					}
+					else if (user_data.contains("avatar_url") && user_data["avatar_url"].is_string())
+					{
+						avatar_url = user_data["avatar_url"].get<std::string>();
+					}
+
+					if (avatar_url.empty() && !user_id.empty())
+					{
+						avatar_url = "/user/avatar/" + user_id;
+					}
+
+					trigger_avatar_download();
 				}
 			}
 			catch (const std::exception&)
@@ -186,7 +320,7 @@ namespace gottvergessen
 
 			try
 			{
-				cpr::Url uri = url;
+				cpr::Url uri = environment_manager::get().get_url("/auth/login");
 				cpr::Body body = json.dump();
 				cpr::Header header = cpr::Header{
 				    {xorstr("Accept"), xorstr("application/json")},
@@ -258,7 +392,7 @@ namespace gottvergessen
 
 			try
 			{
-				cpr::Url uri = url_logout;
+				cpr::Url uri = environment_manager::get().get_url("/auth/logout");
 				cpr::Header header{
 				    {xorstr("Content-Type"), xorstr("application/json")},
 				    {xorstr("Authorization"), token},
@@ -276,6 +410,9 @@ namespace gottvergessen
 			session_token.clear();
 			fullname.clear();
 			role.clear();
+			avatar_url.clear();
+			user_id.clear();
+			clear_avatar_texture();
 		}
 
 		bool log_activity(const std::string& action_param, const std::string& description_param = "")
@@ -284,7 +421,7 @@ namespace gottvergessen
 				return false;
 			try
 			{
-				cpr::Url uri = xorstr("http://localhost:8180/activity");
+				cpr::Url uri = environment_manager::get().get_url("/activity");
 				nlohmann::ordered_json j = {
 				    {xorstr("action"), action_param},
 				    {xorstr("description"), description_param}};
@@ -319,9 +456,11 @@ namespace gottvergessen
 				return "SILVER EDITION";
 			case ProductGrade::GOLD:
 				return "GOLD EDITION";
+			case ProductGrade::ADMIN:
+				return "DEVELOPER VERSION";
+			default:
+				return "DEVELOPER VERSION";
 			}
-
-			return "DEVELOPER VERSION";
 		}
 		std::string ownership_expiry_date()
 		{
@@ -350,6 +489,10 @@ namespace gottvergessen
 		std::string get_role() const
 		{
 			return this->role;
+		}
+		std::string get_avatar_url() const
+		{
+			return this->avatar_url;
 		}
 		int get_status() const
 		{
@@ -430,10 +573,10 @@ namespace gottvergessen
 		}
 
 	protected:
-		const std::string url = xorstr("http://localhost:8180/auth/login");
-		const std::string url_logout = xorstr("http://localhost:8180/auth/logout");
-		const std::string url_refresh = xorstr("http://localhost:8180/auth/refresh");
-		const std::string url_profile = xorstr("http://localhost:8180/user/profile");
+		std::string get_url_login() const { return environment_manager::get().get_url("/auth/login"); }
+		std::string get_url_logout() const { return environment_manager::get().get_url("/auth/logout"); }
+		std::string get_url_refresh() const { return environment_manager::get().get_url("/auth/refresh"); }
+		std::string get_url_profile() const { return environment_manager::get().get_url("/user/profile"); }
 
 	private:
 		inline static char username[32];
@@ -446,7 +589,16 @@ namespace gottvergessen
 		std::string session_token;
 		std::string fullname;
 		std::string expired_date;
+		std::string avatar_url;
+		std::string user_id;
 		ProductGrade ownership;
 		ExpiryDate expired;
+
+		ID3D11ShaderResourceView* avatar_srv = nullptr;
+		std::vector<uint8_t> avatar_raw_bytes;
+		std::atomic<bool> avatar_bytes_ready{false};
+		std::atomic<bool> avatar_loading{false};
+		bool avatar_loaded{false};
+		std::mutex avatar_mutex;
 	};
 }

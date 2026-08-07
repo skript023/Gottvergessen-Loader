@@ -3,6 +3,7 @@
 #include "api/http_request.hpp"
 #include "api/url_encryption.hpp"
 #include "api/remote/get_binary_version.hpp"
+#include "api/environment.hpp"
 
 namespace gottvergessen
 {
@@ -126,6 +127,34 @@ namespace gottvergessen
 			return {};
 		}
 
+		std::string get_version_by_id(int id) const 
+		{ 
+			if (m_binaries.is_array() && id >= 0 && id < (int)m_binaries.size())
+			{
+				auto& data = m_binaries[id];
+				if (data.contains("version") && data["version"].is_string()) return data["version"].get<std::string>();
+				if (data.contains("file_version") && data["file_version"].is_string()) return data["file_version"].get<std::string>();
+				if (data.contains("release_version") && data["release_version"].is_string()) return data["release_version"].get<std::string>();
+			}
+			else if (m_binaries.is_object())
+			{
+				int index = 0;
+				for (auto& bin : m_binaries.items())
+				{
+					if (index == id)
+					{
+						auto& data = bin.value();
+						if (data.contains("version") && data["version"].is_string()) return data["version"].get<std::string>();
+						if (data.contains("file_version") && data["file_version"].is_string()) return data["file_version"].get<std::string>();
+						if (data.contains("release_version") && data["release_version"].is_string()) return data["release_version"].get<std::string>();
+					}
+					index++;
+				}
+			}
+
+			return "v1.0.4";
+		}
+
 		template <class InIterator, class OutIterator>
 		void copy(InIterator begin, InIterator end, OutIterator result)
 		{
@@ -148,7 +177,7 @@ namespace gottvergessen
 		LoaderVersion m_loader_version;
 		folder m_location;
 		std::string m_binary_data;
-		const cpr::Url url = xorstr("http://localhost:8180/binary");
+		std::string get_binary_url() const { return environment_manager::get().get_url("/binary"); }
 	};
 
 	inline download_binary* g_download_binary;

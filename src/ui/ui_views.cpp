@@ -5,6 +5,7 @@
 #include "api/user/user_authentication.hpp"
 #include "api/remote/download_binary.hpp"
 #include "thread_pool.hpp"
+#include "api/environment.hpp"
 
 #include <imgui.h>
 #include <format>
@@ -38,17 +39,20 @@ namespace gottvergessen
 			}
 			else
 			{
-				if (ImGui::BeginTable("LicensesTable", 5, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg))
+				ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(12.0f, 8.0f));
+				if (ImGui::BeginTable("LicensesTable", 5, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollX))
 				{
-					ImGui::TableSetupColumn("Product / Module", ImGuiTableColumnFlags_WidthStretch);
-					ImGui::TableSetupColumn("License Key", ImGuiTableColumnFlags_WidthFixed, 240.0f);
-					ImGui::TableSetupColumn("Issued Date", ImGuiTableColumnFlags_WidthFixed, 140.0f);
-					ImGui::TableSetupColumn("Expires", ImGuiTableColumnFlags_WidthFixed, 160.0f);
-					ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+					ImGui::TableSetupColumn("Product / Module", ImGuiTableColumnFlags_WidthStretch, 0.28f);
+					ImGui::TableSetupColumn("License Key", ImGuiTableColumnFlags_WidthFixed, 220.0f);
+					ImGui::TableSetupColumn("Issued Date", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+					ImGui::TableSetupColumn("Expires", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+					ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 100.0f);
 					ImGui::TableHeadersRow();
 
+					int lic_idx = 0;
 					for (const auto& lic : ui_instance->m_user_licenses)
 					{
+						ImGui::PushID(lic_idx++);
 						ImGui::TableNextRow();
 						ImGui::TableSetColumnIndex(0);
 						ImGui::TextColored(ImVec4(0.95f, 0.95f, 0.98f, 1.0f), "%s", lic.product_name.c_str());
@@ -64,9 +68,11 @@ namespace gottvergessen
 
 						ImGui::TableSetColumnIndex(4);
 						ui::badge(lic.status.c_str(), ImVec4(0.16f, 0.72f, 0.53f, 0.2f), ImVec4(0.20f, 0.90f, 0.65f, 1.0f));
+						ImGui::PopID();
 					}
 					ImGui::EndTable();
 				}
+				ImGui::PopStyleVar();
 			}
 		}
 		ui::card_end();
@@ -83,12 +89,13 @@ namespace gottvergessen
 			size_t total_bins = g_download_binary ? g_download_binary->binaries_size() : 0;
 
 			// Table of Accessible Binaries
-			if (ImGui::BeginTable("AccessibleBinariesTable", 4, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg))
+			ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(12.0f, 8.0f));
+			if (ImGui::BeginTable("AccessibleBinariesTable", 4, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollX))
 			{
-				ImGui::TableSetupColumn("Binary Name", ImGuiTableColumnFlags_WidthStretch);
-				ImGui::TableSetupColumn("File Payload", ImGuiTableColumnFlags_WidthFixed, 180.0f);
-				ImGui::TableSetupColumn("UUID / Release ID", ImGuiTableColumnFlags_WidthFixed, 220.0f);
-				ImGui::TableSetupColumn("Access Status", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+				ImGui::TableSetupColumn("Binary Name", ImGuiTableColumnFlags_WidthStretch, 0.40f);
+				ImGui::TableSetupColumn("File Payload", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+				ImGui::TableSetupColumn("Version", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+				ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 120.0f);
 				ImGui::TableHeadersRow();
 
 				if (total_bins == 0)
@@ -101,16 +108,20 @@ namespace gottvergessen
 				{
 					for (size_t i = 0; i < total_bins; i++)
 					{
+						ImGui::PushID(static_cast<int>(i));
+
 						std::string bin_name = g_download_binary->get_binary_by_id((int)i);
 						std::string file_name = g_download_binary->get_file_by_id((int)i);
-						std::string uuid = g_download_binary->get_uuid_by_id((int)i);
+						std::string version_val = g_download_binary->get_version_by_id((int)i);
 						if (bin_name.empty()) bin_name = "Binary #" + std::to_string(i + 1);
 						if (file_name.empty()) file_name = "payload.dll";
+
+						std::string label = bin_name + "##" + std::to_string(i);
 
 						ImGui::TableNextRow();
 						ImGui::TableSetColumnIndex(0);
 						bool is_selected = (selected_idx == (int)i);
-						if (ImGui::Selectable(bin_name.c_str(), is_selected, ImGuiSelectableFlags_SpanAllColumns))
+						if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_SpanAllColumns))
 						{
 							selected_idx = (int)i;
 							g_download_binary->select_binary_index((int)i);
@@ -121,14 +132,17 @@ namespace gottvergessen
 						ImGui::Text("%s", file_name.c_str());
 
 						ImGui::TableSetColumnIndex(2);
-						ImGui::TextDisabled("%s", uuid.empty() ? "-" : uuid.c_str());
+						ImGui::TextColored(ImVec4(0.35f, 0.70f, 1.00f, 1.0f), "%s", version_val.c_str());
 
 						ImGui::TableSetColumnIndex(3);
 						ui::badge("ACCESSIBLE", ImVec4(0.16f, 0.72f, 0.53f, 0.25f), ImVec4(0.20f, 0.90f, 0.65f, 1.0f));
+
+						ImGui::PopID();
 					}
 				}
 				ImGui::EndTable();
 			}
+			ImGui::PopStyleVar();
 
 			ImGui::Spacing();
 			ImGui::Separator();
@@ -259,9 +273,39 @@ namespace gottvergessen
 	{
 		ui::card_begin("SettingsCard", "SETTINGS & DIAGNOSTIC CONFIGURATION", "Customize loader preferences and view live system logs.");
 		{
-			ImGui::Text("Server API Base URL:");
-			static char api_url[128] = "https://api.ellohim.com/v1";
-			ui::input_text("##ApiUrl", "API Base URL", api_url, sizeof(api_url));
+			ImGui::Text("Target Server Environment:");
+			
+			int current_env = static_cast<int>(environment_manager::get().get_current_environment());
+			const char* env_names[] = {
+				"Localhost (http://localhost:8180)",
+				"Production (https://apie.rena.my.id)",
+				"Custom URL..."
+			};
+
+			if (ImGui::Combo("##EnvironmentCombo", &current_env, env_names, IM_ARRAYSIZE(env_names)))
+			{
+				environment_manager::get().set_environment(static_cast<Environment>(current_env));
+			}
+
+			if (environment_manager::get().get_current_environment() == Environment::CUSTOM)
+			{
+				ImGui::Spacing();
+				ImGui::Text("Custom API Base URL:");
+				static char custom_url_buf[256] = "";
+				if (custom_url_buf[0] == '\0')
+				{
+					std::string cur_custom = environment_manager::get().get_custom_url();
+					strncpy_s(custom_url_buf, cur_custom.c_str(), sizeof(custom_url_buf) - 1);
+				}
+				if (ui::input_text("##CustomApiUrl", "Custom API Base URL", custom_url_buf, sizeof(custom_url_buf)))
+				{
+					environment_manager::get().set_custom_url(custom_url_buf);
+				}
+			}
+
+			ImGui::Spacing();
+			std::string active_url = environment_manager::get().get_base_url();
+			ImGui::TextDisabled("Active API URL: %s", active_url.c_str());
 
 			ImGui::Spacing();
 			static bool auto_update = true;
@@ -278,7 +322,7 @@ namespace gottvergessen
 			ImGui::BeginChild("LogConsoleArea", ImVec2(0, 180.0f), true);
 			{
 				ImGui::TextDisabled("[INFO] Gottvergessen UI Wrapper v1.0 initialized.");
-				ImGui::TextDisabled("[INFO] Connected to Ellohim-Server API endpoint: https://api.ellohim.com/v1");
+				ImGui::TextDisabled("[INFO] Active API endpoint: %s", active_url.c_str());
 				ImGui::TextDisabled("[STAGE 1] Product catalog loaded (3 available items).");
 				ImGui::TextDisabled("[STAGE 2] Mock payment gateway initialized for QRIS / VA.");
 				ImGui::TextDisabled("[STAGE 3] Binary download stream ready (SHA256 integrity verified).");
