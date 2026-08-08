@@ -151,6 +151,4 @@ namespace gottvergessen
 		};
 		std::vector<ToastNotification> m_toasts;
 	};
-
-	inline ui* g_ui = &ui::get();
 }

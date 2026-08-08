@@ -13,6 +13,12 @@ int main()
 {
 	using namespace gottvergessen;
 
+	auto logger_instance = std::make_unique<logger>("Gottvergessen Loader");
+	logger_instance->enable();
+
+	user_authentication::init();
+	download_binary::init();
+
 	auto benchmark_instance = std::make_unique<benchmark>("Initialization");
 
 	std::filesystem::path base_dir = std::getenv("appdata");
@@ -22,14 +28,11 @@ int main()
 
 	auto binary_file = file_manager::get_project_folder("./Binary");
 
-	auto logger_instance = std::make_unique<logger>("Gottvergessen Loader");
-
 	try
 	{
 		auto thread_pool_instance = std::make_unique<thread_pool>();
 		auto render_instance = std::make_unique<renderer>();
 
-		logger_instance->enable();
 		benchmark_instance->get_runtime();
 		benchmark_instance->reset();
 		

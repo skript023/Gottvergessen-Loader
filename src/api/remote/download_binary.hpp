@@ -23,6 +23,9 @@ namespace gottvergessen
 			return instance();
 		}
 
+		static void init() { instance().init_impl(); }
+		static void destroy() { instance().destroy_impl(); }
+
 		// Static Facade API -> Delegasi ke *_impl()
 		static bool check_binary_before_injection() { return instance().check_binary_before_injection_impl(); }
 		static bool validate_before_injection() { return instance().validate_before_injection_impl(); }
@@ -176,6 +179,8 @@ namespace gottvergessen
 		download_binary& operator=(download_binary&&) = delete;
 
 		// Implementation Private Methods (*_impl suffix)
+		void init_impl();
+		void destroy_impl();
 		bool check_binary_before_injection_impl();
 		bool validate_before_injection_impl();
 		bool download_impl(const std::string filename, const std::filesystem::path& location);
@@ -191,6 +196,4 @@ namespace gottvergessen
 		std::string m_binary_data;
 		std::string get_binary_url() const { return environment_manager::get().get_url("/binary"); }
 	};
-
-	inline download_binary* g_download_binary = &download_binary::get();
 }

@@ -20,7 +20,7 @@ namespace gottvergessen
 			ImGui::Spacing();
 
 			static int selected_idx = 0;
-			size_t total_bins = g_download_binary ? g_download_binary->binaries_size() : 0;
+			size_t total_bins = download_binary::get().binaries_size();
 
 			// Table of Accessible Binaries
 			ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(12.0f, 8.0f));
@@ -44,9 +44,9 @@ namespace gottvergessen
 					{
 						ImGui::PushID(static_cast<int>(i));
 
-						std::string bin_name = g_download_binary->get_binary_by_id((int)i);
-						std::string file_name = g_download_binary->get_file_by_id((int)i);
-						std::string version_val = g_download_binary->get_version_by_id((int)i);
+						std::string bin_name = download_binary::get().get_binary_by_id((int)i);
+						std::string file_name = download_binary::get().get_file_by_id((int)i);
+						std::string version_val = download_binary::get().get_version_by_id((int)i);
 						if (bin_name.empty()) bin_name = "Binary #" + std::to_string(i + 1);
 						if (file_name.empty()) file_name = "payload.dll";
 
@@ -58,8 +58,8 @@ namespace gottvergessen
 						if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_SpanAllColumns))
 						{
 							selected_idx = (int)i;
-							g_download_binary->select_binary_index((int)i);
-							g_download_binary->select_binary(bin_name);
+							download_binary::get().select_binary_index((int)i);
+							download_binary::get().select_binary(bin_name);
 						}
 
 						ImGui::TableSetColumnIndex(1);
@@ -83,8 +83,8 @@ namespace gottvergessen
 			ImGui::Spacing();
 
 			// Selected Binary Details & Target Process Configuration
-			std::string current_name = total_bins > 0 ? g_download_binary->get_binary_by_id(selected_idx) : "No Binary Selected";
-			std::string current_file = total_bins > 0 ? g_download_binary->get_file_by_id(selected_idx) : "-";
+			std::string current_name = total_bins > 0 ? download_binary::get().get_binary_by_id(selected_idx) : "No Binary Selected";
+			std::string current_file = total_bins > 0 ? download_binary::get().get_file_by_id(selected_idx) : "-";
 			if (current_name.empty()) current_name = "Selected Binary";
 			if (current_file.empty()) current_file = "payload.dll";
 
@@ -96,23 +96,17 @@ namespace gottvergessen
 
 			// Target Process Selector / Input
 			static char target_proc_buf[64] = "notepad.exe";
-			if (g_download_binary)
+			std::string current_target = download_binary::get().injection_target();
+			if (!current_target.empty() && strcmp(target_proc_buf, "notepad.exe") == 0)
 			{
-				std::string current_target = g_download_binary->injection_target();
-				if (!current_target.empty() && strcmp(target_proc_buf, "notepad.exe") == 0)
-				{
-					strncpy_s(target_proc_buf, current_target.c_str(), sizeof(target_proc_buf) - 1);
-				}
+				strncpy_s(target_proc_buf, current_target.c_str(), sizeof(target_proc_buf) - 1);
 			}
 
 			ImGui::Text("Target Process Name:");
 			ImGui::SetNextItemWidth(260.0f);
 			if (ImGui::InputText("##TargetProcessInput", target_proc_buf, sizeof(target_proc_buf)))
 			{
-				if (g_download_binary)
-				{
-					g_download_binary->set_target_process(target_proc_buf);
-				}
+				download_binary::get().set_target_process(target_proc_buf);
 			}
 			ImGui::SameLine();
 			ImGui::TextDisabled("(e.g., notepad.exe, GTA5.exe)");
@@ -129,7 +123,7 @@ namespace gottvergessen
 					ui_instance->m_is_downloading = true;
 					ui_instance->m_download_progress = 0.0f;
 					LOG(SERVER) << "Downloading binary stream: " << current_file;
-					bool ok = g_download_binary->download(g_download_binary->get_selected_uuid().empty() ? current_file : g_download_binary->get_selected_uuid(), g_download_binary->get_binary_name());
+					bool ok = download_binary::download(download_binary::get().get_selected_uuid().empty() ? current_file : download_binary::get().get_selected_uuid(), download_binary::get().get_binary_name());
 					ui_instance->m_is_downloading = false;
 					if (ok)
 					{
@@ -147,17 +141,14 @@ namespace gottvergessen
 
 			if (ui::primary_button(ICON_FA_ROCKET "  INJECT BINARY", ImVec2(btn_w, 44), can_act && !ui_instance->m_is_downloading))
 			{
-				if (g_download_binary)
-				{
-					g_download_binary->set_target_process(target_proc_buf);
-				}
+				download_binary::get().set_target_process(target_proc_buf);
 
 				g_thread_pool->add_job([ui_instance] {
-					if (g_download_binary->check_binary_before_injection())
+					if (download_binary::check_binary_before_injection())
 					{
-						LOG(SERVER) << "Injecting binary payload into target process: " << g_download_binary->injection_target();
-						g_user_authentication->log_activity("PROCESS_INJECTION", "Injected binary into target process: " + g_download_binary->injection_target());
-						if (g_injection->inject_library())
+						LOG(SERVER) << "Injecting binary payload into target process: " << download_binary::get().injection_target();
+						user_authentication::log_activity("PROCESS_INJECTION", "Injected binary into target process: " + download_binary::get().injection_target());
+						if (injection::inject_library())
 						{
 							ui_instance->m_injected = true;
 							ui::show_toast("Injection Successful", "Payload injected into target process.", ImVec4(0.16f, 0.72f, 0.53f, 1.0f));

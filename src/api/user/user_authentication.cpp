@@ -16,6 +16,15 @@ namespace gottvergessen
 		clear_avatar_texture_impl();
 	}
 
+	void user_authentication::init_impl()
+	{
+	}
+
+	void user_authentication::destroy_impl()
+	{
+		clear_avatar_texture_impl();
+	}
+
 	void user_authentication::clear_avatar_texture_impl()
 	{
 		std::lock_guard<std::mutex> lock(this->avatar_mutex);

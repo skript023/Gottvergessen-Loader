@@ -10,24 +10,24 @@ namespace gottvergessen
 {
 	struct VersionInfo
 	{
-		const int m_id;
-		const std::string m_game;
-		const unsigned int m_code;
-		const std::string m_file;
-		const std::string m_target;
-		const std::string m_version;
-		const int m_version_machine;
-		const BOOL m_supported;
-		const BOOL m_valid;
+		int m_id{};
+		std::string m_game{};
+		unsigned int m_code{};
+		std::string m_file{};
+		std::string m_target{};
+		std::string m_version{};
+		int m_version_machine{};
+		BOOL m_supported{ FALSE };
+		BOOL m_valid{ FALSE };
 	};
 
 	struct LoaderVersion
 	{
-		const std::string m_path;
-		const std::string m_version;
-		const int m_version_machine;
-		const bool m_supported;
-		const bool m_valid;
+		std::string m_path{};
+		std::string m_version{};
+		int m_version_machine{};
+		bool m_supported{ false };
+		bool m_valid{ false };
 	};
 
 	struct BinaryName

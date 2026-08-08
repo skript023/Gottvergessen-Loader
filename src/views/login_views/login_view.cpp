@@ -8,7 +8,7 @@
 #include "process/injection.hpp"
 #include "api/remote/download_binary.hpp"
 #include "api/user/user_authentication.hpp"
-#include "api/environment.hpp"
+
 
 namespace gottvergessen
 {
@@ -74,7 +74,7 @@ namespace gottvergessen
 
 		ImGui::SetCursorPosX(center_x);
 		ImGui::PushItemWidth(item_width);
-		ImGui::InputText(xorstr("##Username"), g_user_authentication->username, IM_ARRAYSIZE(g_user_authentication->username));
+		ImGui::InputText(xorstr("##Username"), user_authentication::get().username, IM_ARRAYSIZE(user_authentication::get().username));
 		ImGui::PopItemWidth();
 
 		ImGui::Spacing();
@@ -85,27 +85,7 @@ namespace gottvergessen
 
 		ImGui::SetCursorPosX(center_x);
 		ImGui::PushItemWidth(item_width);
-		ImGui::InputText(xorstr("##Password"), g_user_authentication->password, IM_ARRAYSIZE(g_user_authentication->password), ImGuiInputTextFlags_Password);
-		ImGui::PopItemWidth();
-
-		ImGui::Spacing();
-
-		// --- Server Environment Section ---
-		ImGui::SetCursorPosX(center_x);
-		ImGui::TextUnformatted("Server Environment");
-
-		ImGui::SetCursorPosX(center_x);
-		ImGui::PushItemWidth(item_width);
-		int current_env = static_cast<int>(environment_manager::get().get_current_environment());
-		const char* env_items[] = {
-			"Localhost (http://localhost:8180)",
-			"Production (https://apie.rena.my.id)",
-			"Custom"
-		};
-		if (ImGui::Combo(xorstr("##EnvironmentComboLogin"), &current_env, env_items, IM_ARRAYSIZE(env_items)))
-		{
-			environment_manager::get().set_environment(static_cast<Environment>(current_env));
-		}
+		ImGui::InputText(xorstr("##Password"), user_authentication::get().password, IM_ARRAYSIZE(user_authentication::get().password), ImGuiInputTextFlags_Password);
 		ImGui::PopItemWidth();
 
 		ImGui::Spacing();
@@ -116,24 +96,24 @@ namespace gottvergessen
 		if (ImGui::Button(xorstr("Login"), button_size))
 		{
 			g_thread_pool->add_job([] {
-				if (g_user_authentication->login(g_user_authentication->username, g_user_authentication->password))
+				if (user_authentication::login(user_authentication::get().username, user_authentication::get().password))
 				{
-					g_download_binary->generate_binaries();
+					download_binary::generate_binaries();
 					
 					// Menggunakan 0 alih-alih NULL untuk clear buffer memory
-					memset(g_user_authentication->password, 0, sizeof(g_user_authentication->password));
+					memset(user_authentication::get().password, 0, sizeof(user_authentication::get().password));
 
-					LOG(HACKER) << g_user_authentication->get_message();
+					LOG(HACKER) << user_authentication::get_message();
 				}
 			});
 		}
 
-		if (g_user_authentication && !g_user_authentication->get_message().empty())
+		if (!user_authentication::get_message().empty())
 		{
 			ImGui::Spacing();
 			ImGui::SetCursorPosX(center_x);
-			ImVec4 msg_color = g_user_authentication->authorized() ? ImVec4(0.3f, 0.9f, 0.4f, 1.0f) : ImVec4(0.95f, 0.35f, 0.35f, 1.0f);
-			ImGui::TextColored(msg_color, "%s", g_user_authentication->get_message().c_str());
+			ImVec4 msg_color = user_authentication::authorized() ? ImVec4(0.3f, 0.9f, 0.4f, 1.0f) : ImVec4(0.95f, 0.35f, 0.35f, 1.0f);
+			ImGui::TextColored(msg_color, "%s", user_authentication::get_message().c_str());
 		}
 
 		ImGui::EndGroup();

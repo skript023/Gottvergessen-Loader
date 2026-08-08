@@ -6,14 +6,21 @@
 
 namespace gottvergessen
 {
-	download_binary::download_binary() : m_loader_version(get_loader_version())
+	download_binary::download_binary() = default;
+
+	void download_binary::init_impl()
 	{
+		m_loader_version = get_loader_version();
 		try
 		{
 			m_location = file_manager::get_project_folder("./Binary");
 		}
 		catch (...) {}
 		generate_binaries_impl();
+	}
+
+	void download_binary::destroy_impl()
+	{
 	}
 
 	bool download_binary::check_binary_before_injection_impl()

@@ -102,7 +102,7 @@ namespace gottvergessen
 		setup_dashboard_style_impl();
 
 		// Fetch data from server once when user is authorized
-		if (!m_data_loaded && g_user_authentication && g_user_authentication->authorized())
+		if (!m_data_loaded && user_authentication::authorized())
 		{
 			fetch_data_from_server_impl();
 		}
@@ -187,15 +187,15 @@ namespace gottvergessen
 		ImDrawList* draw_list = ImGui::GetWindowDrawList();
 		ImVec2 p = ImGui::GetCursorScreenPos();
 		
-		std::string user_name = (g_user_authentication && !g_user_authentication->get_username().empty()) 
-			? g_user_authentication->get_username() 
+		std::string user_name = (!user_authentication::get().get_username().empty()) 
+			? user_authentication::get().get_username() 
 			: "Guest";
 
 		// Avatar circle parameters
 		float avatar_size = 38.0f;
 		ImVec2 avatar_center = ImVec2(p.x + 16.0f + avatar_size * 0.5f, p.y + 6.0f + avatar_size * 0.5f);
 
-		ID3D11ShaderResourceView* avatar_tex = g_user_authentication ? g_user_authentication->get_avatar_texture() : nullptr;
+		ID3D11ShaderResourceView* avatar_tex = user_authentication::get_avatar_texture();
 		if (avatar_tex)
 		{
 			ImVec2 p_min = ImVec2(avatar_center.x - avatar_size * 0.5f, avatar_center.y - avatar_size * 0.5f);
@@ -227,8 +227,8 @@ namespace gottvergessen
 		ImGui::TextColored(ImVec4(0.95f, 0.95f, 0.98f, 1.0f), "%s", user_name.c_str());
 
 		ImGui::SetCursorScreenPos(ImVec2(p.x + text_offset_x, p.y + 24.0f));
-		std::string role_badge = (g_user_authentication && !g_user_authentication->get_role().empty())
-			? g_user_authentication->get_role()
+		std::string role_badge = (!user_authentication::get().get_role().empty())
+			? user_authentication::get().get_role()
 			: "VERIFIED CLIENT";
 		badge_impl(role_badge.c_str(), ImVec4(0.16f, 0.72f, 0.53f, 0.25f), ImVec4(0.20f, 0.90f, 0.65f, 1.0f));
 	}
@@ -277,10 +277,7 @@ namespace gottvergessen
 			std::string logout_btn_label = std::string(ICON_FA_SIGN_OUT_ALT) + " Logout";
 			if (ImGui::Button(logout_btn_label.c_str()))
 			{
-				if (g_user_authentication)
-				{
-					g_user_authentication->logout();
-				}
+				user_authentication::logout();
 			}
 			ImGui::PopStyleVar(2);
 			ImGui::PopStyleColor(3);
@@ -315,7 +312,7 @@ namespace gottvergessen
 
 	void ui::fetch_data_from_server_impl()
 	{
-		if (!g_user_authentication || !g_user_authentication->authorized())
+		if (!user_authentication::authorized())
 			return;
 
 		m_data_loaded = true;
@@ -323,13 +320,10 @@ namespace gottvergessen
 		try
 		{
 			// ---- Fetch User Binaries from GET /binary/my-binaries ----
-			if (g_download_binary)
-			{
-				g_download_binary->generate_binaries();
-			}
+			download_binary::generate_binaries();
 
 			// ---- Fetch My Licenses from GET /license/my-licenses ----
-			auto licenses_json = g_user_authentication->api_get(environment_manager::get().get_url("/license/my-licenses"));
+			auto licenses_json = user_authentication::get().api_get(environment_manager::get().get_url("/license/my-licenses"));
 			if (!licenses_json.is_discarded() && licenses_json.contains("data"))
 			{
 				m_user_licenses.clear();

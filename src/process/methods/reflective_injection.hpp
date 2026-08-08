@@ -23,6 +23,11 @@ namespace gottvergessen
 		bool load_image(
 		    const std::filesystem::path& dll_path);
 
+		DWORD rva_to_offset(
+		    DWORD rva, UINT_PTR base_address) const;
+
+		DWORD get_reflective_loader_offset() const;
+
 	private:
 		std::vector<std::uint8_t> m_image;
 	};

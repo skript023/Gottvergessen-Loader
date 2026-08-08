@@ -10,7 +10,8 @@ namespace gottvergessen
 	{
 		CreateRemoteThread = 0,
 		ThreadHijack = 1,
-		ManualMap = 2
+		ManualMap = 2,
+		ReflectiveInjection = 3
 	};
 
 	class injection_method

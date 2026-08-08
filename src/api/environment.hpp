@@ -146,7 +146,7 @@ namespace gottvergessen
 		}
 
 	private:
-		Environment m_current_env{ Environment::LOCAL };
+		Environment m_current_env{ Environment::PRODUCTION };
 		std::string m_custom_url{ "http://localhost:8180" };
 		std::vector<EnvironmentInfo> m_environments;
 	};

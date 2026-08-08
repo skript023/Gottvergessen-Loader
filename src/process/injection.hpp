@@ -5,6 +5,7 @@
 #include "process/methods/remote_thread_injection.hpp"
 #include "process/methods/thread_hijack_injection.hpp"
 #include "process/methods/manual_map_injection.hpp"
+#include "process/methods/reflective_injection.hpp"
 #include <memory>
 
 namespace gottvergessen
@@ -102,6 +103,4 @@ namespace gottvergessen
 		InjectionMode m_mode{InjectionMode::CreateRemoteThread};
 		std::unique_ptr<injection_method> m_strategy;
 	};
-
-	inline injection* g_injection = &injection::get();
 }

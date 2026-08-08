@@ -16,10 +16,7 @@ namespace gottvergessen
 	{
 		ui::setup_dashboard_style();
 
-		if (g_user_authentication)
-		{
-			g_user_authentication->check_auto_login();
-		}
+		user_authentication::check_auto_login();
 	}
 
 	void gui::dx_on_tick(renderer* renderer)
@@ -172,7 +169,7 @@ namespace gottvergessen
 
 		ImGui::BeginChild("MainContentContainer", ImVec2(0, 0), false);
 		{
-			if (g_user_authentication && g_user_authentication->authorized())
+			if (user_authentication::authorized())
 			{
 				ui::render(renderer);
 			}

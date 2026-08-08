@@ -51,6 +51,9 @@ namespace gottvergessen
 			return instance();
 		}
 
+		static void init() { instance().init_impl(); }
+		static void destroy() { instance().destroy_impl(); }
+
 		// Static Facade Methods -> Delegasi ke *_impl()
 		static void check_auto_login() { instance().check_auto_login_impl(); }
 		static bool fetch_profile() { return instance().fetch_profile_impl(); }
@@ -103,6 +106,8 @@ namespace gottvergessen
 		user_authentication& operator=(user_authentication&&) = delete;
 
 		// Implementation Private Methods (*_impl suffix)
+		void init_impl();
+		void destroy_impl();
 		void check_auto_login_impl();
 		bool fetch_profile_impl();
 		bool login_impl(const std::string username_param, const std::string password_param);
@@ -159,6 +164,4 @@ namespace gottvergessen
 		bool avatar_loaded{false};
 		std::mutex avatar_mutex;
 	};
-
-	inline user_authentication* g_user_authentication = &user_authentication::get();
 }

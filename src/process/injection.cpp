@@ -30,6 +30,8 @@ namespace gottvergessen
 			return std::make_unique<thread_hijack_injection>();
 		case InjectionMode::ManualMap:
 			return std::make_unique<manual_map_injection>();
+		case InjectionMode::ReflectiveInjection:
+			return std::make_unique<reflective_injection>();
 		default:
 			return std::make_unique<remote_thread_injection>();
 		}
@@ -87,6 +89,9 @@ namespace gottvergessen
 			return false;
 		case eValidType::INVALID_PLATFORM:
 			LOG(WARNING) << "The binary given did not match the target platform the injector.";
+			return false;
+		case eValidType::NEED_UPDATE:
+			LOG(WARNING) << "The binary requires an update before injection.";
 			return false;
 		case eValidType::VALID:
 			LOG(HACKER) << "Binary seems valid, proceeding with injection.";

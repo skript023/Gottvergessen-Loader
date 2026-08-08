@@ -1,6 +1,7 @@
 #include "ui/views/settings_view.hpp"
 #include "ui/ui.hpp"
 #include "api/environment.hpp"
+#include "process/injection.hpp"
 
 #include <imgui.h>
 #include <string>
@@ -45,6 +46,25 @@ namespace gottvergessen
 			ImGui::Spacing();
 			std::string active_url = environment_manager::get().get_base_url();
 			ImGui::TextDisabled("Active API URL: %s", active_url.c_str());
+
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			ImGui::Text("Injection Method:");
+
+			int current_method = static_cast<int>(injection::get_injection_mode());
+			const char* method_names[] = {
+				"CreateRemoteThread",
+				"Thread Hijack",
+				"Manual Map",
+				"Reflective Injection"
+			};
+
+			if (ImGui::Combo("##InjectionMethodCombo", &current_method, method_names, IM_ARRAYSIZE(method_names)))
+			{
+				injection::set_injection_mode(static_cast<InjectionMode>(current_method));
+			}
 
 			ImGui::Spacing();
 			static bool auto_update = true;
