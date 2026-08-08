@@ -55,7 +55,7 @@ target_include_directories(GottvergessenLoader PRIVATE
 )
 
 target_precompile_headers(GottvergessenLoader PRIVATE "${SRC_DIR}/common.hpp")
-target_link_libraries(GottvergessenLoader PRIVATE g3log imgui cpr)
+target_link_libraries(GottvergessenLoader PRIVATE g3log imgui cpr crypt32)
 
 # Warnings as errors
 set_property(TARGET GottvergessenLoader PROPERTY COMPILE_WARNING_AS_ERROR ON)

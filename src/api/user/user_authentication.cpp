@@ -8,9 +8,51 @@
 #include <fstream>
 #include <format>
 #include <cpr/cpr.h>
+#include <wincrypt.h>
+
+#pragma comment(lib, "Crypt32.lib")
 
 namespace gottvergessen
 {
+	namespace
+	{
+		std::vector<uint8_t> encrypt_session_data(const std::string& plain_text)
+		{
+			DATA_BLOB input{};
+			input.pbData = reinterpret_cast<BYTE*>(const_cast<char*>(plain_text.data()));
+			input.cbData = static_cast<DWORD>(plain_text.size());
+
+			DATA_BLOB output{};
+			if (CryptProtectData(&input, L"GottvergessenSessionData", NULL, NULL, NULL, CRYPTPROTECT_UI_FORBIDDEN, &output))
+			{
+				std::vector<uint8_t> encrypted(output.pbData, output.pbData + output.cbData);
+				LocalFree(output.pbData);
+				return encrypted;
+			}
+			return std::vector<uint8_t>(plain_text.begin(), plain_text.end());
+		}
+
+		std::string decrypt_session_data(const std::vector<uint8_t>& cipher_bytes)
+		{
+			if (cipher_bytes.empty())
+				return "";
+
+			DATA_BLOB input{};
+			input.pbData = reinterpret_cast<BYTE*>(const_cast<uint8_t*>(cipher_bytes.data()));
+			input.cbData = static_cast<DWORD>(cipher_bytes.size());
+
+			DATA_BLOB output{};
+			if (CryptUnprotectData(&input, NULL, NULL, NULL, NULL, CRYPTPROTECT_UI_FORBIDDEN, &output))
+			{
+				std::string decrypted(reinterpret_cast<char*>(output.pbData), output.cbData);
+				LocalFree(output.pbData);
+				return decrypted;
+			}
+
+			// Fallback: If DPAPI fails or session was stored in legacy unencrypted JSON string format
+			return std::string(cipher_bytes.begin(), cipher_bytes.end());
+		}
+	}
 	user_authentication::~user_authentication()
 	{
 		clear_avatar_texture_impl();
@@ -138,13 +180,35 @@ namespace gottvergessen
 			if (!std::filesystem::exists(session_path))
 				return;
 
-			std::ifstream file(session_path);
+			std::ifstream file(session_path, std::ios::binary | std::ios::ate);
 			if (!file.is_open())
 				return;
 
-			nlohmann::json saved;
-			file >> saved;
+			const auto file_size = file.tellg();
+			if (file_size <= 0)
+			{
+				file.close();
+				return;
+			}
+
+			std::vector<uint8_t> file_bytes(static_cast<size_t>(file_size));
+			file.seekg(0, std::ios::beg);
+			file.read(reinterpret_cast<char*>(file_bytes.data()), file_size);
 			file.close();
+
+			std::string json_str = decrypt_session_data(file_bytes);
+			if (json_str.empty())
+			{
+				clear_session();
+				return;
+			}
+
+			auto saved = nlohmann::json::parse(json_str, nullptr, false);
+			if (saved.is_discarded())
+			{
+				clear_session();
+				return;
+			}
 
 			std::string refresh = saved.value("refresh_token", "");
 			if (refresh.empty())
@@ -447,7 +511,13 @@ namespace gottvergessen
 	std::filesystem::path user_authentication::get_session_file_path() const
 	{
 		auto folder = file_manager::get_project_folder(xorstr("./Config"));
-		return folder.get_file(xorstr("./session.json")).get_path();
+		auto dat_path = folder.get_file(xorstr("./session.dat")).get_path();
+		if (std::filesystem::exists(dat_path))
+			return dat_path;
+		auto json_path = folder.get_file(xorstr("./session.json")).get_path();
+		if (std::filesystem::exists(json_path))
+			return json_path;
+		return dat_path;
 	}
 
 	void user_authentication::save_session(const std::string& refresh_token)
@@ -456,13 +526,24 @@ namespace gottvergessen
 		{
 			nlohmann::json session = {
 			    {"refresh_token", refresh_token}};
-			std::ofstream file(get_session_file_path(), std::ios::trunc);
-			file << session.dump(4);
+			std::string json_str = session.dump(4);
+			auto encrypted_bytes = encrypt_session_data(json_str);
+
+			auto dat_path = file_manager::get_project_folder(xorstr("./Config")).get_file(xorstr("./session.dat")).get_path();
+			std::ofstream file(dat_path, std::ios::binary | std::ios::trunc);
+			file.write(reinterpret_cast<const char*>(encrypted_bytes.data()), encrypted_bytes.size());
 			file.close();
+
+			// Remove legacy plain session.json if it exists
+			auto json_path = file_manager::get_project_folder(xorstr("./Config")).get_file(xorstr("./session.json")).get_path();
+			if (std::filesystem::exists(json_path))
+			{
+				std::filesystem::remove(json_path);
+			}
 		}
 		catch (const std::exception&)
 		{
-			LOG(WARNING) << xorstr("Failed to save session file.");
+			LOG(WARNING) << xorstr("Failed to save encrypted session file.");
 		}
 	}
 
@@ -470,9 +551,13 @@ namespace gottvergessen
 	{
 		try
 		{
-			auto path = get_session_file_path();
-			if (std::filesystem::exists(path))
-				std::filesystem::remove(path);
+			auto folder = file_manager::get_project_folder(xorstr("./Config"));
+			auto dat_path = folder.get_file(xorstr("./session.dat")).get_path();
+			if (std::filesystem::exists(dat_path))
+				std::filesystem::remove(dat_path);
+			auto json_path = folder.get_file(xorstr("./session.json")).get_path();
+			if (std::filesystem::exists(json_path))
+				std::filesystem::remove(json_path);
 		}
 		catch (const std::exception&)
 		{

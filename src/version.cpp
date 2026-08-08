@@ -2,8 +2,8 @@
 
 namespace big
 {
-	const char* version::GIT_SHA1           = "6af0af51f82c82596d33236a69f9d73315a02673-dirty";
-	const char* version::GIT_BRANCH         = "Upgrade";
-	const char* version::GIT_DATE           = "Sat Aug 8 11:59:48 2026";
-	const char* version::GIT_COMMIT_SUBJECT = "feat: implement modular UI architecture and remote binary management system";
+	const char* version::GIT_SHA1           = "dcbf187198fabfd7213ecafb55734805da856b7b-dirty";
+	const char* version::GIT_BRANCH         = "main";
+	const char* version::GIT_DATE           = "Sun Aug 9 00:34:43 2026";
+	const char* version::GIT_COMMIT_SUBJECT = "Merge pull request #2 from skript023/Upgrade";
 };
