@@ -27,7 +27,6 @@ int main()
 	try
 	{
 		auto thread_pool_instance = std::make_unique<thread_pool>();
-		auto inject_instance = std::make_unique<injection>(binary_file);
 		auto render_instance = std::make_unique<renderer>();
 
 		logger_instance->enable();
@@ -39,7 +38,6 @@ int main()
 		logger_instance->disable();
 
 		render_instance.reset();
-		inject_instance.reset();
 		benchmark_instance.reset();
 		thread_pool_instance->destroy();
 		thread_pool_instance.reset();

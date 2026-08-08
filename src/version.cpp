@@ -2,8 +2,8 @@
 
 namespace big
 {
-	const char* version::GIT_SHA1           = "9888a272068d7196fe78e32c9631ac95a9816005-dirty";
+	const char* version::GIT_SHA1           = "6af0af51f82c82596d33236a69f9d73315a02673-dirty";
 	const char* version::GIT_BRANCH         = "Upgrade";
-	const char* version::GIT_DATE           = "Sat Aug 8 04:13:02 2026";
-	const char* version::GIT_COMMIT_SUBJECT = "feat: implement UI views for license management and binary injection workflows";
+	const char* version::GIT_DATE           = "Sat Aug 8 11:59:48 2026";
+	const char* version::GIT_COMMIT_SUBJECT = "feat: implement modular UI architecture and remote binary management system";
 };
