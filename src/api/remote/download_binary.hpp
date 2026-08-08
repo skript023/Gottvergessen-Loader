@@ -1,3 +1,4 @@
+#pragma once
 #include "common.hpp"
 #include "file_manager.hpp"
 #include "api/http_request.hpp"
@@ -7,24 +8,34 @@
 
 namespace gottvergessen
 {
+	// Remote Binary & Launch Service Class (Static Singleton with _impl Methods)
 	class download_binary : private get_version
 	{
 	public:
-		explicit download_binary(const folder& location);
+		static download_binary& instance()
+		{
+			static download_binary instance_val;
+			return instance_val;
+		}
 
-		~download_binary();
+		static download_binary& get()
+		{
+			return instance();
+		}
 
-		download_binary(download_binary const& that) = delete;
-		download_binary& operator=(download_binary const& that) = delete;
-		download_binary(download_binary&& that) = delete;
-		download_binary& operator=(download_binary&& that) = delete;
+		// Static Facade API -> Delegasi ke *_impl()
+		static bool check_binary_before_injection() { return instance().check_binary_before_injection_impl(); }
+		static bool validate_before_injection() { return instance().validate_before_injection_impl(); }
+		static bool download(const std::string filename, const std::filesystem::path& location = {})
+		{
+			return instance().download_impl(filename, location);
+		}
+		static bool generate(const std::string filename) { return instance().generate_impl(filename); }
+		static bool generate_binaries() { return instance().generate_binaries_impl(); }
+		static bool integrate_user() { return instance().integrate_user_impl(); }
 
-		bool check_binary_before_injection();
-		bool validate_before_injection();
-		bool download(const std::string filename, const std::filesystem::path& location) const;
-		bool generate(const std::string filename);
-		bool generate_binaries();
-		bool integrate_user();
+	public:
+		void set_location(const folder& location) { m_location = location; }
 		bool is_version_valid() const { return m_loader_version.m_valid; }
 		[[nodiscard]] int loader_version_machine() const { return m_loader_version.m_version_machine; }
 		[[nodiscard]] std::string loader_version() const { return m_loader_version.m_version; }
@@ -155,30 +166,31 @@ namespace gottvergessen
 			return "v1.0.4";
 		}
 
-		template <class InIterator, class OutIterator>
-		void copy(InIterator begin, InIterator end, OutIterator result)
-		{
-			int i = 0;
-			for (InIterator it = begin; it != end; ++it)
-			{
-				LOG(HACKER) << "Progress : " << i - end << "%";
-				*result++ = *it; i++;
-			}
-		}
-		BinaryName m_binary_name[4] = {
-			{ xorstr("GTA V Mod Menu"), xorstr("gta") },
-			{ xorstr("Scarlet Nexus"), xorstr("scarlet-nexus") },
-			{ xorstr("Tower of Fantasy"), xorstr("tower-of-fantasy") },
-			{ xorstr("Elsword Zero"), xorstr("ElsZero") }
-		};
+	private:
+		download_binary();
+		~download_binary() = default;
+
+		download_binary(download_binary const&) = delete;
+		download_binary& operator=(download_binary const&) = delete;
+		download_binary(download_binary&&) = delete;
+		download_binary& operator=(download_binary&&) = delete;
+
+		// Implementation Private Methods (*_impl suffix)
+		bool check_binary_before_injection_impl();
+		bool validate_before_injection_impl();
+		bool download_impl(const std::string filename, const std::filesystem::path& location);
+		bool generate_impl(const std::string filename);
+		bool generate_binaries_impl();
+		bool integrate_user_impl();
+
 	private:
 		int m_selected_index{0};
 		nlohmann::ordered_json m_binaries{};
-		LoaderVersion m_loader_version;
-		folder m_location;
+		LoaderVersion m_loader_version{};
+		folder m_location{};
 		std::string m_binary_data;
 		std::string get_binary_url() const { return environment_manager::get().get_url("/binary"); }
 	};
 
-	inline download_binary* g_download_binary;
+	inline download_binary* g_download_binary = &download_binary::get();
 }

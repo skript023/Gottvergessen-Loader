@@ -14,11 +14,7 @@ namespace gottvergessen
 {
 	void gui::dx_init()
 	{
-		if (!g_ui)
-		{
-			g_ui = std::make_unique<ui>();
-		}
-		g_ui->setup_dashboard_style();
+		ui::setup_dashboard_style();
 
 		if (g_user_authentication)
 		{
@@ -178,10 +174,7 @@ namespace gottvergessen
 		{
 			if (g_user_authentication && g_user_authentication->authorized())
 			{
-				if (g_ui)
-				{
-					g_ui->render(renderer);
-				}
+				ui::render(renderer);
 			}
 			else
 			{

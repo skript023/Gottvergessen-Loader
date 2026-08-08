@@ -27,34 +27,67 @@ namespace gottvergessen
 		std::string status = "ACTIVE";
 	};
 
-	// Wrapper Class UI Utama ImGui
+	// Wrapper Class UI Utama ImGui (Singleton dengan Static Facade)
 	class ui
 	{
 	public:
-		ui();
-		~ui() = default;
+		static ui& instance()
+		{
+			static ui instance_val;
+			return instance_val;
+		}
 
-		void init();
-		void setup_dashboard_style();
-		void render(class renderer* renderer_ptr);
+		static ui& get()
+		{
+			return instance();
+		}
 
-		// ==========================================
-		// WEB APP & DASHBOARD UI PRIMITIVE COMPONENTS
-		// ==========================================
-		static void card_begin(const char* id, const char* title, const char* subtitle = nullptr, float width = 0.0f, float height = 0.0f);
-		static void card_end();
+		// Static Facade API -> Delegasi ke method private *_impl()
+		static void init() { instance().init_impl(); }
+		static void setup_dashboard_style() { instance().setup_dashboard_style_impl(); }
+		static void render(class renderer* renderer_ptr) { instance().render_impl(renderer_ptr); }
 
-		static void stat_widget(const char* label, const char* value, const char* change_text, const char* icon_str, const ImVec4& accent_color);
-		static void badge(const char* text, const ImVec4& bg_color, const ImVec4& text_color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
-		static void stepper_widget(const char* const steps[], int step_count, int current_step);
-		
-		static bool primary_button(const char* label, const ImVec2& size = ImVec2(0, 0), bool enabled = true);
-		static bool secondary_button(const char* label, const ImVec2& size = ImVec2(0, 0), bool enabled = true);
-		static bool input_text(const char* label, const char* hint, char* buf, size_t buf_size, bool is_password = false);
+		// Web App & Dashboard UI Primitive Components
+		static void card_begin(const char* id, const char* title, const char* subtitle = nullptr, float width = 0.0f, float height = 0.0f)
+		{
+			instance().card_begin_impl(id, title, subtitle, width, height);
+		}
+		static void card_end() { instance().card_end_impl(); }
+
+		static void stat_widget(const char* label, const char* value, const char* change_text, const char* icon_str, const ImVec4& accent_color)
+		{
+			instance().stat_widget_impl(label, value, change_text, icon_str, accent_color);
+		}
+		static void badge(const char* text, const ImVec4& bg_color, const ImVec4& text_color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f))
+		{
+			instance().badge_impl(text, bg_color, text_color);
+		}
+		static void stepper_widget(const char* const steps[], int step_count, int current_step)
+		{
+			instance().stepper_widget_impl(steps, step_count, current_step);
+		}
+
+		static bool primary_button(const char* label, const ImVec2& size = ImVec2(0, 0), bool enabled = true)
+		{
+			return instance().primary_button_impl(label, size, enabled);
+		}
+		static bool secondary_button(const char* label, const ImVec2& size = ImVec2(0, 0), bool enabled = true)
+		{
+			return instance().secondary_button_impl(label, size, enabled);
+		}
+		static bool input_text(const char* label, const char* hint, char* buf, size_t buf_size, bool is_password = false)
+		{
+			return instance().input_text_impl(label, hint, buf, buf_size, is_password);
+		}
 
 		// Notification Toasts
-		void show_toast(const std::string& title, const std::string& message, ImVec4 color = ImVec4(0.2f, 0.7f, 1.0f, 1.0f));
-		void render_toasts();
+		static void show_toast(const std::string& title, const std::string& message, ImVec4 color = ImVec4(0.2f, 0.7f, 1.0f, 1.0f))
+		{
+			instance().show_toast_impl(title, message, color);
+		}
+		static void render_toasts() { instance().render_toasts_impl(); }
+
+		static void fetch_data_from_server() { instance().fetch_data_from_server_impl(); }
 
 	public:
 		// Navigation State
@@ -75,12 +108,37 @@ namespace gottvergessen
 		bool m_binary_downloaded = false;
 		bool m_injected = false;
 
-		void fetch_data_from_server();
-
 	private:
-		void render_sidebar();
-		void render_top_header();
-		void render_content_area(class renderer* renderer_ptr);
+		ui();
+		~ui() = default;
+
+		ui(const ui&) = delete;
+		ui& operator=(const ui&) = delete;
+
+		// Implementation Private Methods (*_impl suffix)
+		void init_impl();
+		void setup_dashboard_style_impl();
+		void render_impl(class renderer* renderer_ptr);
+
+		void card_begin_impl(const char* id, const char* title, const char* subtitle, float width, float height);
+		void card_end_impl();
+
+		void stat_widget_impl(const char* label, const char* value, const char* change_text, const char* icon_str, const ImVec4& accent_color);
+		void badge_impl(const char* text, const ImVec4& bg_color, const ImVec4& text_color);
+		void stepper_widget_impl(const char* const steps[], int step_count, int current_step);
+
+		bool primary_button_impl(const char* label, const ImVec2& size, bool enabled);
+		bool secondary_button_impl(const char* label, const ImVec2& size, bool enabled);
+		bool input_text_impl(const char* label, const char* hint, char* buf, size_t buf_size, bool is_password);
+
+		void show_toast_impl(const std::string& title, const std::string& message, ImVec4 color);
+		void render_toasts_impl();
+
+		void fetch_data_from_server_impl();
+
+		void render_sidebar_impl();
+		void render_top_header_impl();
+		void render_content_area_impl(class renderer* renderer_ptr);
 
 		// Dynamic Toast Notification structure
 		struct ToastNotification
@@ -94,5 +152,5 @@ namespace gottvergessen
 		std::vector<ToastNotification> m_toasts;
 	};
 
-	inline std::unique_ptr<ui> g_ui{};
+	inline ui* g_ui = &ui::get();
 }

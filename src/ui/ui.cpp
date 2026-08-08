@@ -11,17 +11,17 @@ namespace gottvergessen
 {
 	ui::ui()
 	{
-		init();
+		init_impl();
 	}
 
-	void ui::init()
+	void ui::init_impl()
 	{
 		// Data will be loaded from server when user is authorized
 		m_user_licenses.clear();
 		m_data_loaded = false;
 	}
 
-	void ui::setup_dashboard_style()
+	void ui::setup_dashboard_style_impl()
 	{
 		ImGuiStyle& style = ImGui::GetStyle();
 
@@ -97,14 +97,14 @@ namespace gottvergessen
 		colors[ImGuiCol_NavHighlight]          = ImVec4(0.23f, 0.51f, 0.96f, 1.00f);
 	}
 
-	void ui::render(renderer* renderer_ptr)
+	void ui::render_impl(renderer* renderer_ptr)
 	{
-		setup_dashboard_style();
+		setup_dashboard_style_impl();
 
 		// Fetch data from server once when user is authorized
 		if (!m_data_loaded && g_user_authentication && g_user_authentication->authorized())
 		{
-			fetch_data_from_server();
+			fetch_data_from_server_impl();
 		}
 
 		float sidebar_width = 220.0f;
@@ -112,7 +112,7 @@ namespace gottvergessen
 		// Left Sidebar Container
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.06f, 0.08f, 0.10f, 1.0f));
 		ImGui::BeginChild("SidebarNavContainer", ImVec2(sidebar_width, 0), true);
-		render_sidebar();
+		render_sidebar_impl();
 		ImGui::EndChild();
 		ImGui::PopStyleColor();
 
@@ -120,15 +120,15 @@ namespace gottvergessen
 
 		// Right Main Work Area Container (Header + Tab Content)
 		ImGui::BeginChild("WorkAreaContainer", ImVec2(0, 0), false);
-		render_top_header();
-		render_content_area(renderer_ptr);
+		render_top_header_impl();
+		render_content_area_impl(renderer_ptr);
 		ImGui::EndChild();
 
 		// Toast Notifications Overlay
-		render_toasts();
+		render_toasts_impl();
 	}
 
-	void ui::render_sidebar()
+	void ui::render_sidebar_impl()
 	{
 		// Brand Logo & Title Header
 		ImGui::Spacing();
@@ -230,10 +230,10 @@ namespace gottvergessen
 		std::string role_badge = (g_user_authentication && !g_user_authentication->get_role().empty())
 			? g_user_authentication->get_role()
 			: "VERIFIED CLIENT";
-		ui::badge(role_badge.c_str(), ImVec4(0.16f, 0.72f, 0.53f, 0.25f), ImVec4(0.20f, 0.90f, 0.65f, 1.0f));
+		badge_impl(role_badge.c_str(), ImVec4(0.16f, 0.72f, 0.53f, 0.25f), ImVec4(0.20f, 0.90f, 0.65f, 1.0f));
 	}
 
-	void ui::render_top_header()
+	void ui::render_top_header_impl()
 	{
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.07f, 0.09f, 0.12f, 0.90f));
 		ImGui::BeginChild("TopHeaderBarContainer", ImVec2(0, 46.0f), true, ImGuiWindowFlags_NoScrollbar);
@@ -263,9 +263,9 @@ namespace gottvergessen
 				ImGui::SameLine();
 			}
 
-			ui::badge("API: ONLINE", ImVec4(0.10f, 0.40f, 0.25f, 0.6f), ImVec4(0.30f, 0.95f, 0.55f, 1.0f));
+			badge_impl("API: ONLINE", ImVec4(0.10f, 0.40f, 0.25f, 0.6f), ImVec4(0.30f, 0.95f, 0.55f, 1.0f));
 			ImGui::SameLine(0, 8.0f);
-			ui::badge("LATENCY: 24ms", ImVec4(0.15f, 0.25f, 0.40f, 0.6f), ImVec4(0.40f, 0.75f, 1.0f, 1.0f));
+			badge_impl("LATENCY: 24ms", ImVec4(0.15f, 0.25f, 0.40f, 0.6f), ImVec4(0.40f, 0.75f, 1.0f, 1.0f));
 			ImGui::SameLine(0, 10.0f);
 
 			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.85f, 0.20f, 0.20f, 0.8f));
@@ -289,7 +289,7 @@ namespace gottvergessen
 		ImGui::PopStyleColor();
 	}
 
-	void ui::render_content_area(renderer* renderer_ptr)
+	void ui::render_content_area_impl(renderer* renderer_ptr)
 	{
 		ImGui::BeginChild("MainWorkAreaContainer", ImVec2(0, 0), false);
 		{
@@ -310,10 +310,10 @@ namespace gottvergessen
 	}
 
 	// =========================================================================
-	// SERVER DATA FETCHING
+	// SERVER DATA FETCHING IMPLEMENTATION
 	// =========================================================================
 
-	void ui::fetch_data_from_server()
+	void ui::fetch_data_from_server_impl()
 	{
 		if (!g_user_authentication || !g_user_authentication->authorized())
 			return;
@@ -372,7 +372,7 @@ namespace gottvergessen
 	// UI PRIMITIVE COMPONENT IMPLEMENTATIONS
 	// =========================================================================
 
-	void ui::card_begin(const char* id, const char* title, const char* subtitle, float width, float height)
+	void ui::card_begin_impl(const char* id, const char* title, const char* subtitle, float width, float height)
 	{
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.09f, 0.11f, 0.15f, 0.90f));
 		ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.19f, 0.22f, 0.27f, 0.60f));
@@ -395,14 +395,14 @@ namespace gottvergessen
 		}
 	}
 
-	void ui::card_end()
+	void ui::card_end_impl()
 	{
 		ImGui::EndChild();
 		ImGui::PopStyleVar(2);
 		ImGui::PopStyleColor(2);
 	}
 
-	void ui::stat_widget(const char* label, const char* value, const char* change_text, const char* icon_str, const ImVec4& accent_color)
+	void ui::stat_widget_impl(const char* label, const char* value, const char* change_text, const char* icon_str, const ImVec4& accent_color)
 	{
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.09f, 0.11f, 0.15f, 0.90f));
 		ImGui::BeginChild(label, ImVec2(0, 90.0f), true);
@@ -431,7 +431,7 @@ namespace gottvergessen
 		ImGui::PopStyleColor();
 	}
 
-	void ui::badge(const char* text, const ImVec4& bg_color, const ImVec4& text_color)
+	void ui::badge_impl(const char* text, const ImVec4& bg_color, const ImVec4& text_color)
 	{
 		ImGui::PushStyleColor(ImGuiCol_Button, bg_color);
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, bg_color);
@@ -447,7 +447,7 @@ namespace gottvergessen
 		ImGui::PopStyleColor(4);
 	}
 
-	void ui::stepper_widget(const char* const steps[], int step_count, int current_step)
+	void ui::stepper_widget_impl(const char* const steps[], int step_count, int current_step)
 	{
 		float total_width = ImGui::GetContentRegionAvail().x;
 		float step_width = total_width / (float)step_count;
@@ -493,7 +493,7 @@ namespace gottvergessen
 		ImGui::Dummy(ImVec2(total_width, 55.0f));
 	}
 
-	bool ui::primary_button(const char* label, const ImVec2& size, bool enabled)
+	bool ui::primary_button_impl(const char* label, const ImVec2& size, bool enabled)
 	{
 		if (!enabled)
 		{
@@ -515,7 +515,7 @@ namespace gottvergessen
 		return pressed;
 	}
 
-	bool ui::secondary_button(const char* label, const ImVec2& size, bool enabled)
+	bool ui::secondary_button_impl(const char* label, const ImVec2& size, bool enabled)
 	{
 		if (!enabled)
 		{
@@ -536,18 +536,18 @@ namespace gottvergessen
 		return pressed;
 	}
 
-	bool ui::input_text(const char* label, const char* hint, char* buf, size_t buf_size, bool is_password)
+	bool ui::input_text_impl(const char* label, const char* hint, char* buf, size_t buf_size, bool is_password)
 	{
 		ImGuiInputTextFlags flags = is_password ? ImGuiInputTextFlags_Password : 0;
 		return ImGui::InputTextWithHint(label, hint, buf, buf_size, flags);
 	}
 
-	void ui::show_toast(const std::string& title, const std::string& message, ImVec4 color)
+	void ui::show_toast_impl(const std::string& title, const std::string& message, ImVec4 color)
 	{
 		m_toasts.push_back({ title, message, color, 4.0f, 0.0f });
 	}
 
-	void ui::render_toasts()
+	void ui::render_toasts_impl()
 	{
 		if (m_toasts.empty())
 			return;

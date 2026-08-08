@@ -76,7 +76,7 @@ namespace gottvergessen
 				{ xorstr("name"), m_selected_binary}
 			};
 
-			std::string token = std::format("Bearer {}", g_user_authentication->get_token());
+			std::string token = std::format("Bearer {}", user_authentication::get_token());
 
 			try
 			{
@@ -117,7 +117,7 @@ namespace gottvergessen
 				{ xorstr("name"), m_selected_binary }
 			};
 
-			std::string token = std::format("Bearer {}", g_user_authentication->get_token());
+			std::string token = std::format("Bearer {}", user_authentication::get_token());
 
 			std::ofstream file(base_dir, std::ios::out | std::ios::trunc);
 
@@ -155,7 +155,7 @@ namespace gottvergessen
 				{ xorstr("name"), m_selected_binary}
 			};
 
-			std::string token = std::format("Bearer {}", g_user_authentication->get_token());
+			std::string token = std::format("Bearer {}", user_authentication::get_token());
 
 			std::ofstream file(base_dir, std::ios::out | std::ios::trunc);
 
