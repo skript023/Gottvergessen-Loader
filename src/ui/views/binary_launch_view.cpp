@@ -20,11 +20,15 @@ namespace gottvergessen
 			ImGui::Spacing();
 
 			static int selected_idx = 0;
-			size_t total_bins = download_binary::get().binaries_size();
+			size_t total_bins = download_binary::binaries_size();
 
 			// Table of Accessible Binaries
+			float row_h = 36.0f;
+			float table_h = row_h * (total_bins > 0 ? (total_bins + 1.2f) : 2.5f);
+			if (table_h > 230.0f) table_h = 230.0f;
+
 			ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(12.0f, 8.0f));
-			if (ImGui::BeginTable("AccessibleBinariesTable", 4, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollX))
+			if (ImGui::BeginTable("AccessibleBinariesTable", 4, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY, ImVec2(0.0f, table_h)))
 			{
 				ImGui::TableSetupColumn("Binary Name", ImGuiTableColumnFlags_WidthStretch, 0.40f);
 				ImGui::TableSetupColumn("File Payload", ImGuiTableColumnFlags_WidthFixed, 150.0f);
@@ -44,9 +48,9 @@ namespace gottvergessen
 					{
 						ImGui::PushID(static_cast<int>(i));
 
-						std::string bin_name = download_binary::get().get_binary_by_id((int)i);
-						std::string file_name = download_binary::get().get_file_by_id((int)i);
-						std::string version_val = download_binary::get().get_version_by_id((int)i);
+						std::string bin_name = download_binary::get_binary_by_id((int)i);
+						std::string file_name = download_binary::get_file_by_id((int)i);
+						std::string version_val = download_binary::get_version_by_id((int)i);
 						if (bin_name.empty()) bin_name = "Binary #" + std::to_string(i + 1);
 						if (file_name.empty()) file_name = "payload.dll";
 
@@ -58,8 +62,8 @@ namespace gottvergessen
 						if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_SpanAllColumns))
 						{
 							selected_idx = (int)i;
-							download_binary::get().select_binary_index((int)i);
-							download_binary::get().select_binary(bin_name);
+							download_binary::select_binary_index((int)i);
+							download_binary::select_binary(bin_name);
 						}
 
 						ImGui::TableSetColumnIndex(1);
@@ -83,8 +87,8 @@ namespace gottvergessen
 			ImGui::Spacing();
 
 			// Selected Binary Details & Target Process Configuration
-			std::string current_name = total_bins > 0 ? download_binary::get().get_binary_by_id(selected_idx) : "No Binary Selected";
-			std::string current_file = total_bins > 0 ? download_binary::get().get_file_by_id(selected_idx) : "-";
+			std::string current_name = total_bins > 0 ? download_binary::get_binary_by_id(selected_idx) : "No Binary Selected";
+			std::string current_file = total_bins > 0 ? download_binary::get_file_by_id(selected_idx) : "-";
 			if (current_name.empty()) current_name = "Selected Binary";
 			if (current_file.empty()) current_file = "payload.dll";
 
@@ -101,7 +105,7 @@ namespace gottvergessen
 			static char filter_buf[64] = "";
 			static int selected_proc_pid = 0;
 
-			std::string current_target = download_binary::get().injection_target();
+			std::string current_target = download_binary::injection_target();
 			if (!current_target.empty() && strcmp(target_proc_buf, "notepad.exe") == 0)
 			{
 				strncpy_s(target_proc_buf, current_target.c_str(), sizeof(target_proc_buf) - 1);
@@ -111,7 +115,7 @@ namespace gottvergessen
 			ImGui::SetNextItemWidth(260.0f);
 			if (ImGui::InputText("##TargetProcessInput", target_proc_buf, sizeof(target_proc_buf)))
 			{
-				download_binary::get().set_target_process(target_proc_buf);
+				download_binary::set_target_process(target_proc_buf);
 				injection::set_target_pid(0);
 			}
 			ImGui::SameLine();
@@ -120,93 +124,90 @@ namespace gottvergessen
 			{
 				show_process_picker = true;
 				cached_processes = injection_method::get_running_processes();
+				filter_buf[0] = '\0';
+				selected_proc_pid = injection::get_target_pid();
 			}
 
-			if (selected_proc_pid != 0)
-			{
-				ImGui::SameLine();
-				ImGui::TextColored(ImVec4(0.20f, 0.90f, 0.65f, 1.0f), "(PID: %d)", selected_proc_pid);
-			}
-			else
-			{
-				ImGui::SameLine();
-				ImGui::TextDisabled("(e.g., notepad.exe, GTA5.exe)");
-			}
-
-			// =========================================================================
-			// PROCESS SELECTOR POPUP MODAL (GH INJECTOR STYLE)
-			// =========================================================================
+			// Modal Process Picker
 			if (show_process_picker)
 			{
-				ImGui::OpenPopup("Select a Process");
+				ImGui::OpenPopup("Select Process Modal");
 			}
 
-			ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-			ImGui::SetNextWindowSize(ImVec2(520.0f, 440.0f));
-			if (ImGui::BeginPopupModal("Select a Process", &show_process_picker, ImGuiWindowFlags_NoCollapse))
+			ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+			ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+			ImGui::SetNextWindowSize(ImVec2(620.0f, 420.0f), ImGuiCond_Appearing);
+
+			if (ImGui::BeginPopupModal("Select Process Modal", &show_process_picker, ImGuiWindowFlags_NoResize))
 			{
-				ImGui::TextColored(ImVec4(0.38f, 0.72f, 1.00f, 1.00f), "Running Processes (%zu)", cached_processes.size());
-				ImGui::SameLine(ImGui::GetContentRegionAvail().x - 90.0f);
+				ImGui::TextColored(ImVec4(0.35f, 0.70f, 1.00f, 1.0f), "Running Windows Processes");
+				ImGui::TextDisabled("Select a target process to inject into. Zombie / terminating processes are auto-filtered.");
+				ImGui::Spacing();
+
+				// Filter and Refresh
+				ImGui::SetNextItemWidth(340.0f);
+				ImGui::InputTextWithHint("##ProcessFilter", ICON_FA_SEARCH " Search PID or Name...", filter_buf, sizeof(filter_buf));
+				ImGui::SameLine();
 				if (ImGui::Button(ICON_FA_SYNC " Refresh"))
 				{
 					cached_processes = injection_method::get_running_processes();
 				}
 
 				ImGui::Spacing();
-				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-				ImGui::InputTextWithHint("##FilterProcList", ICON_FA_SEARCH " Filter process list by name...", filter_buf, sizeof(filter_buf));
-				ImGui::Spacing();
 
+				// Process Table
 				ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(8.0f, 6.0f));
-				if (ImGui::BeginTable("ProcessListTable", 4, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingStretchProp, ImVec2(0, 280.0f)))
+				if (ImGui::BeginTable("ProcessPickerTable", 4, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(0, 240.0f)))
 				{
-					ImGui::TableSetupColumn("PID", ImGuiTableColumnFlags_WidthFixed, 75.0f);
+					ImGui::TableSetupColumn("PID", ImGuiTableColumnFlags_WidthFixed, 80.0f);
 					ImGui::TableSetupColumn("Process Name", ImGuiTableColumnFlags_WidthStretch, 0.50f);
-					ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 65.0f);
-					ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+					ImGui::TableSetupColumn("Arch", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+					ImGui::TableSetupColumn("Access Status", ImGuiTableColumnFlags_WidthFixed, 120.0f);
 					ImGui::TableHeadersRow();
+
+					std::string filter_str = filter_buf;
+					std::transform(filter_str.begin(), filter_str.end(), filter_str.begin(), ::tolower);
 
 					for (const auto& proc : cached_processes)
 					{
-						if (filter_buf[0] != '\0')
+						std::string proc_name_lower = proc.name;
+						std::transform(proc_name_lower.begin(), proc_name_lower.end(), proc_name_lower.begin(), ::tolower);
+						std::string pid_str = std::to_string(proc.pid);
+
+						if (!filter_str.empty() && proc_name_lower.find(filter_str) == std::string::npos && pid_str.find(filter_str) == std::string::npos)
 						{
-							std::string name_lower = proc.name;
-							std::string search_lower = filter_buf;
-							std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
-							std::transform(search_lower.begin(), search_lower.end(), search_lower.begin(), ::tolower);
-							if (name_lower.find(search_lower) == std::string::npos)
-								continue;
+							continue;
 						}
 
-						ImGui::PushID(proc.pid);
+						ImGui::PushID((int)proc.pid);
 						ImGui::TableNextRow();
 
 						ImGui::TableSetColumnIndex(0);
 						bool is_sel = (selected_proc_pid == (int)proc.pid);
-						std::string pid_str = std::to_string(proc.pid);
-						if (ImGui::Selectable(pid_str.c_str(), is_sel, ImGuiSelectableFlags_SpanAllColumns))
+						std::string pid_label = pid_str + "##" + pid_str;
+						if (ImGui::Selectable(pid_label.c_str(), is_sel, ImGuiSelectableFlags_SpanAllColumns))
 						{
-							selected_proc_pid = proc.pid;
+							selected_proc_pid = (int)proc.pid;
 							strncpy_s(target_proc_buf, proc.name.c_str(), sizeof(target_proc_buf) - 1);
-							download_binary::get().set_target_process(target_proc_buf);
-							injection::set_target_process(target_proc_buf);
-							injection::set_target_pid(proc.pid);
+							download_binary::set_target_process(target_proc_buf);
+							injection::set_target_pid((DWORD)proc.pid);
 						}
 
 						ImGui::TableSetColumnIndex(1);
 						ImGui::Text("%s", proc.name.c_str());
 
 						ImGui::TableSetColumnIndex(2);
-						if (proc.arch == "x64")
-							ImGui::TextColored(ImVec4(0.35f, 0.70f, 1.00f, 1.0f), "x64");
-						else
-							ImGui::TextColored(ImVec4(0.90f, 0.70f, 0.20f, 1.0f), "x86");
+						ImGui::TextDisabled("%s", proc.arch == "x64" ? "x64" : "x86");
 
 						ImGui::TableSetColumnIndex(3);
 						if (proc.is_accessible)
-							ui::badge("ACCESSIBLE", ImVec4(0.16f, 0.72f, 0.53f, 0.25f), ImVec4(0.20f, 0.90f, 0.65f, 1.0f));
+						{
+							ui::badge("ACCESSIBLE", ImVec4(0.16f, 0.72f, 0.53f, 0.20f), ImVec4(0.20f, 0.90f, 0.65f, 1.0f));
+						}
 						else
-							ui::badge("ACCESS DENIED", ImVec4(0.72f, 0.16f, 0.16f, 0.25f), ImVec4(0.90f, 0.25f, 0.25f, 1.0f));
+						{
+							ui::badge("NO ACCESS", ImVec4(0.85f, 0.20f, 0.20f, 0.20f), ImVec4(0.95f, 0.40f, 0.40f, 1.0f));
+						}
 
 						ImGui::PopID();
 					}
@@ -218,13 +219,18 @@ namespace gottvergessen
 				ImGui::Separator();
 				ImGui::Spacing();
 
-				if (ImGui::Button("Select & Close", ImVec2(130.0f, 32.0f)))
+				if (ui::primary_button("SELECT & CLOSE", ImVec2(160.0f, 34.0f)))
 				{
+					if (selected_proc_pid > 0)
+					{
+						injection::set_target_pid((DWORD)selected_proc_pid);
+						download_binary::set_target_process(target_proc_buf);
+					}
 					show_process_picker = false;
 					ImGui::CloseCurrentPopup();
 				}
 				ImGui::SameLine();
-				if (ImGui::Button("Cancel", ImVec2(90.0f, 32.0f)))
+				if (ui::secondary_button("CANCEL", ImVec2(100.0f, 34.0f)))
 				{
 					show_process_picker = false;
 					ImGui::CloseCurrentPopup();
@@ -245,7 +251,7 @@ namespace gottvergessen
 					ui_instance->m_is_downloading = true;
 					ui_instance->m_download_progress = 0.0f;
 					LOG(SERVER) << "Downloading binary stream: " << current_file;
-					bool ok = download_binary::download(download_binary::get().get_selected_uuid().empty() ? current_file : download_binary::get().get_selected_uuid(), download_binary::get().get_binary_name());
+					bool ok = download_binary::download(download_binary::get_selected_uuid().empty() ? current_file : download_binary::get_selected_uuid(), download_binary::get_binary_name());
 					ui_instance->m_is_downloading = false;
 					if (ok)
 					{
@@ -263,13 +269,13 @@ namespace gottvergessen
 
 			if (ui::primary_button(ICON_FA_ROCKET "  INJECT BINARY", ImVec2(btn_w, 44), can_act && !ui_instance->m_is_downloading))
 			{
-				download_binary::get().set_target_process(target_proc_buf);
+				download_binary::set_target_process(target_proc_buf);
 
 				g_thread_pool->add_job([ui_instance] {
 					if (download_binary::check_binary_before_injection())
 					{
-						LOG(SERVER) << "Injecting binary payload into target process: " << download_binary::get().injection_target();
-						user_authentication::log_activity("PROCESS_INJECTION", "Injected binary into target process: " + download_binary::get().injection_target());
+						LOG(SERVER) << "Injecting binary payload into target process: " << download_binary::injection_target();
+						user_authentication::log_activity("PROCESS_INJECTION", "Injected binary into target process: " + download_binary::injection_target());
 						if (injection::inject_library())
 						{
 							ui_instance->m_injected = true;

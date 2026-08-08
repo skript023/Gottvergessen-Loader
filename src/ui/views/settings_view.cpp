@@ -13,39 +13,48 @@ namespace gottvergessen
 	{
 		ui::card_begin("SettingsCard", "SETTINGS & DIAGNOSTIC CONFIGURATION", "Customize loader preferences and view live system logs.");
 		{
+			std::string active_url = environment_manager::get_base_url();
 			ImGui::Text("Target Server Environment:");
-			
-			int current_env = static_cast<int>(environment_manager::get().get_current_environment());
-			const char* env_names[] = {
-				"Localhost (http://localhost:8180)",
-				"Production (https://apie.rena.my.id)",
-				"Custom URL..."
-			};
 
-			if (ImGui::Combo("##EnvironmentCombo", &current_env, env_names, IM_ARRAYSIZE(env_names)))
+			if constexpr (environment_manager::is_dev_build())
 			{
-				environment_manager::get().set_environment(static_cast<Environment>(current_env));
-			}
+				int current_env = static_cast<int>(environment_manager::get_current_environment());
+				const char* env_names[] = {
+					"Localhost (http://localhost:8180)",
+					"Production (https://apie.rena.my.id)",
+					"Custom URL..."
+				};
 
-			if (environment_manager::get().get_current_environment() == Environment::CUSTOM)
-			{
+				if (ImGui::Combo("##EnvironmentCombo", &current_env, env_names, IM_ARRAYSIZE(env_names)))
+				{
+					environment_manager::set_environment(static_cast<Environment>(current_env));
+				}
+
+				if (environment_manager::get_current_environment() == Environment::CUSTOM)
+				{
+					ImGui::Spacing();
+					ImGui::Text("Custom API Base URL:");
+					static char custom_url_buf[256] = "";
+					if (custom_url_buf[0] == '\0')
+					{
+						std::string cur_custom = environment_manager::get_custom_url();
+						strncpy_s(custom_url_buf, cur_custom.c_str(), sizeof(custom_url_buf) - 1);
+					}
+					if (ui::input_text("##CustomApiUrl", "Custom API Base URL", custom_url_buf, sizeof(custom_url_buf)))
+					{
+						environment_manager::set_custom_url(custom_url_buf);
+					}
+				}
+
 				ImGui::Spacing();
-				ImGui::Text("Custom API Base URL:");
-				static char custom_url_buf[256] = "";
-				if (custom_url_buf[0] == '\0')
-				{
-					std::string cur_custom = environment_manager::get().get_custom_url();
-					strncpy_s(custom_url_buf, cur_custom.c_str(), sizeof(custom_url_buf) - 1);
-				}
-				if (ui::input_text("##CustomApiUrl", "Custom API Base URL", custom_url_buf, sizeof(custom_url_buf)))
-				{
-					environment_manager::get().set_custom_url(custom_url_buf);
-				}
+				ImGui::TextDisabled("Active API URL: %s [DEV BUILD]", active_url.c_str());
 			}
-
-			ImGui::Spacing();
-			std::string active_url = environment_manager::get().get_base_url();
-			ImGui::TextDisabled("Active API URL: %s", active_url.c_str());
+			else
+			{
+				ui::badge("PRODUCTION", ImVec4(0.16f, 0.72f, 0.53f, 0.25f), ImVec4(0.20f, 0.90f, 0.65f, 1.0f));
+				ImGui::SameLine();
+				ImGui::TextDisabled("%s", active_url.c_str());
+			}
 
 			ImGui::Spacing();
 			ImGui::Separator();

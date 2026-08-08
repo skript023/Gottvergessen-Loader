@@ -74,7 +74,7 @@ namespace gottvergessen
 
 		ImGui::SetCursorPosX(center_x);
 		ImGui::PushItemWidth(item_width);
-		ImGui::InputText(xorstr("##Username"), user_authentication::get().username, IM_ARRAYSIZE(user_authentication::get().username));
+		ImGui::InputText(xorstr("##Username"), user_authentication::username_buf(), user_authentication::username_buf_size());
 		ImGui::PopItemWidth();
 
 		ImGui::Spacing();
@@ -85,7 +85,7 @@ namespace gottvergessen
 
 		ImGui::SetCursorPosX(center_x);
 		ImGui::PushItemWidth(item_width);
-		ImGui::InputText(xorstr("##Password"), user_authentication::get().password, IM_ARRAYSIZE(user_authentication::get().password), ImGuiInputTextFlags_Password);
+		ImGui::InputText(xorstr("##Password"), user_authentication::password_buf(), user_authentication::password_buf_size(), ImGuiInputTextFlags_Password);
 		ImGui::PopItemWidth();
 
 		ImGui::Spacing();
@@ -96,13 +96,10 @@ namespace gottvergessen
 		if (ImGui::Button(xorstr("Login"), button_size))
 		{
 			g_thread_pool->add_job([] {
-				if (user_authentication::login(user_authentication::get().username, user_authentication::get().password))
+				if (user_authentication::login(user_authentication::username_buf(), user_authentication::password_buf()))
 				{
 					download_binary::generate_binaries();
-					
-					// Menggunakan 0 alih-alih NULL untuk clear buffer memory
-					memset(user_authentication::get().password, 0, sizeof(user_authentication::get().password));
-
+					user_authentication::clear_password_buf();
 					LOG(HACKER) << user_authentication::get_message();
 				}
 			});

@@ -41,10 +41,10 @@ namespace gottvergessen
 
 	bool injection::inject_library_impl()
 	{
-		auto filename = m_filename.get_file(download_binary::get().get_binary_name()).get_path();
+		auto filename = m_filename.get_file(download_binary::get_binary_name()).get_path();
 		if (m_target_process.empty() || m_target_process == "notepad.exe")
 		{
-			std::string target_from_server = download_binary::get().injection_target();
+			std::string target_from_server = download_binary::injection_target();
 			if (!target_from_server.empty())
 				set_target_process_impl(target_from_server);
 		}

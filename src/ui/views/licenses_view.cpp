@@ -22,8 +22,13 @@ namespace gottvergessen
 			}
 			else
 			{
+				size_t total_lics = ui_instance->m_user_licenses.size();
+				float row_h = 36.0f;
+				float table_h = row_h * (total_lics > 0 ? (total_lics + 1.2f) : 2.5f);
+				if (table_h > 320.0f) table_h = 320.0f;
+
 				ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(12.0f, 8.0f));
-				if (ImGui::BeginTable("LicensesTable", 5, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollX))
+				if (ImGui::BeginTable("LicensesTable", 5, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY, ImVec2(0.0f, table_h)))
 				{
 					ImGui::TableSetupColumn("Product / Module", ImGuiTableColumnFlags_WidthStretch, 0.28f);
 					ImGui::TableSetupColumn("License Key", ImGuiTableColumnFlags_WidthFixed, 220.0f);

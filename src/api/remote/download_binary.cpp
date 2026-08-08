@@ -101,7 +101,7 @@ namespace gottvergessen
 				{ xorstr("Authorization"), token }
 			};
 
-			cpr::Url download_url = environment_manager::get().get_url("/binary/download/") + filename;
+			cpr::Url download_url = environment_manager::get_url("/binary/download/") + filename;
 
 			auto ok = http_client::download_with_progress(download_url, target_path, header, cpr::Parameters{}, [&](float progress)
 			{
@@ -142,7 +142,7 @@ namespace gottvergessen
 			};
 
 			auto res = cpr::Post(cpr::Url{get_binary_url()}, body, header);
-			set_binary_data(res.text);
+			set_binary_data_impl(res.text);
 		}
 		catch (const std::exception&)
 		{
@@ -164,7 +164,7 @@ namespace gottvergessen
 				{ xorstr("Authorization"), token }
 			};
 
-			cpr::Url url = environment_manager::get().get_url("/binary/my-binaries");
+			cpr::Url url = environment_manager::get_url("/binary/my-binaries");
 
 			auto res = cpr::Get(url, header);
 
@@ -201,7 +201,7 @@ namespace gottvergessen
 
 		try
 		{
-			cpr::Url url = environment_manager::get().get_url("/binary");
+			cpr::Url url = environment_manager::get_url("/binary");
 			cpr::Body body = json.dump();
 			cpr::Header header {
 				{ xorstr("Content-Type"), xorstr("application/json") },

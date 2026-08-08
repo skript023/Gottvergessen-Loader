@@ -102,7 +102,7 @@ namespace gottvergessen
 		}
 		else
 		{
-			full_url = environment_manager::get().get_url(avatar_url);
+			full_url = environment_manager::get_url(avatar_url);
 		}
 
 		avatar_loading = true;
@@ -218,7 +218,7 @@ namespace gottvergessen
 			}
 
 			// Try to refresh the token via /auth/refresh
-			cpr::Url uri = environment_manager::get().get_url("/auth/refresh");
+			cpr::Url uri = environment_manager::get_url("/auth/refresh");
 			cpr::Header header{
 			    {xorstr("Accept"), xorstr("application/json")},
 			    {xorstr("Content-Type"), xorstr("application/json")},
@@ -283,7 +283,7 @@ namespace gottvergessen
 		const std::string token = std::format("Bearer {}", this->get_token_impl());
 		try
 		{
-			cpr::Url uri = environment_manager::get().get_url("/user/profile");
+			cpr::Url uri = environment_manager::get_url("/user/profile");
 			cpr::Header header{
 			    {xorstr("Accept"), xorstr("application/json")},
 			    {xorstr("Content-Type"), xorstr("application/json")},
@@ -352,7 +352,7 @@ namespace gottvergessen
 
 		try
 		{
-			cpr::Url uri = environment_manager::get().get_url("/auth/login");
+			cpr::Url uri = environment_manager::get_url("/auth/login");
 			cpr::Body body = json.dump();
 			cpr::Header header = cpr::Header{
 			    {xorstr("Accept"), xorstr("application/json")},
@@ -425,7 +425,7 @@ namespace gottvergessen
 
 		try
 		{
-			cpr::Url uri = environment_manager::get().get_url("/auth/logout");
+			cpr::Url uri = environment_manager::get_url("/auth/logout");
 			cpr::Header header{
 			    {xorstr("Content-Type"), xorstr("application/json")},
 			    {xorstr("Authorization"), token},
@@ -454,7 +454,7 @@ namespace gottvergessen
 			return false;
 		try
 		{
-			cpr::Url uri = environment_manager::get().get_url("/activity");
+			cpr::Url uri = environment_manager::get_url("/activity");
 			nlohmann::ordered_json j = {
 			    {xorstr("action"), action_param},
 			    {xorstr("description"), description_param}};
@@ -584,8 +584,8 @@ namespace gottvergessen
 		return "";
 	}
 
-	std::string user_authentication::get_url_login() const { return environment_manager::get().get_url("/auth/login"); }
-	std::string user_authentication::get_url_logout() const { return environment_manager::get().get_url("/auth/logout"); }
-	std::string user_authentication::get_url_refresh() const { return environment_manager::get().get_url("/auth/refresh"); }
-	std::string user_authentication::get_url_profile() const { return environment_manager::get().get_url("/user/profile"); }
+	std::string user_authentication::get_url_login() const { return environment_manager::get_url("/auth/login"); }
+	std::string user_authentication::get_url_logout() const { return environment_manager::get_url("/auth/logout"); }
+	std::string user_authentication::get_url_refresh() const { return environment_manager::get_url("/auth/refresh"); }
+	std::string user_authentication::get_url_profile() const { return environment_manager::get_url("/user/profile"); }
 }

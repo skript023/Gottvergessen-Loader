@@ -187,13 +187,13 @@ namespace gottvergessen
 		ImDrawList* draw_list = ImGui::GetWindowDrawList();
 		ImVec2 p = ImGui::GetCursorScreenPos();
 		
-		std::string user_name = (!user_authentication::get().get_username().empty()) 
-			? user_authentication::get().get_username() 
+		std::string user_name = (!user_authentication::get_username().empty()) 
+			? user_authentication::get_username() 
 			: "Guest";
 
 		// Avatar circle parameters
-		float avatar_size = 38.0f;
-		ImVec2 avatar_center = ImVec2(p.x + 16.0f + avatar_size * 0.5f, p.y + 6.0f + avatar_size * 0.5f);
+		float avatar_size = 36.0f;
+		ImVec2 avatar_center = ImVec2(p.x + 8.0f + avatar_size * 0.5f, p.y + 4.0f + avatar_size * 0.5f);
 
 		ID3D11ShaderResourceView* avatar_tex = user_authentication::get_avatar_texture();
 		if (avatar_tex)
@@ -222,13 +222,13 @@ namespace gottvergessen
 		draw_list->AddCircle(status_dot, 5.0f, IM_COL32(15, 25, 35, 255), 0, 1.5f);
 
 		// Text layout next to Avatar
-		float text_offset_x = 16.0f + avatar_size + 10.0f;
-		ImGui::SetCursorScreenPos(ImVec2(p.x + text_offset_x, p.y + 6.0f));
+		float text_offset_x = 8.0f + avatar_size + 8.0f;
+		ImGui::SetCursorScreenPos(ImVec2(p.x + text_offset_x, p.y + 4.0f));
 		ImGui::TextColored(ImVec4(0.95f, 0.95f, 0.98f, 1.0f), "%s", user_name.c_str());
 
-		ImGui::SetCursorScreenPos(ImVec2(p.x + text_offset_x, p.y + 24.0f));
-		std::string role_badge = (!user_authentication::get().get_role().empty())
-			? user_authentication::get().get_role()
+		ImGui::SetCursorScreenPos(ImVec2(p.x + text_offset_x, p.y + 22.0f));
+		std::string role_badge = (!user_authentication::get_role().empty())
+			? user_authentication::get_role()
 			: "VERIFIED CLIENT";
 		badge_impl(role_badge.c_str(), ImVec4(0.16f, 0.72f, 0.53f, 0.25f), ImVec4(0.20f, 0.90f, 0.65f, 1.0f));
 	}
@@ -323,7 +323,7 @@ namespace gottvergessen
 			download_binary::generate_binaries();
 
 			// ---- Fetch My Licenses from GET /license/my-licenses ----
-			auto licenses_json = user_authentication::get().api_get(environment_manager::get().get_url("/license/my-licenses"));
+			auto licenses_json = user_authentication::api_get(environment_manager::get_url("/license/my-licenses"));
 			if (!licenses_json.is_discarded() && licenses_json.contains("data"))
 			{
 				m_user_licenses.clear();

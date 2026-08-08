@@ -37,38 +37,49 @@ namespace gottvergessen
 		static bool generate_binaries() { return instance().generate_binaries_impl(); }
 		static bool integrate_user() { return instance().integrate_user_impl(); }
 
+		static size_t binaries_size() { return instance().binaries_size_impl(); }
+		static std::string get_binary_by_id(int id) { return instance().get_binary_by_id_impl(id); }
+		static std::string get_file_by_id(int id) { return instance().get_file_by_id_impl(id); }
+		static std::string get_version_by_id(int id) { return instance().get_version_by_id_impl(id); }
+		static std::string get_selected_uuid() { return instance().get_selected_uuid_impl(); }
+		static std::string get_binary_name() { return instance().get_binary_name_impl(); }
+		static std::string injection_target() { return instance().injection_target_impl(); }
+		static void set_target_process(const std::string& process_name) { instance().set_target_process_impl(process_name); }
+		static void select_binary_index(int index) { instance().select_binary_index_impl(index); }
+		static void select_binary(const std::string name) { instance().select_binary_impl(name); }
+
 	public:
 		void set_location(const folder& location) { m_location = location; }
 		bool is_version_valid() const { return m_loader_version.m_valid; }
 		[[nodiscard]] int loader_version_machine() const { return m_loader_version.m_version_machine; }
 		[[nodiscard]] std::string loader_version() const { return m_loader_version.m_version; }
-		void select_binary_index(int index) { m_selected_index = index; }
-		[[nodiscard]] int selected_index() const { return m_selected_index; }
-		void select_binary(const std::string name) { m_selected_binary = name; }
-		[[nodiscard]] std::string selected_binary() const { return m_selected_binary; }
-		[[nodiscard]] std::string get_selected_uuid() const { return get_uuid_by_id(m_selected_index); }
-		[[nodiscard]] std::string get_selected_file_name() const 
+		void select_binary_index_impl(int index) { m_selected_index = index; }
+		[[nodiscard]] int selected_index_impl() const { return m_selected_index; }
+		void select_binary_impl(const std::string name) { m_selected_binary = name; }
+		[[nodiscard]] std::string selected_binary_impl() const { return m_selected_binary; }
+		[[nodiscard]] std::string get_selected_uuid_impl() const { return get_uuid_by_id_impl(m_selected_index); }
+		[[nodiscard]] std::string get_selected_file_name_impl() const 
 		{ 
-			std::string fn = get_file_by_id(m_selected_index); 
+			std::string fn = get_file_by_id_impl(m_selected_index); 
 			return fn.empty() ? m_filename : fn; 
 		}
-		[[nodiscard]] std::string get_binary_name() const 
+		[[nodiscard]] std::string get_binary_name_impl() const 
 		{ 
-			std::string fn = get_file_by_id(m_selected_index);
+			std::string fn = get_file_by_id_impl(m_selected_index);
 			return fn.empty() ? (m_filename.empty() ? "binary.dll" : m_filename) : fn; 
 		}
-		void set_target_process(const std::string& process_name) { m_target_process = process_name; }
-		[[nodiscard]] std::string injection_target() const { return m_target_process.empty() ? "notepad.exe" : m_target_process; }
-		void set_binary_data(const std::string data) { m_binary_data = {data.begin(), data.end()}; }
-		[[nodiscard]] std::string binary_data() const { return m_binary_data; }
-		nlohmann::ordered_json load_binaries() const { return m_binaries; }
-		size_t binaries_size() const 
+		void set_target_process_impl(const std::string& process_name) { m_target_process = process_name; }
+		[[nodiscard]] std::string injection_target_impl() const { return m_target_process.empty() ? "notepad.exe" : m_target_process; }
+		void set_binary_data_impl(const std::string data) { m_binary_data = {data.begin(), data.end()}; }
+		[[nodiscard]] std::string binary_data_impl() const { return m_binary_data; }
+		nlohmann::ordered_json load_binaries_impl() const { return m_binaries; }
+		size_t binaries_size_impl() const 
 		{ 
 			if (m_binaries.is_array()) return m_binaries.size();
 			if (m_binaries.is_object()) return m_binaries.size();
 			return 0;
 		}
-		std::string get_uuid_by_id(int id) const 
+		std::string get_uuid_by_id_impl(int id) const 
 		{ 
 			if (m_binaries.is_array() && id >= 0 && id < (int)m_binaries.size())
 			{
@@ -90,7 +101,7 @@ namespace gottvergessen
 			}
 			return {};
 		}
-		std::string get_binary_by_id(int id) const 
+		std::string get_binary_by_id_impl(int id) const 
 		{ 
 			if (m_binaries.is_array() && id >= 0 && id < (int)m_binaries.size())
 			{
@@ -115,7 +126,7 @@ namespace gottvergessen
 
 			return {};
 		}
-		std::string get_file_by_id(int id) const 
+		std::string get_file_by_id_impl(int id) const 
 		{ 
 			if (m_binaries.is_array() && id >= 0 && id < (int)m_binaries.size())
 			{
@@ -141,7 +152,7 @@ namespace gottvergessen
 			return {};
 		}
 
-		std::string get_version_by_id(int id) const 
+		std::string get_version_by_id_impl(int id) const 
 		{ 
 			if (m_binaries.is_array() && id >= 0 && id < (int)m_binaries.size())
 			{

@@ -43,19 +43,45 @@ namespace gottvergessen
 			load_config();
 		}
 
-		Environment get_current_environment() const
+		static constexpr bool is_dev_build()
 		{
+#if defined(_DEBUG) || defined(DEV_BUILD)
+			return true;
+#else
+			return false;
+#endif
+		}
+
+		// Static Facade API -> Delegasi ke *_impl()
+		static std::string get_url(const std::string& endpoint) { return get().get_url_impl(endpoint); }
+		static std::string get_base_url() { return get().get_base_url_impl(); }
+		static Environment get_current_environment() { return get().get_current_environment_impl(); }
+		static void set_environment(Environment env) { get().set_environment_impl(env); }
+		static std::string get_custom_url() { return get().get_custom_url_impl(); }
+		static void set_custom_url(const std::string& url) { get().set_custom_url_impl(url); }
+
+		Environment get_current_environment_impl() const
+		{
+			if constexpr (!is_dev_build())
+				return Environment::PRODUCTION;
 			return m_current_env;
 		}
 
-		void set_environment(Environment env)
+		void set_environment_impl(Environment env)
 		{
+			if constexpr (!is_dev_build())
+				return;
 			m_current_env = env;
 			save_config();
 		}
 
-		std::string get_base_url() const
+		std::string get_base_url_impl() const
 		{
+			if constexpr (!is_dev_build())
+			{
+				return "https://apie.rena.my.id";
+			}
+
 			switch (m_current_env)
 			{
 			case Environment::LOCAL:
@@ -65,25 +91,27 @@ namespace gottvergessen
 			case Environment::CUSTOM:
 				return m_custom_url.empty() ? "http://localhost:8180" : m_custom_url;
 			default:
-				return "http://localhost:8180";
+				return "https://apie.rena.my.id";
 			}
 		}
 
-		void set_custom_url(const std::string& url)
+		void set_custom_url_impl(const std::string& url)
 		{
+			if constexpr (!is_dev_build())
+				return;
 			m_custom_url = url;
 			if (m_current_env == Environment::CUSTOM)
 				save_config();
 		}
 
-		std::string get_custom_url() const
+		std::string get_custom_url_impl() const
 		{
 			return m_custom_url;
 		}
 
-		std::string get_url(const std::string& endpoint) const
+		std::string get_url_impl(const std::string& endpoint) const
 		{
-			std::string base = get_base_url();
+			std::string base = get_base_url_impl();
 			while (!base.empty() && base.back() == '/')
 				base.pop_back();
 
@@ -107,6 +135,17 @@ namespace gottvergessen
 			{
 				auto folder = file_manager::get_project_folder("./Config");
 				auto file_path = folder.get_file("./environment.json").get_path();
+
+				// In production/release builds, delete environment.json if it exists to eliminate risk
+				if constexpr (!is_dev_build())
+				{
+					if (std::filesystem::exists(file_path))
+					{
+						std::filesystem::remove(file_path);
+					}
+					return;
+				}
+
 				if (std::filesystem::exists(file_path))
 				{
 					std::ifstream f(file_path);
@@ -131,6 +170,9 @@ namespace gottvergessen
 
 		void save_config()
 		{
+			if constexpr (!is_dev_build())
+				return;
+
 			try
 			{
 				auto folder = file_manager::get_project_folder("./Config");

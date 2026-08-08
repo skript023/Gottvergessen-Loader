@@ -30,7 +30,7 @@ namespace gottvergessen
 	{
 		if (this->is_enabled())
 		{
-			if (auto fullname = user_authentication::get().get_fullname(); user_authentication::authorized())
+			if (auto fullname = user_authentication::get_fullname(); user_authentication::authorized())
 			{
 				try
 				{

@@ -90,7 +90,11 @@ namespace gottvergessen
 		{
 			return instance().owned_product_info_impl(product_grade);
 		}
-		static std::string ownership_expiry_date() { return instance().ownership_expiry_date_impl(); }
+		static char* username_buf() { return instance().username; }
+		static char* password_buf() { return instance().password; }
+		static size_t username_buf_size() { return sizeof(instance().username); }
+		static size_t password_buf_size() { return sizeof(instance().password); }
+		static void clear_password_buf() { memset(instance().password, 0, sizeof(instance().password)); }
 
 	public:
 		char username[32]{};
