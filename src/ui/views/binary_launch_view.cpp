@@ -96,6 +96,11 @@ namespace gottvergessen
 
 			// Target Process Selector / Input
 			static char target_proc_buf[64] = "notepad.exe";
+			static bool show_process_picker = false;
+			static std::vector<process_info> cached_processes;
+			static char filter_buf[64] = "";
+			static int selected_proc_pid = 0;
+
 			std::string current_target = download_binary::get().injection_target();
 			if (!current_target.empty() && strcmp(target_proc_buf, "notepad.exe") == 0)
 			{
@@ -107,9 +112,126 @@ namespace gottvergessen
 			if (ImGui::InputText("##TargetProcessInput", target_proc_buf, sizeof(target_proc_buf)))
 			{
 				download_binary::get().set_target_process(target_proc_buf);
+				injection::set_target_pid(0);
 			}
 			ImGui::SameLine();
-			ImGui::TextDisabled("(e.g., notepad.exe, GTA5.exe)");
+
+			if (ImGui::Button(ICON_FA_LIST "  Select Process"))
+			{
+				show_process_picker = true;
+				cached_processes = injection_method::get_running_processes();
+			}
+
+			if (selected_proc_pid != 0)
+			{
+				ImGui::SameLine();
+				ImGui::TextColored(ImVec4(0.20f, 0.90f, 0.65f, 1.0f), "(PID: %d)", selected_proc_pid);
+			}
+			else
+			{
+				ImGui::SameLine();
+				ImGui::TextDisabled("(e.g., notepad.exe, GTA5.exe)");
+			}
+
+			// =========================================================================
+			// PROCESS SELECTOR POPUP MODAL (GH INJECTOR STYLE)
+			// =========================================================================
+			if (show_process_picker)
+			{
+				ImGui::OpenPopup("Select a Process");
+			}
+
+			ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+			ImGui::SetNextWindowSize(ImVec2(520.0f, 440.0f));
+			if (ImGui::BeginPopupModal("Select a Process", &show_process_picker, ImGuiWindowFlags_NoCollapse))
+			{
+				ImGui::TextColored(ImVec4(0.38f, 0.72f, 1.00f, 1.00f), "Running Processes (%zu)", cached_processes.size());
+				ImGui::SameLine(ImGui::GetContentRegionAvail().x - 90.0f);
+				if (ImGui::Button(ICON_FA_SYNC " Refresh"))
+				{
+					cached_processes = injection_method::get_running_processes();
+				}
+
+				ImGui::Spacing();
+				ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+				ImGui::InputTextWithHint("##FilterProcList", ICON_FA_SEARCH " Filter process list by name...", filter_buf, sizeof(filter_buf));
+				ImGui::Spacing();
+
+				ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(8.0f, 6.0f));
+				if (ImGui::BeginTable("ProcessListTable", 4, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingStretchProp, ImVec2(0, 280.0f)))
+				{
+					ImGui::TableSetupColumn("PID", ImGuiTableColumnFlags_WidthFixed, 75.0f);
+					ImGui::TableSetupColumn("Process Name", ImGuiTableColumnFlags_WidthStretch, 0.50f);
+					ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 65.0f);
+					ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+					ImGui::TableHeadersRow();
+
+					for (const auto& proc : cached_processes)
+					{
+						if (filter_buf[0] != '\0')
+						{
+							std::string name_lower = proc.name;
+							std::string search_lower = filter_buf;
+							std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
+							std::transform(search_lower.begin(), search_lower.end(), search_lower.begin(), ::tolower);
+							if (name_lower.find(search_lower) == std::string::npos)
+								continue;
+						}
+
+						ImGui::PushID(proc.pid);
+						ImGui::TableNextRow();
+
+						ImGui::TableSetColumnIndex(0);
+						bool is_sel = (selected_proc_pid == (int)proc.pid);
+						std::string pid_str = std::to_string(proc.pid);
+						if (ImGui::Selectable(pid_str.c_str(), is_sel, ImGuiSelectableFlags_SpanAllColumns))
+						{
+							selected_proc_pid = proc.pid;
+							strncpy_s(target_proc_buf, proc.name.c_str(), sizeof(target_proc_buf) - 1);
+							download_binary::get().set_target_process(target_proc_buf);
+							injection::set_target_process(target_proc_buf);
+							injection::set_target_pid(proc.pid);
+						}
+
+						ImGui::TableSetColumnIndex(1);
+						ImGui::Text("%s", proc.name.c_str());
+
+						ImGui::TableSetColumnIndex(2);
+						if (proc.arch == "x64")
+							ImGui::TextColored(ImVec4(0.35f, 0.70f, 1.00f, 1.0f), "x64");
+						else
+							ImGui::TextColored(ImVec4(0.90f, 0.70f, 0.20f, 1.0f), "x86");
+
+						ImGui::TableSetColumnIndex(3);
+						if (proc.is_accessible)
+							ui::badge("ACCESSIBLE", ImVec4(0.16f, 0.72f, 0.53f, 0.25f), ImVec4(0.20f, 0.90f, 0.65f, 1.0f));
+						else
+							ui::badge("ACCESS DENIED", ImVec4(0.72f, 0.16f, 0.16f, 0.25f), ImVec4(0.90f, 0.25f, 0.25f, 1.0f));
+
+						ImGui::PopID();
+					}
+					ImGui::EndTable();
+				}
+				ImGui::PopStyleVar();
+
+				ImGui::Spacing();
+				ImGui::Separator();
+				ImGui::Spacing();
+
+				if (ImGui::Button("Select & Close", ImVec2(130.0f, 32.0f)))
+				{
+					show_process_picker = false;
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Cancel", ImVec2(90.0f, 32.0f)))
+				{
+					show_process_picker = false;
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::EndPopup();
+			}
 
 			ImGui::Spacing();
 

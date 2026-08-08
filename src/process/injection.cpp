@@ -10,7 +10,9 @@ namespace gottvergessen
 		{
 			m_filename = file_manager::get_project_folder("./Binary");
 		}
-		catch (...) {}
+		catch (...)
+		{
+		}
 		m_strategy = create_strategy(m_mode);
 	}
 
@@ -40,18 +42,59 @@ namespace gottvergessen
 	bool injection::inject_library_impl()
 	{
 		auto filename = m_filename.get_file(download_binary::get().get_binary_name()).get_path();
-		set_target_process_impl(download_binary::get().injection_target());
+		if (m_target_process.empty() || m_target_process == "notepad.exe")
+		{
+			std::string target_from_server = download_binary::get().injection_target();
+			if (!target_from_server.empty())
+				set_target_process_impl(target_from_server);
+		}
 
-		if (!this->validate_binary_impl(filename)) return false;
+		if (!this->validate_binary_impl(filename))
+			return false;
 
-		LOG(HACKER) << "Waiting for process " << m_target_process;
+		if (m_selected_pid != 0)
+		{
+			m_pid = m_selected_pid;
+			LOG(HACKER) << "Using explicitly selected target process PID: " << m_pid;
+		}
+		else
+		{
+			LOG(HACKER) << "Waiting for process " << m_target_process;
 
-		while (!injection_method::is_process_running(m_target_process))
-			std::this_thread::sleep_for(100ms);
+			while (!injection_method::is_process_running(m_target_process))
+				std::this_thread::sleep_for(100ms);
 
-		m_pid = injection_method::get_process_id_by_name(m_target_process);
+			constexpr int max_retries = 10;
+			for (int attempt = 0; attempt < max_retries; ++attempt)
+			{
+				m_pid = injection_method::get_process_id_by_name(m_target_process);
+				if (m_pid == 0)
+				{
+					std::this_thread::sleep_for(500ms);
+					continue;
+				}
+				// Quick accessibility check — open and immediately close
+				HANDLE test_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, m_pid);
+				if (test_handle != NULL)
+				{
+					CloseHandle(test_handle);
+					break;
+				}
+				LOG(HACKER) << "PID " << m_pid
+				            << " not yet accessible (attempt "
+				            << (attempt + 1) << "/" << max_retries
+				            << "), retrying...";
+				m_pid = 0;
+				std::this_thread::sleep_for(500ms);
+			}
+			if (m_pid == 0)
+			{
+				LOG(WARNING) << "Failed to obtain accessible PID for " << m_target_process;
+				return false;
+			}
 
-		LOG(HACKER) << "Process " << m_target_process << " PID : " << m_pid;
+			LOG(HACKER) << "Process " << m_target_process << " PID : " << m_pid;
+		}
 
 		if (!m_strategy)
 			m_strategy = create_strategy(m_mode);

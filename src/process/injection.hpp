@@ -57,6 +57,16 @@ namespace gottvergessen
 			return instance().get_target_process_impl();
 		}
 
+		static void set_target_pid(std::uint32_t pid)
+		{
+			instance().set_target_pid_impl(pid);
+		}
+
+		static std::uint32_t get_target_pid()
+		{
+			return instance().get_target_pid_impl();
+		}
+
 		static bool validate_binary(std::filesystem::path filename)
 		{
 			return instance().validate_binary_impl(filename);
@@ -87,8 +97,11 @@ namespace gottvergessen
 		void set_injection_mode_impl(InjectionMode mode);
 		InjectionMode get_injection_mode_impl() const { return m_mode; }
 
-		void set_target_process_impl(const std::string& process_name) { m_target_process = process_name; }
+		void set_target_process_impl(const std::string& process_name) { m_target_process = process_name; m_selected_pid = 0; }
 		std::string get_target_process_impl() const { return m_target_process; }
+
+		void set_target_pid_impl(std::uint32_t pid) { m_selected_pid = pid; }
+		std::uint32_t get_target_pid_impl() const { return m_selected_pid; }
 
 		bool validate_binary_impl(std::filesystem::path filename);
 		bool inject_library_impl();
@@ -100,6 +113,7 @@ namespace gottvergessen
 		folder m_filename{};
 		std::string m_target_process{"notepad.exe"};
 		std::uint32_t m_pid{0};
+		std::uint32_t m_selected_pid{0};
 		InjectionMode m_mode{InjectionMode::CreateRemoteThread};
 		std::unique_ptr<injection_method> m_strategy;
 	};
