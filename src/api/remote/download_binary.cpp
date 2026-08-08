@@ -1,106 +1,65 @@
 #include "http_client/http_client.hpp"
-#include "download_binary.hpp"
+#include "api/remote/download_binary.hpp"
 #include "gui.hpp"
+#include "ui/ui.hpp"
+#include "api/user/user_authentication.hpp"
 
 namespace gottvergessen
 {
-	download_binary::download_binary(const folder& location) : m_location(location), m_loader_version(get_loader_version())
+	download_binary::download_binary() = default;
+
+	void download_binary::init_impl()
 	{
-		this->generate_binaries();
-		g_download_binary = this;
+		m_loader_version = get_loader_version();
+		try
+		{
+			m_location = file_manager::get_project_folder("./Binary");
+		}
+		catch (...) {}
+		generate_binaries_impl();
 	}
 
-	download_binary::~download_binary()
+	void download_binary::destroy_impl()
 	{
-		g_download_binary = nullptr;
 	}
 
-	bool download_binary::check_binary_before_injection()
+	bool download_binary::check_binary_before_injection_impl()
 	{
-		auto m_latest_version = this->get_version_info();
-		auto m_current_version = this->get_current_version();
+		std::string uuid = this->get_selected_uuid();
+		std::string file_name = this->get_binary_name();
+		if (file_name.empty()) file_name = "binary_package.dll";
 
-		LOG(HACKER) << "Server binary version is " << m_latest_version.m_version << " current version is " << m_current_version.m_version;
+		auto location = m_location.get_file(file_name).get_path();
 
-		if (!m_current_version.m_supported || !m_latest_version.m_supported)
-		{
-			LOG(WARNING) << "This version is unsupported, injection terminated";
-			return false;
-		}
-
-		if (m_current_version.m_id != m_latest_version.m_id)
-		{
-			LOG(WARNING) << "Invalid category, redownload new version file";
-			this->download_version_file();
-			this->check_binary_before_injection();
-			LOG(HACKER) << "New version file downloaded successfully";
-		}
-
-		if (!m_latest_version.m_valid)
-		{
-			LOG(WARNING) << "Host did not return valid version data, does it have a version.json?";
-
-			return false;
-		}
-
-		LOG(HACKER) << "Checking binary From Server";
-
-		auto location = m_location.get_file(this->get_binary_name()).get_path();
+		LOG(HACKER) << "Checking binary from Server for payload: " << file_name << " (UUID: " << uuid << ")";
 
 		std::ifstream fileStream(location, std::ios::binary | std::ios::ate);
-
-		const auto file_size = fileStream.tellg();
-		if (std::filesystem::exists(location) && file_size < 0x1000)
+		std::streamoff file_size = -1;
+		if (fileStream.is_open())
 		{
+			file_size = static_cast<std::streamoff>(fileStream.tellg());
 			fileStream.close();
-
-			LOG(WARNING) << "DLL file seems inconceivably small probably file corrupted, request to inject ignored.";
-
-			LOG(HACKER) << "Redownloading binary from server, please wait...";
-
-			if (!this->download(this->get_binary_name(), location))
-			{
-				LOG(WARNING) << "Host did not return valid version data, does it have a version.json?";
-
-				return false;
-			}
-
-			LOG(HACKER) << "New DLL has been downloaded from remote, new binary version is " << m_latest_version.m_version;
 		}
 
-		if (!std::filesystem::exists(location))
-		{
-			LOG(HACKER) << "Downloading DLL from server, please wait...";
-			if (!this->download(this->get_binary_name(), location))
-			{
-				LOG(WARNING) << "Host did not return valid version data, does it have a version.json?";
+		std::string download_target = uuid.empty() ? file_name : uuid;
 
+		if (!std::filesystem::exists(location) || file_size < 0x1000)
+		{
+			LOG(HACKER) << "Downloading binary payload from server (" << download_target << ")...";
+
+			if (!this->download_impl(download_target, location))
+			{
+				LOG(WARNING) << "Failed to download binary from Ellohim-Server.";
 				return false;
 			}
 
-			LOG(HACKER) << "New DLL has been downloaded from remote, new binary version is " << m_latest_version.m_version;
-		}
-
-		if (m_current_version.m_version_machine < m_latest_version.m_version_machine)
-		{
-			LOG(HACKER) << "DLL is outdated or request remote not valid, request updating binary from server...";
-			LOG(HACKER) << "Updating DLL from server, please wait...";
-			if (!this->download(this->get_binary_name(), location))
-			{
-				LOG(WARNING) << "Host did not return valid version data, does it have a version.json?";
-
-				return false;
-			}
-
-			this->download_version_file();
-
-			LOG(HACKER) << "New DLL has been downloaded from remote, new binary version is " << m_latest_version.m_version;
+			LOG(HACKER) << "New binary payload downloaded successfully: " << file_name;
 		}
 
 		return true;
 	}
 
-	bool download_binary::validate_before_injection()
+	bool download_binary::validate_before_injection_impl()
 	{
 		auto m_current_version = this->get_version_info();
 
@@ -115,73 +74,64 @@ namespace gottvergessen
 		if (!m_current_version.m_valid)
 		{
 			LOG(WARNING) << "Host did not return valid version data, does it have a version.json?";
-
 			return false;
 		}
 
-		if (!this->generate(this->get_binary_name()))
+		if (!this->generate_impl(this->get_binary_name()))
 		{
 			LOG(WARNING) << "Host did not return valid version data, does it have a version.json?";
-
 			return false;
 		}
 
 		LOG(HACKER) << "New DLL has been generated from server, the DLL version is " << m_current_version.m_version;
-
 		return true;
 	}
 
-
-	bool download_binary::download(const std::string filename, const std::filesystem::path& location) const
+	bool download_binary::download_impl(const std::string filename, const std::filesystem::path& location)
 	{
-		std::ofstream file(location, std::ios::binary | std::ios::trunc);
+		std::filesystem::path target_path = location.empty() ? m_location.get_file(filename).get_path() : location;
+		std::ofstream file(target_path, std::ios::binary | std::ios::trunc);
 
-		nlohmann::ordered_json json = {
-			{ xorstr("name"), filename }
-		};
-
-		std::string token = std::format("Bearer {}", g_user_authentication->get_token());
+		std::string token = std::format("Bearer {}", user_authentication::get_token());
 
 		try
 		{
-			cpr::Body body = json.dump();
 			cpr::Header header { 
 				{ xorstr("Content-Type"), xorstr("application/json") }, 
 				{ xorstr("Authorization"), token }
 			};
 
-			auto ok = http_client::download_with_progress(url, location, header, cpr::Parameters{ { "name", filename } }, [&](float progress)
+			cpr::Url download_url = environment_manager::get().get_url("/binary/download/") + filename;
+
+			auto ok = http_client::download_with_progress(download_url, target_path, header, cpr::Parameters{}, [&](float progress)
 			{
 				LOG(INFO) << "Progress: " << static_cast<int>(progress) << "%";
+				ui::get().m_download_progress = progress / 100.0f;
 			});
 
 			if (!ok)
 			{
 				LOG(WARNING) << "Failed to download bin";
-
 				return false;
 			}
 		}
 		catch (const std::exception&)
 		{
 			LOG(WARNING) << "Failed to download binary, is the host down?";
-
 			file.close();
-
 			return false;
 		}
 		file.close();
-
 		return true;
 	}
 
-	bool download_binary::generate(const std::string filename)
+	bool download_binary::generate_impl(const std::string filename)
 	{
 		nlohmann::ordered_json json = {
 			{ xorstr("name"), filename }
 		};
 
-		std::string token = std::format("Bearer {}", g_user_authentication->get_token());
+		std::string token = std::format("Bearer {}", user_authentication::get_token());
 
 		try
 		{
@@ -191,23 +141,21 @@ namespace gottvergessen
 				{ xorstr("Authorization"), token }
 			};
 
-			auto res = cpr::Post(url, body, header);
-
+			auto res = cpr::Post(cpr::Url{get_binary_url()}, body, header);
 			set_binary_data(res.text);
 		}
 		catch (const std::exception&)
 		{
 			LOG(WARNING) << "Failed to download binary, is the host down?";
-
 			return false;
 		}
 
 		return true;
 	}
 
-	bool download_binary::generate_binaries()
+	bool download_binary::generate_binaries_impl()
 	{
-		std::string token = std::format("Bearer {}", g_user_authentication->get_token());
+		std::string token = std::format("Bearer {}", user_authentication::get_token());
 
 		try
 		{
@@ -216,38 +164,48 @@ namespace gottvergessen
 				{ xorstr("Authorization"), token }
 			};
 
-			cpr::Url url = xorstr("http://localhost:8000/api/v1/binary/all");
+			cpr::Url url = environment_manager::get().get_url("/binary/my-binaries");
 
 			auto res = cpr::Get(url, header);
 
-			this->m_binaries = nlohmann::ordered_json::parse(res.text);
-			auto& data = this->m_binaries.begin().value();
+			auto parsed = nlohmann::ordered_json::parse(res.text, nullptr, false);
+			if (!parsed.is_discarded())
+			{
+				if (parsed.contains("data") && parsed["data"].is_array())
+				{
+					this->m_binaries = parsed["data"];
+				}
+				else
+				{
+					this->m_binaries = parsed;
+				}
+				LOG(INFO) << "Loaded " << this->m_binaries.size() << " user binaries from GET /binary/my-binaries";
+			}
 		}
 		catch (const std::exception&)
 		{
-			LOG(WARNING) << "Failed to download binary, is the host down?";
-
+			LOG(WARNING) << "Failed to fetch binary catalog from Ellohim-Server";
 			return false;
 		}
 
 		return true;
 	}
-	bool download_binary::integrate_user()
+
+	bool download_binary::integrate_user_impl()
 	{
 		nlohmann::ordered_json json = {
-			{ xorstr("username"), g_user_authentication->get_username() },
-			{ xorstr("hardware_uuid"), g_user_authentication->get_bios() },
-			{ xorstr("computer_name"), g_user_authentication->get_computer_name() },
-			{ xorstr("role"), g_user_authentication->get_role() },
-			{ xorstr("token"), g_user_authentication->get_token() }
+			{ xorstr("username"), user_authentication::get_username() },
+			{ xorstr("role"), user_authentication::get_role() },
+			{ xorstr("token"), user_authentication::get_token() }
 		};
 
 		try
 		{
-			cpr::Url url = xorstr("http://localhost:8000/api/v1/injection/grants-access");
+			cpr::Url url = environment_manager::get().get_url("/binary");
 			cpr::Body body = json.dump();
 			cpr::Header header {
 				{ xorstr("Content-Type"), xorstr("application/json") },
+				{ xorstr("User-Agent"), user_authentication::get_user_agent() }
 			};
 
 			auto res = cpr::Post(url, body, header);
@@ -259,7 +217,6 @@ namespace gottvergessen
 		catch (const std::exception&)
 		{
 			LOG(WARNING) << "Failed to download binary, is the host down?";
-
 			return false;
 		}
 

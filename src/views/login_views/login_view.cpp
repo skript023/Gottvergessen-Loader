@@ -8,7 +8,7 @@
 #include "process/injection.hpp"
 #include "api/remote/download_binary.hpp"
 #include "api/user/user_authentication.hpp"
-#include "api/costume_loader/costume_loader.hpp"
+
 
 namespace gottvergessen
 {
@@ -18,17 +18,13 @@ namespace gottvergessen
 		float font_size = ImGui::GetFontSize();
 
 		// 2. Skala dinamis berbasis proporsi window & skala font
-		// Gunakan persentase window (misal 45%) tetapi dinaikkan batas minimum & maksimumnya
-		// agar terlihat proporsional di layar 1080p/2K/4K.
 		float target_width = window_size.x * 0.45f;
 		
-		// Batas dinamis berbasis font size (18em - 32em) agar adaptif terhadap DPI/Font scale
 		float min_width = std::max(260.0f, font_size * 18.0f); 
 		float max_width = std::max(550.0f, font_size * 32.0f); 
 		
 		float item_width = std::clamp(target_width, min_width, max_width);
 
-		// Tinggi tombol & frame dibuat proporsional terhadap ukuran font (misal 2.2x font size)
 		float button_height = font_size * 2.2f;
 		ImVec2 button_size = ImVec2{ item_width, button_height };
 
@@ -37,29 +33,36 @@ namespace gottvergessen
 		float frame_height = ImGui::GetFrameHeight();
 		float item_spacing = ImGui::GetStyle().ItemSpacing.y;
 
-		// Total tinggi = (2x Label Text) + (2x Input Box) + (1x Button) + Spacing
-		float total_content_height = (text_height * 2.0f) + (frame_height * 2.0f) + button_size.y + (item_spacing * 5.0f);
+		float logoWidth = 120.0f;
+		float logoHeight = 0.0f;
+		if (renderer && renderer->m_icons != nullptr && renderer->m_icons_size.x > 0)
+		{
+			float aspectRatio = (float)renderer->m_icons_size.y / (float)renderer->m_icons_size.x;
+			logoHeight = logoWidth * aspectRatio;
+		}
+
+		// Total tinggi = Logo + (3x Label Text) + (3x Input Box) + (1x Button) + Spacing
+		float total_content_height = (text_height * 3.0f) + (frame_height * 3.0f) + button_size.y + (item_spacing * 8.0f);
+		if (logoHeight > 0.0f)
+		{
+			total_content_height += logoHeight + (item_spacing * 2.0f);
+		}
 
 		// Hitung offset koordinat awal
 		float center_x = (window_size.x - item_width) * 0.5f;
 		float start_y = (window_size.y - total_content_height) * 0.5f;
 
-		if (renderer && renderer->m_icons != nullptr)
-		{
-			float logoWidth = 120.0f; // Ukuran diperkecil sedikit agar pas di dalam card/konten
-			float aspectRatio = (float)renderer->m_icons_size.y / (float)renderer->m_icons_size.x;
-			float logoHeight = logoWidth * aspectRatio;
-
-			float windowWidth = ImGui::GetWindowSize().x;
-			ImGui::SetCursorPosX((windowWidth - logoWidth) * 0.5f);
-			ImGui::Image((void*)renderer->m_icons, ImVec2(logoWidth, logoHeight));
-			ImGui::Spacing();
-		}
-
-		// Terapkan posisi Y awal jika masih berada dalam batasan window
 		if (start_y > 10.0f)
 		{
 			ImGui::SetCursorPosY(start_y);
+		}
+
+		if (logoHeight > 0.0f)
+		{
+			ImGui::SetCursorPosX((window_size.x - logoWidth) * 0.5f);
+			ImGui::Image((void*)renderer->m_icons, ImVec2(logoWidth, logoHeight));
+			ImGui::Spacing();
+			ImGui::Spacing();
 		}
 
 		// 4. Render Komponen Tampilan Login
@@ -71,7 +74,7 @@ namespace gottvergessen
 
 		ImGui::SetCursorPosX(center_x);
 		ImGui::PushItemWidth(item_width);
-		ImGui::InputText(xorstr("##Username"), g_user_authentication->username, IM_ARRAYSIZE(g_user_authentication->username));
+		ImGui::InputText(xorstr("##Username"), user_authentication::get().username, IM_ARRAYSIZE(user_authentication::get().username));
 		ImGui::PopItemWidth();
 
 		ImGui::Spacing();
@@ -82,7 +85,7 @@ namespace gottvergessen
 
 		ImGui::SetCursorPosX(center_x);
 		ImGui::PushItemWidth(item_width);
-		ImGui::InputText(xorstr("##Password"), g_user_authentication->password, IM_ARRAYSIZE(g_user_authentication->password), ImGuiInputTextFlags_Password);
+		ImGui::InputText(xorstr("##Password"), user_authentication::get().password, IM_ARRAYSIZE(user_authentication::get().password), ImGuiInputTextFlags_Password);
 		ImGui::PopItemWidth();
 
 		ImGui::Spacing();
@@ -93,17 +96,24 @@ namespace gottvergessen
 		if (ImGui::Button(xorstr("Login"), button_size))
 		{
 			g_thread_pool->add_job([] {
-				if (g_user_authentication->login(g_user_authentication->username, g_user_authentication->password))
+				if (user_authentication::login(user_authentication::get().username, user_authentication::get().password))
 				{
-					g_costume_loader->execute();
-					g_download_binary->generate_binaries();
+					download_binary::generate_binaries();
 					
 					// Menggunakan 0 alih-alih NULL untuk clear buffer memory
-					memset(g_user_authentication->password, 0, sizeof(g_user_authentication->password));
+					memset(user_authentication::get().password, 0, sizeof(user_authentication::get().password));
 
-					LOG(HACKER) << g_user_authentication->get_message();
+					LOG(HACKER) << user_authentication::get_message();
 				}
 			});
+		}
+
+		if (!user_authentication::get_message().empty())
+		{
+			ImGui::Spacing();
+			ImGui::SetCursorPosX(center_x);
+			ImVec4 msg_color = user_authentication::authorized() ? ImVec4(0.3f, 0.9f, 0.4f, 1.0f) : ImVec4(0.95f, 0.35f, 0.35f, 1.0f);
+			ImGui::TextColored(msg_color, "%s", user_authentication::get_message().c_str());
 		}
 
 		ImGui::EndGroup();

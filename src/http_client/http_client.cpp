@@ -26,6 +26,7 @@ namespace gottvergessen
         m_session.SetUrl(url);
 		m_session.SetHeader(headers);
 		m_session.SetParameters(query_params);
+		m_session.SetTimeout(cpr::Timeout{60000});
 
 		std::ofstream of(path, std::ios::binary | std::ios::trunc);
 		if (!of.is_open())

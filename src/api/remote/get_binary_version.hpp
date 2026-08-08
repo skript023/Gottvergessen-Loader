@@ -4,29 +4,30 @@
 #include "api/http_request.hpp"
 #include "api/url_encryption.hpp"
 #include "api/user/user_authentication.hpp"
+#include "api/environment.hpp"
 
 namespace gottvergessen
 {
 	struct VersionInfo
 	{
-		const int m_id;
-		const std::string m_game;
-		const unsigned int m_code;
-		const std::string m_file;
-		const std::string m_target;
-		const std::string m_version;
-		const int m_version_machine;
-		const BOOL m_supported;
-		const BOOL m_valid;
+		int m_id{};
+		std::string m_game{};
+		unsigned int m_code{};
+		std::string m_file{};
+		std::string m_target{};
+		std::string m_version{};
+		int m_version_machine{};
+		BOOL m_supported{ FALSE };
+		BOOL m_valid{ FALSE };
 	};
 
 	struct LoaderVersion
 	{
-		const std::string m_path;
-		const std::string m_version;
-		const int m_version_machine;
-		const bool m_supported;
-		const bool m_valid;
+		std::string m_path{};
+		std::string m_version{};
+		int m_version_machine{};
+		bool m_supported{ false };
+		bool m_valid{ false };
 	};
 
 	struct BinaryName
@@ -51,7 +52,7 @@ namespace gottvergessen
 		{
 			try
 			{
-				cpr::Url url = xorstr("http://localhost:8000/api/v1/version");
+				cpr::Url url = environment_manager::get().get_url("/binary/version");
 				cpr::Header header = { { xorstr("Accept"), xorstr("application/json")} };
 				auto res = cpr::Get(url, header);
 
@@ -75,7 +76,7 @@ namespace gottvergessen
 				{ xorstr("name"), m_selected_binary}
 			};
 
-			std::string token = std::format("Bearer {}", g_user_authentication->get_token());
+			std::string token = std::format("Bearer {}", user_authentication::get_token());
 
 			try
 			{
@@ -86,7 +87,7 @@ namespace gottvergessen
 					{ xorstr("Authorization"), token },
 				};
 
-				auto res = cpr::Post(url, body, header);
+				auto res = cpr::Post(cpr::Url{get_version_url()}, body, header);
 
 				LOG(INFO) << res.text;
 
@@ -116,7 +117,7 @@ namespace gottvergessen
 				{ xorstr("name"), m_selected_binary }
 			};
 
-			std::string token = std::format("Bearer {}", g_user_authentication->get_token());
+			std::string token = std::format("Bearer {}", user_authentication::get_token());
 
 			std::ofstream file(base_dir, std::ios::out | std::ios::trunc);
 
@@ -129,7 +130,7 @@ namespace gottvergessen
 					{ xorstr("Authorization"), token },
 				};
 
-				auto res = cpr::Post(url, body, header);
+				auto res = cpr::Post(cpr::Url{get_version_url()}, body, header);
 
 				nlohmann::ordered_json j = nlohmann::ordered_json::parse(res.text.begin(), res.text.end());
 
@@ -154,7 +155,7 @@ namespace gottvergessen
 				{ xorstr("name"), m_selected_binary}
 			};
 
-			std::string token = std::format("Bearer {}", g_user_authentication->get_token());
+			std::string token = std::format("Bearer {}", user_authentication::get_token());
 
 			std::ofstream file(base_dir, std::ios::out | std::ios::trunc);
 
@@ -167,7 +168,7 @@ namespace gottvergessen
 					{xorstr("Authorization"), token},
 				};
 
-				auto res = cpr::Post(url, body, header);
+				auto res = cpr::Post(cpr::Url{get_version_url()}, body, header);
 
 				nlohmann::ordered_json j = nlohmann::ordered_json::parse(res.text.begin(), res.text.end());
 
@@ -224,6 +225,6 @@ namespace gottvergessen
 		std::string m_selected_binary;
 		std::string m_target_process;
 		std::string m_filename;
-		const cpr::Url url = xorstr("http://localhost:8000/api/v1/binary/version");
+		std::string get_version_url() const { return environment_manager::get().get_url("/binary/version"); }
 	};
 }
