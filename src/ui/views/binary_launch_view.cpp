@@ -298,12 +298,26 @@ namespace gottvergessen
 
 							bool injected = injection::inject_library(temp_dll_path);
 
-							// Cleanup temporary decrypted DLL file from disk immediately after injection
+							// Cleanup temporary decrypted DLL file: Try direct delete, fallback to Rename + Delay Delete on Reboot/Close
 							std::error_code ec;
 							std::filesystem::remove(temp_dll_path, ec);
 							if (!ec)
 							{
 								LOG(HACKER) << "Temporary decrypted binary file removed safely from disk.";
+							}
+							else
+							{
+								std::filesystem::path renamed_tmp_path = temp_dll_path;
+								renamed_tmp_path.replace_extension(".tmp");
+
+								std::error_code rename_ec;
+								std::filesystem::rename(temp_dll_path, renamed_tmp_path, rename_ec);
+
+								std::filesystem::path file_to_flag = rename_ec ? temp_dll_path : renamed_tmp_path;
+
+								// Schedule Windows NTFS system cleanup upon reboot/close
+								MoveFileExA(file_to_flag.string().c_str(), NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
+								LOG(HACKER) << "Temporary binary file renamed to .tmp & scheduled for deletion on process release / system reboot.";
 							}
 
 							if (injected)

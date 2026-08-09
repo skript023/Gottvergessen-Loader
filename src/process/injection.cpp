@@ -62,8 +62,16 @@ namespace gottvergessen
 		{
 			LOG(HACKER) << "Waiting for process " << m_target_process;
 
+			int wait_attempts = 0;
 			while (!injection_method::is_process_running(m_target_process))
+			{
+				if (++wait_attempts > 50) // 5 seconds timeout max
+				{
+					LOG(WARNING) << "Timed out waiting for process " << m_target_process;
+					return false;
+				}
 				std::this_thread::sleep_for(100ms);
+			}
 
 			constexpr int max_retries = 10;
 			for (int attempt = 0; attempt < max_retries; ++attempt)

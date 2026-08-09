@@ -75,8 +75,8 @@ namespace gottvergessen
 			return false;
 		}
 
-		// Wait until LoadLibraryA finishes executing inside target process before cleaning up!
-		WaitForSingleObject(m_create_remote_thread, INFINITE);
+		// Wait up to 5 seconds for LoadLibraryA to finish executing inside target process before cleaning up
+		WaitForSingleObject(m_create_remote_thread, 5000);
 
 		cleanup();
 		return true;
