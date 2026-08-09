@@ -72,9 +72,9 @@ namespace gottvergessen
 			return instance().validate_binary_impl(filename);
 		}
 
-		static bool inject_library()
+		static bool inject_library(const std::filesystem::path& target_dll_path = {})
 		{
-			return instance().inject_library_impl();
+			return instance().inject_library_impl(target_dll_path);
 		}
 
 		static eValidType validate_file(const std::filesystem::path& dllFile)
@@ -104,7 +104,7 @@ namespace gottvergessen
 		std::uint32_t get_target_pid_impl() const { return m_selected_pid; }
 
 		bool validate_binary_impl(std::filesystem::path filename);
-		bool inject_library_impl();
+		bool inject_library_impl(const std::filesystem::path& target_dll_path = {});
 		eValidType validate_file_impl(const std::filesystem::path& dllFile);
 
 		std::unique_ptr<injection_method> create_strategy(InjectionMode mode);

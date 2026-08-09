@@ -16,16 +16,15 @@ int main()
 	auto logger_instance = std::make_unique<logger>("Gottvergessen Loader");
 	logger_instance->enable();
 
-	user_authentication::init();
-	download_binary::init();
-
-	auto benchmark_instance = std::make_unique<benchmark>("Initialization");
-
 	std::filesystem::path base_dir = std::getenv("appdata");
 	base_dir /= "Ellohim Menu";
 
 	file_manager::init(base_dir);
 
+	user_authentication::init();
+	download_binary::init();
+
+	auto benchmark_instance = std::make_unique<benchmark>("Initialization");
 	auto binary_file = file_manager::get_project_folder("./Binary");
 
 	try

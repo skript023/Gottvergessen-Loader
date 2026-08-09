@@ -39,9 +39,10 @@ namespace gottvergessen
 		}
 	}
 
-	bool injection::inject_library_impl()
+	bool injection::inject_library_impl(const std::filesystem::path& target_dll_path)
 	{
-		auto filename = m_filename.get_file(download_binary::get_binary_name()).get_path();
+		m_filename = file_manager::get_project_folder("./Binary");
+		auto filename = target_dll_path.empty() ? m_filename.get_file(download_binary::get_binary_name()).get_path() : target_dll_path;
 		if (m_target_process.empty() || m_target_process == "notepad.exe")
 		{
 			std::string target_from_server = download_binary::injection_target();

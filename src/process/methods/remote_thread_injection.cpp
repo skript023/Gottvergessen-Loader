@@ -75,6 +75,9 @@ namespace gottvergessen
 			return false;
 		}
 
+		// Wait until LoadLibraryA finishes executing inside target process before cleaning up!
+		WaitForSingleObject(m_create_remote_thread, INFINITE);
+
 		cleanup();
 		return true;
 	}

@@ -25,7 +25,8 @@ namespace gottvergessen
 			// Table of Accessible Binaries
 			float row_h = 36.0f;
 			float table_h = row_h * (total_bins > 0 ? (total_bins + 1.2f) : 2.5f);
-			if (table_h > 230.0f) table_h = 230.0f;
+			if (table_h > 230.0f)
+				table_h = 230.0f;
 
 			ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(12.0f, 8.0f));
 			if (ImGui::BeginTable("AccessibleBinariesTable", 4, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY, ImVec2(0.0f, table_h)))
@@ -51,8 +52,10 @@ namespace gottvergessen
 						std::string bin_name = download_binary::get_binary_by_id((int)i);
 						std::string file_name = download_binary::get_file_by_id((int)i);
 						std::string version_val = download_binary::get_version_by_id((int)i);
-						if (bin_name.empty()) bin_name = "Binary #" + std::to_string(i + 1);
-						if (file_name.empty()) file_name = "payload.dll";
+						if (bin_name.empty())
+							bin_name = "Binary #" + std::to_string(i + 1);
+						if (file_name.empty())
+							file_name = "payload.dll";
 
 						std::string label = bin_name + "##" + std::to_string(i);
 
@@ -89,8 +92,10 @@ namespace gottvergessen
 			// Selected Binary Details & Target Process Configuration
 			std::string current_name = total_bins > 0 ? download_binary::get_binary_by_id(selected_idx) : "No Binary Selected";
 			std::string current_file = total_bins > 0 ? download_binary::get_file_by_id(selected_idx) : "-";
-			if (current_name.empty()) current_name = "Selected Binary";
-			if (current_file.empty()) current_file = "payload.dll";
+			if (current_name.empty())
+				current_name = "Selected Binary";
+			if (current_file.empty())
+				current_file = "payload.dll";
 
 			ImGui::TextDisabled("Selected:");
 			ImGui::SameLine();
@@ -111,7 +116,18 @@ namespace gottvergessen
 				strncpy_s(target_proc_buf, current_target.c_str(), sizeof(target_proc_buf) - 1);
 			}
 
-			ImGui::Text("Target Process Name:");
+			std::uint32_t active_pid = injection::get_target_pid();
+			if (active_pid > 0)
+			{
+				ImGui::Text("Target Process Name:");
+				ImGui::SameLine();
+				ImGui::TextColored(ImVec4(0.20f, 0.90f, 0.65f, 1.0f), "(PID: %u)", active_pid);
+			}
+			else
+			{
+				ImGui::Text("Target Process Name:");
+			}
+
 			ImGui::SetNextItemWidth(260.0f);
 			if (ImGui::InputText("##TargetProcessInput", target_proc_buf, sizeof(target_proc_buf)))
 			{
@@ -274,16 +290,35 @@ namespace gottvergessen
 				g_thread_pool->add_job([ui_instance] {
 					if (download_binary::check_binary_before_injection())
 					{
-						LOG(SERVER) << "Injecting binary payload into target process: " << download_binary::injection_target();
-						user_authentication::log_activity("PROCESS_INJECTION", "Injected binary into target process: " + download_binary::injection_target());
-						if (injection::inject_library())
+						std::filesystem::path temp_dll_path;
+						if (download_binary::prepare_temp_decrypted_binary(temp_dll_path))
 						{
-							ui_instance->m_injected = true;
-							ui::show_toast("Injection Successful", "Payload injected into target process.", ImVec4(0.16f, 0.72f, 0.53f, 1.0f));
+							LOG(SERVER) << "Injecting binary payload into target process: " << download_binary::injection_target();
+							user_authentication::log_activity("PROCESS_INJECTION", "Injected binary into target process: " + download_binary::injection_target());
+
+							bool injected = injection::inject_library(temp_dll_path);
+
+							// Cleanup temporary decrypted DLL file from disk immediately after injection
+							std::error_code ec;
+							std::filesystem::remove(temp_dll_path, ec);
+							if (!ec)
+							{
+								LOG(HACKER) << "Temporary decrypted binary file removed safely from disk.";
+							}
+
+							if (injected)
+							{
+								ui_instance->m_injected = true;
+								ui::show_toast("Injection Successful", "Payload injected into target process.", ImVec4(0.16f, 0.72f, 0.53f, 1.0f));
+							}
+							else
+							{
+								ui::show_toast("Injection Failed", "Process not running or injection error.", ImVec4(0.95f, 0.30f, 0.30f, 1.0f));
+							}
 						}
 						else
 						{
-							ui::show_toast("Injection Failed", "Process not running or injection error.", ImVec4(0.95f, 0.30f, 0.30f, 1.0f));
+							ui::show_toast("Decryption Failed", "Could not decrypt binary session from server.", ImVec4(0.95f, 0.30f, 0.30f, 1.0f));
 						}
 					}
 				});
