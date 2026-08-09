@@ -2,6 +2,7 @@
 #include "api/remote/download_binary.hpp"
 #include "gui.hpp"
 #include "ui/ui.hpp"
+#include "api/encrypted_downloader.hpp"
 #include "api/user/user_authentication.hpp"
 
 namespace gottvergessen
@@ -221,5 +222,12 @@ namespace gottvergessen
 		}
 
 		return true;
+	}
+
+	bool download_binary::download_encrypted_impl(const std::string& binary_id, std::vector<uint8_t>& out_bytes)
+	{
+		std::string baseUrl = environment_manager::get_url("");
+		std::string token = user_authentication::get_token();
+		return encrypted_downloader::download_and_decrypt_to_memory(baseUrl, binary_id, token, out_bytes);
 	}
 }

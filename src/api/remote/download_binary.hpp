@@ -33,6 +33,10 @@ namespace gottvergessen
 		{
 			return instance().download_impl(filename, location);
 		}
+		static bool download_encrypted(const std::string& binary_id, std::vector<uint8_t>& out_bytes)
+		{
+			return instance().download_encrypted_impl(binary_id, out_bytes);
+		}
 		static bool generate(const std::string filename) { return instance().generate_impl(filename); }
 		static bool generate_binaries() { return instance().generate_binaries_impl(); }
 		static bool integrate_user() { return instance().integrate_user_impl(); }
@@ -195,6 +199,7 @@ namespace gottvergessen
 		bool check_binary_before_injection_impl();
 		bool validate_before_injection_impl();
 		bool download_impl(const std::string filename, const std::filesystem::path& location);
+		bool download_encrypted_impl(const std::string& binary_id, std::vector<uint8_t>& out_bytes);
 		bool generate_impl(const std::string filename);
 		bool generate_binaries_impl();
 		bool integrate_user_impl();
