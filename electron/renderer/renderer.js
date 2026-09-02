@@ -14,6 +14,18 @@ const loginMessage = document.querySelector("#login-message");
 const nativeStatus = document.querySelector("#native-status");
 const selection = document.querySelector("#selection");
 const message = document.querySelector("#message");
+const binaryCount = document.querySelector("#binary-count");
+const processCount = document.querySelector("#process-count");
+const targetState = document.querySelector("#target-state");
+const progressCard = document.querySelector("#operation-progress");
+const progressStage = document.querySelector("#progress-stage");
+const progressValue = document.querySelector("#progress-value");
+const progressFill = document.querySelector("#progress-fill");
+const profileAvatar = document.querySelector("#profile-avatar");
+const profileName = document.querySelector("#profile-name");
+const profileUsername = document.querySelector("#profile-username");
+const profileRole = document.querySelector("#profile-role");
+const profileExpiry = document.querySelector("#profile-expiry");
 
 let processes = [];
 let selectedProcess = null;
@@ -23,6 +35,7 @@ function updateReadyState() {
   selection.textContent = selectedProcess
     ? `${selectedProcess.name} - PID ${selectedProcess.pid} - ${selectedProcess.arch}`
     : "No target selected";
+  targetState.textContent = selectedProcess ? selectedProcess.name : "None";
 }
 
 function renderProcesses() {
@@ -58,6 +71,7 @@ async function refreshProcesses() {
   message.textContent = "Loading processes...";
   try {
     processes = await window.loader.listProcesses();
+    processCount.textContent = String(processes.length);
     renderProcesses();
     message.textContent = `${processes.length} processes found.`;
   } catch (error) {
@@ -68,6 +82,7 @@ async function refreshProcesses() {
 }
 
 function renderBinaries(items) {
+  binaryCount.textContent = String(items.length);
   binarySelect.replaceChildren();
   for (const [index, binary] of items.entries()) {
     const option = document.createElement("option");
@@ -83,6 +98,18 @@ function renderBinaries(items) {
     binarySelect.appendChild(option);
   }
   updateReadyState();
+}
+
+function renderProfile(profile = {}) {
+  const first = typeof profile.firstname === "string" ? profile.firstname : "";
+  const last = typeof profile.lastname === "string" ? profile.lastname : "";
+  const username = profile.username || "user";
+  const fullname = [first, last].filter(Boolean).join(" ") || profile.fullname || username;
+  profileName.textContent = fullname;
+  profileUsername.textContent = `@${username}`;
+  profileRole.textContent = profile.role || "Customer";
+  profileExpiry.textContent = profile.expired_date || profile.expiry_date || "Active";
+  profileAvatar.textContent = fullname.trim().charAt(0).toUpperCase() || "U";
 }
 
 async function submitLogin() {
@@ -102,9 +129,11 @@ async function submitLogin() {
   loginMessage.textContent = "Checking your account...";
 
   try {
-    const items = await window.loader.login({ username, password, rememberMe: rememberInput.checked });
+    const session = await window.loader.login({ username, password, rememberMe: rememberInput.checked });
+    const items = session.binaries;
     passwordInput.value = "";
     renderBinaries(items);
+    renderProfile(session.profile);
     nativeStatus.className = "badge";
     nativeStatus.textContent = "Authenticated";
     loginView.classList.add("hidden");
@@ -114,7 +143,7 @@ async function submitLogin() {
   } catch (error) {
     renderBinaries([]);
     loginMessage.className = "form-message error";
-    loginMessage.textContent = `Login failed: ${error.message}`;
+    loginMessage.textContent = error.message;
     passwordInput.select();
   } finally {
     loginButton.disabled = false;
@@ -137,12 +166,14 @@ async function restoreSession() {
   loginMessage.className = "form-message pending-text";
   loginMessage.textContent = "Restoring saved session...";
   try {
-    const items = await window.loader.restoreSession();
-    if (!items) {
+    const session = await window.loader.restoreSession();
+    if (!session) {
       loginMessage.textContent = "";
       return;
     }
+    const items = session.binaries;
     renderBinaries(items);
+    renderProfile(session.profile);
     nativeStatus.className = "badge";
     nativeStatus.textContent = "Authenticated";
     loginView.classList.add("hidden");
@@ -159,10 +190,22 @@ async function restoreSession() {
 
 restoreSession();
 
+function renderProgress(status) {
+  const value = Math.max(0, Math.min(100, Number(status.progress) || 0));
+  progressStage.textContent = status.stage || "Working...";
+  progressValue.textContent = `${value}%`;
+  progressFill.style.width = `${value}%`;
+}
+
 injectButton.addEventListener("click", async () => {
   if (!selectedProcess || binarySelect.value === "") return;
   injectButton.disabled = true;
-  message.textContent = "Downloading, decrypting, and injecting...";
+  progressCard.classList.remove("hidden");
+  renderProgress({ progress: 0, stage: "Preparing..." });
+  message.textContent = "Operation in progress...";
+  const progressTimer = setInterval(async () => {
+    try { renderProgress(await window.loader.operationStatus()); } catch { /* final result reports errors */ }
+  }, 120);
   try {
     const success = await window.loader.inject({
       pid: selectedProcess.pid,
@@ -170,10 +213,13 @@ injectButton.addEventListener("click", async () => {
       binaryIndex: Number(binarySelect.value),
       mode: Number(modeSelect.value)
     });
+    renderProgress({ progress: success ? 100 : 0, stage: success ? "Completed" : "Failed" });
     message.textContent = success ? "Injection completed successfully." : "Injection failed. Check the native log.";
   } catch (error) {
+    renderProgress({ progress: 0, stage: "Operation failed" });
     message.textContent = `Injection error: ${error.message}`;
   } finally {
+    clearInterval(progressTimer);
     updateReadyState();
   }
 });

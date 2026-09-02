@@ -9,6 +9,7 @@
 #include <Windows.h>
 #include <wincrypt.h>
 #include <cstdlib>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -28,8 +29,40 @@ namespace
 	std::filesystem::path g_session_path;
 	nlohmann::ordered_json g_binaries = nlohmann::ordered_json::array();
 	int g_selected_binary{-1};
+	int g_operation_progress{0};
+	std::string g_operation_stage{"Idle"};
+	bool g_operation_active{false};
 
 	constexpr const char* user_agent = "Gottvergessen-Loader/1.0";
+
+	std::string authorization_value(std::string token)
+	{
+		const auto first = token.find_first_not_of(" \t\r\n");
+		const auto last = token.find_last_not_of(" \t\r\n");
+		if (first == std::string::npos) return "Bearer ";
+		token = token.substr(first, last - first + 1);
+		if (token.size() >= 7)
+		{
+			std::string prefix = token.substr(0, 7);
+			for (char& value : prefix) value = static_cast<char>(std::tolower(static_cast<unsigned char>(value)));
+			if (prefix == "bearer ") return "Bearer " + token.substr(7);
+		}
+		return "Bearer " + token;
+	}
+
+	std::string normalize_access_token(std::string token)
+	{
+		const std::string header = authorization_value(std::move(token));
+		return header.size() > 7 ? header.substr(7) : std::string{};
+	}
+
+	void set_operation(int progress, std::string stage, bool active = true)
+	{
+		std::scoped_lock lock(g_state_mutex);
+		g_operation_progress = (std::max)(0, (std::min)(100, progress));
+		g_operation_stage = std::move(stage);
+		g_operation_active = active;
+	}
 
 	std::vector<unsigned char> protect_session(const std::string& value)
 	{
@@ -112,6 +145,23 @@ namespace
 	{
 		std::scoped_lock lock(g_state_mutex);
 		g_error.clear();
+	}
+
+	std::string response_message(const cpr::Response& response, const nlohmann::ordered_json& body)
+	{
+		if (body.is_object())
+		{
+			if (body.contains("message") && body["message"].is_string()) return body["message"].get<std::string>();
+			if (body.contains("error") && body["error"].is_string()) return body["error"].get<std::string>();
+			if (body.contains("data") && body["data"].is_object())
+			{
+				const auto& data = body["data"];
+				if (data.contains("message") && data["message"].is_string()) return data["message"].get<std::string>();
+			}
+		}
+		if (response.error.code != cpr::ErrorCode::OK && !response.error.message.empty())
+			return response.error.message;
+		return response.text.empty() ? "empty response" : "response was not valid JSON";
 	}
 
 	std::string escape_json(const std::string& input)
@@ -263,6 +313,17 @@ GV_API const char* __cdecl gv_last_error()
 	return g_error.c_str();
 }
 
+GV_API const char* __cdecl gv_operation_status_json()
+{
+	std::scoped_lock lock(g_state_mutex);
+	g_result = nlohmann::ordered_json{
+		{"progress", g_operation_progress},
+		{"stage", g_operation_stage},
+		{"active", g_operation_active}
+	}.dump();
+	return g_result.c_str();
+}
+
 GV_API int __cdecl gv_login(const char* username, const char* password, int remember_me)
 {
 	if (!username || !*username || !password || !*password)
@@ -286,15 +347,36 @@ GV_API int __cdecl gv_login(const char* username, const char* password, int reme
 		}
 
 		std::string token;
-		if (body.contains("data") && body["data"].is_object()) token = body["data"].value("token", "");
-		if (token.empty()) token = body.value("token", "");
+		if (body.contains("data") && body["data"].is_object())
+		{
+			const auto& data = body["data"];
+			token = data.value("access_token", data.value("accessToken", data.value("token", "")));
+		}
+		if (token.empty()) token = body.value("access_token", body.value("accessToken", body.value("token", "")));
 		if (response.status_code < 200 || response.status_code >= 300 || token.empty())
 		{
 			set_error(body.value("message", "Login failed"));
 			return 0;
 		}
-
 		const std::string refresh = refresh_cookie(response);
+		// The current server truncates the 15-minute login lifetime to whole
+		// hours, which produces an already-expired access token. Exchange the
+		// refresh cookie immediately; /auth/refresh currently issues a 1-hour JWT.
+		if (!refresh.empty())
+		{
+			auto refresh_response = cpr::Post(
+				cpr::Url{environment_manager::get_url("/auth/refresh")},
+				cpr::Header{{"Accept", "application/json"}, {"Content-Type", "application/json"},
+					{"User-Agent", user_agent}, {"Cookie", "refresh_token=" + refresh}});
+			auto refresh_body = nlohmann::ordered_json::parse(refresh_response.text, nullptr, false);
+			std::string refreshed_token;
+			if (refresh_body.is_object() && refresh_body.contains("data") && refresh_body["data"].is_object())
+				refreshed_token = refresh_body["data"].value("token", "");
+			if (!refreshed_token.empty() && refresh_response.status_code >= 200 && refresh_response.status_code < 300)
+				token = std::move(refreshed_token);
+		}
+		token = normalize_access_token(std::move(token));
+
 		{
 			std::scoped_lock lock(g_state_mutex);
 			g_access_token = std::move(token);
@@ -344,14 +426,19 @@ GV_API int __cdecl gv_restore_session()
 				{"User-Agent", user_agent}, {"Cookie", "refresh_token=" + refresh}});
 		auto body = nlohmann::ordered_json::parse(response.text, nullptr, false);
 		std::string token;
-		if (body.is_object() && body.contains("data") && body["data"].is_object()) token = body["data"].value("token", "");
-		if (token.empty() && body.is_object()) token = body.value("token", "");
+		if (body.is_object() && body.contains("data") && body["data"].is_object())
+		{
+			const auto& data = body["data"];
+			token = data.value("access_token", data.value("accessToken", data.value("token", "")));
+		}
+		if (token.empty() && body.is_object()) token = body.value("access_token", body.value("accessToken", body.value("token", "")));
 		if (response.status_code < 200 || response.status_code >= 300 || token.empty())
 		{
 			clear_saved_session();
 			set_error(body.is_object() ? body.value("message", "Saved session expired") : "Saved session expired");
 			return 0;
 		}
+		token = normalize_access_token(std::move(token));
 		{
 			std::scoped_lock lock(g_state_mutex);
 			g_access_token = std::move(token);
@@ -390,11 +477,14 @@ GV_API const char* __cdecl gv_refresh_binaries()
 
 		auto response = cpr::Get(
 			cpr::Url{environment_manager::get_url("/binary/my-binaries")},
-			cpr::Header{{"Accept", "application/json"}, {"Authorization", "Bearer " + token}});
+			cpr::Header{{"Accept", "application/json"}, {"Content-Type", "application/json"},
+				{"Authorization", authorization_value(token)}, {"User-Agent", user_agent}});
 		auto body = nlohmann::ordered_json::parse(response.text, nullptr, false);
 		if (body.is_discarded() || response.status_code < 200 || response.status_code >= 300)
 		{
-			set_error("Failed to load binary catalog");
+			set_error("GET " + environment_manager::get_url("/binary/my-binaries")
+				+ " failed (HTTP " + std::to_string(response.status_code) + "): "
+				+ response_message(response, body));
 			return nullptr;
 		}
 
@@ -407,6 +497,41 @@ GV_API const char* __cdecl gv_refresh_binaries()
 			g_result = catalog.dump();
 			g_error.clear();
 		}
+		return g_result.c_str();
+	}
+	catch (const std::exception& error)
+	{
+		set_error(error);
+		return nullptr;
+	}
+}
+
+GV_API const char* __cdecl gv_profile_json()
+{
+	try
+	{
+		std::string token;
+		{
+			std::scoped_lock lock(g_state_mutex);
+			token = g_access_token;
+		}
+		if (token.empty()) { set_error("Login is required"); return nullptr; }
+
+		auto response = cpr::Get(
+			cpr::Url{environment_manager::get_url("/user/profile")},
+			cpr::Header{{"Accept", "application/json"}, {"Content-Type", "application/json"},
+				{"Authorization", authorization_value(token)}, {"User-Agent", user_agent}});
+		auto body = nlohmann::ordered_json::parse(response.text, nullptr, false);
+		if (body.is_discarded() || response.status_code < 200 || response.status_code >= 300)
+		{
+			set_error("GET " + environment_manager::get_url("/user/profile")
+				+ " failed (HTTP " + std::to_string(response.status_code) + "): " + response_message(response, body));
+			return nullptr;
+		}
+		auto profile = body.contains("data") && body["data"].is_object() ? body["data"] : body;
+		if (!profile.is_object()) profile = nlohmann::ordered_json::object();
+		g_result = profile.dump();
+		clear_error();
 		return g_result.c_str();
 	}
 	catch (const std::exception& error)
@@ -431,6 +556,7 @@ GV_API int __cdecl gv_select_binary(int index)
 
 GV_API int __cdecl gv_download_and_inject()
 {
+	set_operation(3, "Preparing download");
 	std::string token;
 	nlohmann::ordered_json binary;
 	{
@@ -438,6 +564,8 @@ GV_API int __cdecl gv_download_and_inject()
 		if (g_access_token.empty() || g_selected_binary < 0 || g_selected_binary >= static_cast<int>(g_binaries.size()))
 		{
 			g_error = "Login and binary selection are required";
+			g_operation_stage = "Failed";
+			g_operation_active = false;
 			return 0;
 		}
 		token = g_access_token;
@@ -449,6 +577,7 @@ GV_API int __cdecl gv_download_and_inject()
 	if (binary_id.empty())
 	{
 		set_error("Selected binary has no server ID");
+		set_operation(0, "Failed", false);
 		return 0;
 	}
 
@@ -456,23 +585,29 @@ GV_API int __cdecl gv_download_and_inject()
 	std::filesystem::path decrypted_path;
 	try
 	{
+		set_operation(8, "Creating secure download session");
 		encrypted_path = std::filesystem::temp_directory_path() /
 			("el_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".enc");
 		if (!encrypted_downloader::download_encrypted_to_file(
-			environment_manager::get_base_url(), binary_id, token, encrypted_path))
+			environment_manager::get_base_url(), binary_id, token, encrypted_path,
+			[](float progress) { set_operation(10 + static_cast<int>(progress * 65.0f), "Downloading encrypted binary"); }))
 		{
 			set_error("Encrypted binary download failed");
+			set_operation(0, "Download failed", false);
 			return 0;
 		}
+		set_operation(80, "Decrypting binary");
 		if (!encrypted_downloader::decrypt_file_to_temp(
 			environment_manager::get_base_url(), binary_id, token, encrypted_path, decrypted_path))
 		{
 			set_error("Binary decryption failed");
+			set_operation(0, "Decryption failed", false);
 			std::error_code ignored;
 			std::filesystem::remove(encrypted_path, ignored);
 			return 0;
 		}
 
+		set_operation(92, "Starting native operation");
 		if (!target.empty()) injection::set_target_process(target);
 		const bool success = injection::inject_library(decrypted_path);
 		std::error_code ignored;
@@ -481,9 +616,11 @@ GV_API int __cdecl gv_download_and_inject()
 		if (!success)
 		{
 			set_error("Native injection returned false");
+			set_operation(0, "Operation failed", false);
 			return 0;
 		}
 		clear_error();
+		set_operation(100, "Completed", false);
 		return 1;
 	}
 	catch (const std::exception& error)
@@ -492,6 +629,7 @@ GV_API int __cdecl gv_download_and_inject()
 		if (!encrypted_path.empty()) std::filesystem::remove(encrypted_path, ignored);
 		if (!decrypted_path.empty()) std::filesystem::remove(decrypted_path, ignored);
 		set_error(error);
+		set_operation(0, "Operation failed", false);
 		return 0;
 	}
 }

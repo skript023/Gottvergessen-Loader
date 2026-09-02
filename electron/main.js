@@ -36,9 +36,11 @@ function loadNative() {
   const login = library.func("int __cdecl gv_login(str username, str password, int remember_me)");
   const restoreSession = library.func("int __cdecl gv_restore_session()");
   const refreshBinaries = library.func("str __cdecl gv_refresh_binaries()");
+  const profileJson = library.func("str __cdecl gv_profile_json()");
   const selectBinary = library.func("int __cdecl gv_select_binary(int index)");
   const downloadAndInject = library.func("int __cdecl gv_download_and_inject()");
   const lastError = library.func("str __cdecl gv_last_error()");
+  const operationStatusJson = library.func("str __cdecl gv_operation_status_json()");
 
   if (!initialize(path.join(app.getPath("appData"), "Ellohim Menu"))) {
     throw new Error(lastError() || "Native DLL initialization failed");
@@ -49,6 +51,9 @@ function loadNative() {
       const payload = listProcessesJson();
       if (!payload) throw new Error(lastError() || "Could not enumerate processes");
       return JSON.parse(payload);
+    },
+    operationStatus() {
+      return JSON.parse(operationStatusJson());
     },
     setTarget(processName, pid) {
       if (!setTarget(processName, pid)) throw new Error(lastError() || "Could not set target");
@@ -81,6 +86,15 @@ function loadNative() {
         refreshBinaries.async((error, payload) => {
           if (error) reject(error);
           else if (!payload) reject(new Error(lastError() || "Could not load binary catalog"));
+          else resolve(JSON.parse(payload));
+        });
+      });
+    },
+    profile() {
+      return new Promise((resolve, reject) => {
+        profileJson.async((error, payload) => {
+          if (error) reject(error);
+          else if (!payload) reject(new Error(lastError() || "Could not load user profile"));
           else resolve(JSON.parse(payload));
         });
       });
@@ -139,6 +153,7 @@ function validateDllPath(dllPath) {
 
 function registerIpc() {
   ipcMain.handle("native:list-processes", () => requireNative().listProcesses());
+  ipcMain.handle("native:operation-status", () => requireNative().operationStatus());
 
   ipcMain.handle("native:login", async (_event, credentials) => {
     if (!credentials || typeof credentials.username !== "string" || typeof credentials.password !== "string") {
@@ -148,13 +163,23 @@ function registerIpc() {
       throw new TypeError("Invalid credential length");
     }
     await requireNative().login(credentials.username, credentials.password, credentials.rememberMe === true);
-    return requireNative().refreshBinaries();
+    try {
+      const [binaries, profile] = await Promise.all([
+        requireNative().refreshBinaries(), requireNative().profile().catch(() => ({}))
+      ]);
+      return { binaries, profile };
+    } catch (error) {
+      throw new Error(`Login succeeded, but catalog loading failed: ${error.message}`);
+    }
   });
 
   ipcMain.handle("native:restore-session", async () => {
     const restored = await requireNative().restoreSession();
     if (!restored) return null;
-    return requireNative().refreshBinaries();
+    const [binaries, profile] = await Promise.all([
+      requireNative().refreshBinaries(), requireNative().profile().catch(() => ({}))
+    ]);
+    return { binaries, profile };
   });
 
   ipcMain.handle("native:refresh-binaries", () => requireNative().refreshBinaries());

@@ -34,8 +34,21 @@
     </div>
 
     <div id="app-view" class="hidden">
-    <div class="success-banner">Login successful. Your binary catalog is ready.</div>
-    <section class="panel">
+    <section class="profile-card">
+      <div id="profile-avatar" class="profile-avatar">U</div>
+      <div class="profile-copy"><span class="profile-label">SIGNED IN AS</span><strong id="profile-name">User</strong><span id="profile-username">@username</span></div>
+      <div class="profile-meta"><span>Role<strong id="profile-role">Customer</strong></span><span>Access<strong id="profile-expiry">Active</strong></span></div>
+    </section>
+    <div class="dashboard-heading">
+      <div><p class="eyebrow">CONTROL CENTER</p><h2>Dashboard</h2></div>
+      <div class="dashboard-stats">
+        <div class="stat"><span>Available binaries</span><strong id="binary-count">0</strong></div>
+        <div class="stat"><span>Running processes</span><strong id="process-count">0</strong></div>
+        <div class="stat"><span>Selected target</span><strong id="target-state">None</strong></div>
+      </div>
+    </div>
+    <div class="dashboard-grid">
+    <section class="panel process-panel">
       <div class="toolbar">
         <div>
           <h2>Target process</h2>
@@ -54,6 +67,7 @@
     </section>
 
     <section class="panel controls">
+      <div class="section-heading"><p class="eyebrow">LAUNCH CONFIGURATION</p><h2>Deployment</h2></div>
       <label>
         Injection method
         <select id="mode">
@@ -73,8 +87,13 @@
 
       <div id="selection" class="selection">No target selected</div>
       <button id="inject" class="primary" disabled>Download & inject binary</button>
+      <div id="operation-progress" class="progress-card hidden" aria-live="polite">
+        <div class="progress-copy"><span id="progress-stage">Preparing...</span><strong id="progress-value">0%</strong></div>
+        <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+      </div>
       <p id="message" role="status"></p>
     </section>
+    </div>
     </div>
   </main>
   <script src="renderer.js"></script>
