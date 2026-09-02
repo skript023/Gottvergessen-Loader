@@ -1,0 +1,49 @@
+{
+  "name": "gottvergessen-electron",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Electron frontend for the Gottvergessen native C++ core",
+  "main": "main.js",
+  "scripts": {
+    "native:configure": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-native.ps1 -ConfigureOnly",
+    "native:build": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-native.ps1",
+    "start": "electron .",
+    "dev": "npm run native:build && npm start",
+    "dist": "npm run native:build && electron-builder --win --x64"
+  },
+  "dependencies": {
+    "koffi": "3.1.6"
+  },
+  "devDependencies": {
+    "electron": "43.0.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.ellohim.gottvergessen-loader",
+    "productName": "Gottvergessen Loader",
+    "artifactName": "Gottvergessen-Loader-${version}-portable.${ext}",
+    "directories": {
+      "buildResources": "../src"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../out/build/electron/bin/Release/native-core.dll",
+        "to": "native/native-core.dll"
+      },
+      {
+        "from": "../src/logo.ico",
+        "to": "assets/logo.ico"
+      }
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "logo.ico"
+    }
+  }
+}

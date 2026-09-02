@@ -1,7 +1,9 @@
 #pragma once
-#include "common.hpp"
 #include "file_manager/file.hpp"
 #include "file_manager/folder.hpp"
+
+#include <filesystem>
+#include <stdexcept>
 
 namespace gottvergessen
 {

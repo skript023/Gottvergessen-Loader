@@ -1,5 +1,6 @@
 #pragma once
-#include <common.hpp>
+#include <string>
+#include <string_view>
 
 struct server_format
 {

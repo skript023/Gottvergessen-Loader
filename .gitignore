@@ -31,9 +31,22 @@
 *.out
 *.app
 
-# Visual Studio
-.vs
+# IDE and local tooling
+/.vs/
+/.cache/
 
 # build
-/build
-/out
+/build/
+/out/
+
+# Electron
+/electron/node_modules/
+/electron/.vite/
+/electron/dist/
+/electron/native-build/
+/electron/electron/
+
+# Logs and local runtime data
+*.log
+*.pdb
+*.ilk

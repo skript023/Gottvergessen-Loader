@@ -1,9 +1,11 @@
-#include "common.hpp"
 #include "encrypted_downloader.hpp"
 #include "../crypto/win_aes.hpp"
 #include "../logger.hpp"
 #include <cpr/cpr.h>
 #include <nlohmann/json.hpp>
+#include <chrono>
+#include <filesystem>
+#include <fstream>
 
 namespace gottvergessen
 {

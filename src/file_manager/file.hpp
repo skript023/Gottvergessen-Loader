@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+
 namespace gottvergessen
 {
 	class file_manager;

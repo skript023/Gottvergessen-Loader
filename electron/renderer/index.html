@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'">
+  <title>Gottvergessen Loader</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <p class="eyebrow">ELLOHIM NATIVE BRIDGE</p>
+        <h1>Gottvergessen Loader</h1>
+        <p class="subtitle">Electron UI backed by the existing C++ injection engine.</p>
+      </div>
+      <span id="native-status" class="badge pending">Sign in required</span>
+    </header>
+
+    <div id="login-view" class="login-view">
+      <section class="panel login-card">
+        <div class="login-heading">
+          <div class="logo-mark">G</div>
+          <h2>Welcome back</h2>
+          <p>Sign in to access binaries assigned to your account.</p>
+        </div>
+        <label>Username<input id="username" autocomplete="username" placeholder="Enter your username" autofocus></label>
+        <label>Password<input id="password" type="password" autocomplete="current-password" placeholder="Enter your password"></label>
+        <label class="remember-row"><input id="remember-me" type="checkbox" checked> Remember me</label>
+        <button id="login" class="primary">Sign in</button>
+        <p id="login-message" class="form-message" role="alert"></p>
+      </section>
+    </div>
+
+    <div id="app-view" class="hidden">
+    <div class="success-banner">Login successful. Your binary catalog is ready.</div>
+    <section class="panel">
+      <div class="toolbar">
+        <div>
+          <h2>Target process</h2>
+          <p>Select an accessible process with the same architecture as the DLL.</p>
+        </div>
+        <button id="refresh" class="secondary">Refresh processes</button>
+      </div>
+
+      <input id="filter" type="search" placeholder="Filter by PID or process name">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>PID</th><th>Process</th><th>Arch</th><th>Access</th></tr></thead>
+          <tbody id="processes"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel controls">
+      <label>
+        Injection method
+        <select id="mode">
+          <option value="0">CreateRemoteThread</option>
+          <option value="1">Thread Hijack</option>
+          <option value="2">Manual Map</option>
+          <option value="3">Reflective Injection</option>
+        </select>
+      </label>
+
+      <label>
+        Server binary
+        <select id="binary" disabled>
+          <option value="">Login to load binaries</option>
+        </select>
+      </label>
+
+      <div id="selection" class="selection">No target selected</div>
+      <button id="inject" class="primary" disabled>Download & inject binary</button>
+      <p id="message" role="status"></p>
+    </section>
+    </div>
+  </main>
+  <script src="renderer.js"></script>
+</body>
+</html>

@@ -1,9 +1,23 @@
 #pragma once
-#include "common.hpp"
 #include "server_monitor.hpp"
 
 #include <g3log/g3log.hpp>
 #include <g3log/logworker.hpp>
+#include <Windows.h>
+#include <chrono>
+#include <cstdint>
+#include <cstdlib>
+#include <ctime>
+#include <filesystem>
+#include <format>
+#include <fstream>
+#include <iomanip>
+#include <map>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <type_traits>
 
 namespace gottvergessen
 {
@@ -156,10 +170,12 @@ namespace gottvergessen
 
 				if (!(level_value & FLAG_NO_CONSOLE))
 				{
+				#ifndef GOTTVERGESSEN_NATIVE_ADDON
 					if (level_value == WARNING.value)
 					{
 						g_logger->send_warning(log_message.toString(format_raw), log_message.file(), log_message.line());
 					}
+				#endif
 					SetConsoleTextAttribute(g_logger->m_console_handle, static_cast<std::uint16_t>(log_colors[log_message._level.text]));
 					g_logger->m_console_out << log_message.toString(is_raw ? format_raw : format_console) << std::flush;
 				}
@@ -168,10 +184,12 @@ namespace gottvergessen
 				{
 					if (level_value == EVENT.value)
 						g_logger->m_gta_event_file_out << log_message.toString(format_file) << std::flush;
+				#ifndef GOTTVERGESSEN_NATIVE_ADDON
 					else if (level_value == SERVER.value)
 						g_logger->send_server(log_message.toString(format_raw), log_message.file(), log_message.line());
 					else if (level_value == FATAL.value)
 						g_logger->send_fatal(log_message.toString(is_raw ? format_raw : format_file), log_message.file(), log_message.line());
+				#endif
 					else
 						g_logger->m_file_out << log_message.toString(is_raw ? format_raw : format_file) << std::flush;
 				}

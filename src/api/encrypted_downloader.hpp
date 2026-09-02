@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdint>
 #include <functional>
+#include <filesystem>
 
 namespace gottvergessen
 {

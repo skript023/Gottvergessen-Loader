@@ -1,6 +1,15 @@
 #include "process/injection.hpp"
+#ifndef GOTTVERGESSEN_NATIVE_ADDON
 #include "api/remote/download_binary.hpp"
+#endif
 #include "logger.hpp"
+
+#include <Windows.h>
+#include <chrono>
+#include <fstream>
+#include <thread>
+
+using namespace std::chrono_literals;
 
 namespace gottvergessen
 {
@@ -41,6 +50,14 @@ namespace gottvergessen
 
 	bool injection::inject_library_impl(const std::filesystem::path& target_dll_path)
 	{
+	#ifdef GOTTVERGESSEN_NATIVE_ADDON
+		if (target_dll_path.empty())
+		{
+			LOG(WARNING) << "The Electron native addon requires an explicit DLL path.";
+			return false;
+		}
+		auto filename = target_dll_path;
+	#else
 		m_filename = file_manager::get_project_folder("./Binary");
 		auto filename = target_dll_path.empty() ? m_filename.get_file(download_binary::get_binary_name()).get_path() : target_dll_path;
 		if (m_target_process.empty() || m_target_process == "notepad.exe")
@@ -49,6 +66,7 @@ namespace gottvergessen
 			if (!target_from_server.empty())
 				set_target_process_impl(target_from_server);
 		}
+	#endif
 
 		if (!this->validate_binary_impl(filename))
 			return false;

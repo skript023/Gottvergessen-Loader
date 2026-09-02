@@ -1,8 +1,10 @@
 #pragma once
-#include "common.hpp"
+#include <Windows.h>
+#include <TlHelp32.h>
 #include <string>
 #include <filesystem>
 #include <cstdint>
+#include <vector>
 
 namespace gottvergessen
 {

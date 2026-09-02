@@ -16,10 +16,12 @@
 
 #include <logger.hpp>
 #include <nlohmann/json.hpp>
-#include "fonts/icon_list.hpp"
 
+#ifndef GOTTVERGESSEN_NATIVE_ADDON
+#include "fonts/icon_list.hpp"
 #include <d3d11.h>
 #pragma comment(lib, "d3d11.lib")
+#endif
 
 using namespace std::chrono_literals;
 namespace gottvergessen
