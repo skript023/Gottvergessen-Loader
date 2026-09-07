@@ -3,99 +3,424 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'">
-  <title>Gottvergessen Loader</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+  <title>Gottvergessen Loader - Control Center</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main class="shell">
-    <header>
-      <div>
-        <p class="eyebrow">ELLOHIM NATIVE BRIDGE</p>
-        <h1>Gottvergessen Loader</h1>
-        <p class="subtitle">Electron UI backed by the existing C++ injection engine.</p>
-      </div>
-      <span id="native-status" class="badge pending">Sign in required</span>
-    </header>
-
-    <div id="login-view" class="login-view">
-      <section class="panel login-card">
-        <div class="login-heading">
-          <div class="logo-mark">G</div>
-          <h2>Welcome back</h2>
-          <p>Sign in to access binaries assigned to your account.</p>
+  <!-- ==================== LOGIN VIEW ==================== -->
+  <div id="login-view" class="login-view">
+    <div class="login-backdrop-glow"></div>
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-header">
+          <div class="brand-logo-large">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="url(#cyan-grad)" />
+              <defs>
+                <linearGradient id="cyan-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#38bdf8"/>
+                  <stop offset="1" stop-color="#818cf8"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <p class="login-eyebrow">ELLOHIM SECURITY</p>
+          <h1 class="login-title">Gottvergessen Loader</h1>
+          <p class="login-desc">Sign in with your license credentials to access authorized binaries.</p>
         </div>
-        <label>Username<input id="username" autocomplete="username" placeholder="Enter your username" autofocus></label>
-        <label>Password<input id="password" type="password" autocomplete="current-password" placeholder="Enter your password"></label>
-        <label class="remember-row"><input id="remember-me" type="checkbox" checked> Remember me</label>
-        <button id="login" class="primary">Sign in</button>
-        <p id="login-message" class="form-message" role="alert"></p>
-      </section>
-    </div>
 
-    <div id="app-view" class="hidden">
-    <section class="profile-card">
-      <div id="profile-avatar" class="profile-avatar">U</div>
-      <div class="profile-copy"><span class="profile-label">SIGNED IN AS</span><strong id="profile-name">User</strong><span id="profile-username">@username</span></div>
-      <div class="profile-meta"><span>Role<strong id="profile-role">Customer</strong></span><span>Access<strong id="profile-expiry">Active</strong></span></div>
-    </section>
-    <div class="dashboard-heading">
-      <div><p class="eyebrow">CONTROL CENTER</p><h2>Dashboard</h2></div>
-      <div class="dashboard-stats">
-        <div class="stat"><span>Available binaries</span><strong id="binary-count">0</strong></div>
-        <div class="stat"><span>Running processes</span><strong id="process-count">0</strong></div>
-        <div class="stat"><span>Selected target</span><strong id="target-state">None</strong></div>
-      </div>
-    </div>
-    <div class="dashboard-grid">
-    <section class="panel process-panel">
-      <div class="toolbar">
-        <div>
-          <h2>Target process</h2>
-          <p>Select an accessible process with the same architecture as the DLL.</p>
+        <form id="login-form" class="login-form" onsubmit="return false;">
+          <div class="form-group">
+            <label for="username">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Username
+            </label>
+            <input id="username" autocomplete="username" placeholder="Enter username" autofocus required>
+          </div>
+
+          <div class="form-group">
+            <label for="password">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Password
+            </label>
+            <input id="password" type="password" autocomplete="current-password" placeholder="Enter password" required>
+          </div>
+
+          <div class="form-extra">
+            <label class="checkbox-container">
+              <input id="remember-me" type="checkbox" checked>
+              <span class="custom-checkbox"></span>
+              Remember device session
+            </label>
+          </div>
+
+          <button id="login" type="submit" class="btn-primary-glow">
+            <span>Sign In to Dashboard</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+
+          <p id="login-message" class="form-message" role="alert"></p>
+        </form>
+
+        <div class="login-footer">
+          <span>Native Engine v2.0</span>
+          <span class="footer-dot">•</span>
+          <span>HWID Hardware Bound</span>
         </div>
-        <button id="refresh" class="secondary">Refresh processes</button>
       </div>
-
-      <input id="filter" type="search" placeholder="Filter by PID or process name">
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>PID</th><th>Process</th><th>Arch</th><th>Access</th></tr></thead>
-          <tbody id="processes"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="panel controls">
-      <div class="section-heading"><p class="eyebrow">LAUNCH CONFIGURATION</p><h2>Deployment</h2></div>
-      <label>
-        Injection method
-        <select id="mode">
-          <option value="0">CreateRemoteThread</option>
-          <option value="1">Thread Hijack</option>
-          <option value="2">Manual Map</option>
-          <option value="3">Reflective Injection</option>
-        </select>
-      </label>
-
-      <label>
-        Server binary
-        <select id="binary" disabled>
-          <option value="">Login to load binaries</option>
-        </select>
-      </label>
-
-      <div id="selection" class="selection">No target selected</div>
-      <button id="inject" class="primary" disabled>Download & inject binary</button>
-      <div id="operation-progress" class="progress-card hidden" aria-live="polite">
-        <div class="progress-copy"><span id="progress-stage">Preparing...</span><strong id="progress-value">0%</strong></div>
-        <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
-      </div>
-      <p id="message" role="status"></p>
-    </section>
     </div>
-    </div>
-  </main>
+  </div>
+
+  <!-- ==================== MAIN DASHBOARD VIEW ==================== -->
+  <div id="app-view" class="app-layout hidden">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-badge-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#38bdf8" />
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">GOTTVERGESSEN</span>
+          <span class="brand-version">CONTROL CENTER</span>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">CORE MENU</div>
+        <button class="nav-item active" data-tab="dashboard">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span>Dashboard</span>
+        </button>
+
+        <button class="nav-item" data-tab="binaries">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <span>Binaries Catalog</span>
+          <span id="sidebar-binary-count" class="nav-badge">0</span>
+        </button>
+
+        <button class="nav-item" data-tab="processes">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+          <span>Process Manager</span>
+        </button>
+
+        <button class="nav-item" data-tab="diagnostics">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          <span>Console & Logs</span>
+        </button>
+      </nav>
+
+      <!-- User Profile & Logout -->
+      <div class="sidebar-footer">
+        <div class="user-profile-box">
+          <div id="profile-avatar" class="user-avatar">U</div>
+          <div class="user-info">
+            <span id="profile-name" class="user-name">User</span>
+            <div class="user-subline">
+              <span id="profile-role" class="user-badge">VIP</span>
+              <span id="profile-username" class="user-handle">@user</span>
+            </div>
+          </div>
+        </div>
+
+        <button id="sidebar-logout-btn" class="btn-logout" title="Sign out of account">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT VIEW -->
+    <main class="main-wrapper">
+      <!-- Top Navigation Header -->
+      <header class="top-bar">
+        <div class="breadcrumb-container">
+          <span class="breadcrumb-root">Control Center</span>
+          <span class="breadcrumb-sep">/</span>
+          <span id="breadcrumb-current" class="breadcrumb-active">Dashboard</span>
+        </div>
+
+        <div class="top-bar-right">
+          <div class="system-pills">
+            <div class="sys-pill pill-online">
+              <span class="pulse-dot"></span>
+              <span>API: ONLINE</span>
+            </div>
+            <div class="sys-pill pill-secure">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span>ENGINE: READY (x64)</span>
+            </div>
+            <div class="sys-pill pill-hwid">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>HWID: LOCKED</span>
+            </div>
+          </div>
+
+          <button id="header-logout-btn" class="btn-header-logout" title="Logout">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- SCROLLABLE TAB CONTENT -->
+      <div class="content-scroll">
+        <!-- ==================== TAB 1: DASHBOARD ==================== -->
+        <section id="tab-dashboard" class="tab-pane active">
+          <!-- Stat Cards -->
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-icon cyan">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+              </div>
+              <div class="metric-data">
+                <span class="metric-label">Assigned Binaries</span>
+                <strong id="binary-count" class="metric-value">0</strong>
+                <span class="metric-sub">Accessible Products</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon indigo">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/></svg>
+              </div>
+              <div class="metric-data">
+                <span class="metric-label">Running Processes</span>
+                <strong id="process-count" class="metric-value">0</strong>
+                <span class="metric-sub">Scanned on Host</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon emerald">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>
+              </div>
+              <div class="metric-data">
+                <span class="metric-label">Selected Target</span>
+                <strong id="target-state" class="metric-value">None</strong>
+                <span id="target-state-sub" class="metric-sub">Select from process table</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon purple">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+              </div>
+              <div class="metric-data">
+                <span class="metric-label">License Expiry</span>
+                <strong id="profile-expiry" class="metric-value">Active</strong>
+                <span class="metric-sub">Subscription Status</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hero Banner for Selected Product -->
+          <div class="hero-product-banner">
+            <div class="hero-left">
+              <div class="hero-badge-tag">
+                <span class="status-indicator-dot"></span>
+                <span>STATUS: UNDETECTED & OPERATIONAL</span>
+              </div>
+              <h2 id="hero-title">Select a Software Binary</h2>
+              <p id="hero-desc">Choose an authorized product binary below to prepare the remote encrypted payload stream.</p>
+              <div class="hero-details">
+                <div class="hero-detail-item">
+                  <span>ARCHITECTURE</span>
+                  <strong id="hero-arch">x64 Native</strong>
+                </div>
+                <div class="hero-detail-item">
+                  <span>VERSION</span>
+                  <strong id="hero-version">Latest Release</strong>
+                </div>
+                <div class="hero-detail-item">
+                  <span>PROTECTION</span>
+                  <strong id="hero-protection">Encrypted VM</strong>
+                </div>
+              </div>
+            </div>
+            <div class="hero-right">
+              <button id="hero-quick-inject" class="btn-hero-launch" disabled>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>Launch Binary</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Dashboard Split Section: Binaries & Injection Engine -->
+          <div class="dashboard-split-grid">
+            <!-- Left: Accessible Binaries Picker -->
+            <div class="panel-cyber">
+              <div class="panel-header">
+                <div>
+                  <h3 class="panel-title">Authorized Binaries</h3>
+                  <p class="panel-sub">Select the binary payload you wish to inject</p>
+                </div>
+                <button id="refresh-binaries-btn" class="btn-icon-text" title="Refresh list">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                  <span>Sync</span>
+                </button>
+              </div>
+
+              <!-- Quick binary list cards -->
+              <div id="binary-cards-list" class="binary-cards-container">
+                <div class="empty-state">No binaries loaded. Authenticate to sync catalog.</div>
+              </div>
+            </div>
+
+            <!-- Right: Injection Engine & Target Setup -->
+            <div class="panel-cyber">
+              <div class="panel-header">
+                <div>
+                  <h3 class="panel-title">Injection Controller</h3>
+                  <p class="panel-sub">Configure memory injection and launch payload</p>
+                </div>
+                <span class="badge-stealth">STEALTH MODE</span>
+              </div>
+
+              <div class="injection-form">
+                <!-- Target Process Field -->
+                <div class="control-box">
+                  <div class="control-box-header">
+                    <span class="control-label">Target Hook Process</span>
+                    <button id="quick-jump-processes" class="btn-link">Browse Process List →</button>
+                  </div>
+                  <div id="selection" class="target-selection-pill">
+                    <span class="target-icon">🎯</span>
+                    <span class="target-text">No target process selected</span>
+                  </div>
+                </div>
+
+                <!-- Injection Method Selector -->
+                <div class="control-box">
+                  <label class="control-label" for="mode">Memory Injection Method</label>
+                  <div class="select-wrapper">
+                    <select id="mode">
+                      <option value="2">Manual Map (Stealth Kernel / Recommended)</option>
+                      <option value="0">CreateRemoteThread (Standard Win32)</option>
+                      <option value="1">Thread Hijack (APC / Thread Context)</option>
+                      <option value="3">Reflective DLL Injection</option>
+                    </select>
+                  </div>
+                  <span class="input-hint">Manual Map bypasses standard Windows loader hooks.</span>
+                </div>
+
+                <!-- Hidden fallback binary select for backward compat -->
+                <select id="binary" class="hidden"></select>
+
+                <!-- Action Button -->
+                <button id="inject" class="btn-launch-injection" disabled>
+                  <div class="btn-launch-content">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    <span>EXECUTE INJECTION</span>
+                  </div>
+                </button>
+
+                <!-- Animated Progress HUD -->
+                <div id="operation-progress" class="operation-progress-card hidden">
+                  <div class="progress-info-row">
+                    <div class="progress-stage-badge">
+                      <span class="spinner-dot"></span>
+                      <span id="progress-stage">Initializing secure stream...</span>
+                    </div>
+                    <strong id="progress-value">0%</strong>
+                  </div>
+                  <div class="progress-track-outer">
+                    <div id="progress-fill" class="progress-fill-bar"></div>
+                  </div>
+                </div>
+
+                <!-- Status Feedback Message -->
+                <div id="message" class="status-feedback" role="status"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== TAB 2: BINARIES CATALOG ==================== -->
+        <section id="tab-binaries" class="tab-pane">
+          <div class="pane-header">
+            <div>
+              <h2 class="pane-title">Authorized Software Catalog</h2>
+              <p class="pane-desc">All binaries assigned to your account license with remote verification.</p>
+            </div>
+            <button id="refresh-catalog-btn" class="btn-action">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              <span>Refresh Catalog</span>
+            </button>
+          </div>
+
+          <div id="catalog-grid" class="catalog-grid">
+            <!-- Rendered by JS -->
+          </div>
+        </section>
+
+        <!-- ==================== TAB 3: PROCESS MANAGER ==================== -->
+        <section id="tab-processes" class="tab-pane">
+          <div class="pane-header">
+            <div>
+              <h2 class="pane-title">System Process Inspector</h2>
+              <p class="pane-desc">Filter running processes to attach memory hooks.</p>
+            </div>
+            <div class="pane-actions">
+              <button id="refresh" class="btn-action">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                <span>Scan Processes</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="search-bar-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input id="filter" type="search" placeholder="Search by PID, executable name (e.g., GTA5.exe, FiveM)...">
+          </div>
+
+          <div class="table-container">
+            <table class="cyber-table">
+              <thead>
+                <tr>
+                  <th style="width: 100px;">PID</th>
+                  <th>Executable Name</th>
+                  <th style="width: 130px;">Architecture</th>
+                  <th style="width: 130px;">Access Rights</th>
+                  <th style="width: 120px; text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="processes">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ==================== TAB 4: DIAGNOSTICS & LOGS ==================== -->
+        <section id="tab-diagnostics" class="tab-pane">
+          <div class="pane-header">
+            <div>
+              <h2 class="pane-title">Live Diagnostic Console</h2>
+              <p class="pane-desc">Real-time trace logs from the C++ native engine and Electron IPC bridge.</p>
+            </div>
+            <button id="clear-logs-btn" class="btn-action">Clear Console</button>
+          </div>
+
+          <div class="terminal-box">
+            <div class="terminal-top">
+              <span class="term-dot red"></span>
+              <span class="term-dot yellow"></span>
+              <span class="term-dot green"></span>
+              <span class="term-title">Gottvergessen Loader Engine Trace</span>
+            </div>
+            <div id="console-logs" class="terminal-content">
+              <div class="log-line info"><span class="log-time">[00:00:00]</span> Engine booted. Awaiting authentication.</div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
   <script src="renderer.js"></script>
 </body>
 </html>

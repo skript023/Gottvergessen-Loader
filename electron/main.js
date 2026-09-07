@@ -4,6 +4,7 @@ const path = require("node:path");
 const koffi = require("koffi");
 
 let native;
+let nativeLibrary;
 
 app.setAppUserModelId("com.ellohim.gottvergessen-loader");
 
@@ -26,14 +27,20 @@ function loadNative() {
     throw new Error(`Native addon not found: ${addonPath}. Run npm run native:build first.`);
   }
 
-  const library = koffi.load(addonPath);
+  nativeLibrary = koffi.load(addonPath);
+  const library = nativeLibrary;
   const initialize = library.func("bool __cdecl gv_initialize(str16 base_directory)");
+  let shutdown = null;
+  try {
+    shutdown = library.func("void __cdecl gv_shutdown()");
+  } catch (_) {}
   const listProcessesJson = library.func("str __cdecl gv_list_processes_json()");
   const setTarget = library.func("bool __cdecl gv_set_target(str process_name, uint32_t pid)");
   const setInjectionMode = library.func("bool __cdecl gv_set_injection_mode(int mode)");
   const validateLibrary = library.func("int __cdecl gv_validate_library(str16 dll_path)");
   const inject = library.func("int __cdecl gv_inject(str16 dll_path)");
   const login = library.func("int __cdecl gv_login(str username, str password, int remember_me)");
+  const logout = library.func("int __cdecl gv_logout()");
   const restoreSession = library.func("int __cdecl gv_restore_session()");
   const refreshBinaries = library.func("str __cdecl gv_refresh_binaries()");
   const profileJson = library.func("str __cdecl gv_profile_json()");
@@ -47,6 +54,13 @@ function loadNative() {
   }
 
   native = {
+    shutdown() {
+      if (typeof shutdown === "function") {
+        try {
+          shutdown();
+        } catch (_) {}
+      }
+    },
     listProcesses() {
       const payload = listProcessesJson();
       if (!payload) throw new Error(lastError() || "Could not enumerate processes");
@@ -76,6 +90,14 @@ function loadNative() {
     restoreSession() {
       return new Promise((resolve, reject) => {
         restoreSession.async((error, result) => {
+          if (error) reject(error);
+          else resolve(result !== 0);
+        });
+      });
+    },
+    logout() {
+      return new Promise((resolve, reject) => {
+        logout.async((error, result) => {
           if (error) reject(error);
           else resolve(result !== 0);
         });
@@ -182,6 +204,10 @@ function registerIpc() {
     return { binaries, profile };
   });
 
+  ipcMain.handle("native:logout", async () => {
+    return await requireNative().logout();
+  });
+
   ipcMain.handle("native:refresh-binaries", () => requireNative().refreshBinaries());
 
   ipcMain.handle("native:inject", async (_event, request) => {
@@ -203,11 +229,11 @@ function registerIpc() {
 
 function createWindow() {
   const window = new BrowserWindow({
-    width: 1050,
-    height: 720,
-    minWidth: 820,
-    minHeight: 560,
-    backgroundColor: "#090d16",
+    width: 1120,
+    height: 740,
+    minWidth: 960,
+    minHeight: 620,
+    backgroundColor: "#080c14",
     title: "Gottvergessen Loader",
     icon: iconPath(),
     webPreferences: {
@@ -221,6 +247,29 @@ function createWindow() {
   window.loadFile(path.join(__dirname, "renderer", "index.html"));
 }
 
+let isExiting = false;
+
+function cleanupAndExit() {
+  if (isExiting) return;
+  isExiting = true;
+
+  if (native) {
+    try {
+      native.shutdown();
+    } catch (_) {}
+    native = null;
+  }
+
+  if (nativeLibrary) {
+    try {
+      nativeLibrary.unload();
+    } catch (_) {}
+    nativeLibrary = null;
+  }
+
+  app.exit(0);
+}
+
 app.whenReady().then(() => {
   loadNative();
   registerIpc();
@@ -231,9 +280,21 @@ app.whenReady().then(() => {
   });
 }).catch((error) => {
   dialog.showErrorBox("Startup failed", error.stack || error.message);
-  app.quit();
+  cleanupAndExit();
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+  cleanupAndExit();
+});
+
+app.on("before-quit", () => {
+  cleanupAndExit();
+});
+
+process.on("SIGINT", () => {
+  cleanupAndExit();
+});
+
+process.on("SIGTERM", () => {
+  cleanupAndExit();
 });

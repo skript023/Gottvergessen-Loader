@@ -5,6 +5,7 @@
 #include "renderer.hpp"
 #include "logger.hpp"
 #include "api/url_encryption.hpp"
+#include "crypto/hwid.hpp"
 #include <fstream>
 #include <format>
 #include <cpr/cpr.h>
@@ -173,6 +174,37 @@ namespace gottvergessen
 	{
 		if (this->authorized_impl())
 			return;
+
+		// 1. Try server-sided device auto-login via HWID
+		try
+		{
+			std::string hwid = utils::get_hwid();
+			nlohmann::json device_body = {{"hwid", hwid}};
+			cpr::Url dev_uri = environment_manager::get_url("/auth/device-login");
+			cpr::Header dev_hdr{
+				{xorstr("Accept"), xorstr("application/json")},
+				{xorstr("Content-Type"), xorstr("application/json")},
+				{xorstr("User-Agent"), this->get_user_agent()}
+			};
+			auto dev_res = cpr::Post(dev_uri, cpr::Body(device_body.dump()), dev_hdr);
+			auto dev_j = nlohmann::ordered_json::parse(dev_res.text, nullptr, false);
+			if (!dev_j.is_discarded() && dev_j.value("success", false))
+			{
+				if (dev_j.contains("data") && dev_j["data"].is_object() && dev_j["data"].contains("token"))
+				{
+					session_token = dev_j["data"]["token"].get<std::string>();
+				}
+				if (!session_token.empty())
+				{
+					status = 200;
+					message = "Device auto-login success";
+					fetch_profile_impl();
+					LOG(INFO) << xorstr("Server-sided device auto-login successful.");
+					return;
+				}
+			}
+		}
+		catch (...) {}
 
 		try
 		{
@@ -348,7 +380,8 @@ namespace gottvergessen
 	{
 		nlohmann::ordered_json json = {
 		    {xorstr("username"), username_param},
-		    {xorstr("password"), password_param}};
+		    {xorstr("password"), password_param},
+		    {xorstr("hwid"), utils::get_hwid()}};
 
 		try
 		{
