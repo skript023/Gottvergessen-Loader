@@ -721,7 +721,7 @@ GV_API int __cdecl gv_save_binary_settings(const char* binary_id, const char* ta
 					}
 				}
 			}
-			clear_error();
+			g_error.clear();
 		}
 
 		return 1;

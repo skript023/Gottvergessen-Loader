@@ -193,13 +193,33 @@ async function persistBinarySettings(binary) {
         );
         updateSyncStatus("synced", `Synced: ${binary.target_process || "No target"} • ${getShortModeName(binary.injection_mode)}`);
         addLog(`Cloud saved [${binary.name || "Binary"}]: target=${binary.target_process || "None"}, mode=${getShortModeName(binary.injection_mode)}`, "success");
-        renderBinaries(binaries);
+        updateActiveBinaryCardBadges();
       }
     } catch (err) {
       updateSyncStatus("error", "Local saved (Cloud error)");
       addLog(`Failed to sync binary settings to cloud: ${err.message}`, "warn");
     }
   }, 400);
+}
+
+function updateActiveBinaryCardBadges() {
+  if (selectedBinaryIndex < 0 || !binaries[selectedBinaryIndex]) return;
+  const current = binaries[selectedBinaryIndex];
+  const cards = document.querySelectorAll(".binary-card-item");
+  if (cards[selectedBinaryIndex]) {
+    const procBadge = cards[selectedBinaryIndex].querySelector(".badge-setting-proc");
+    const modeBadge = cards[selectedBinaryIndex].querySelector(".badge-setting-mode");
+    if (procBadge) procBadge.textContent = `🎯 ${current.target_process || "No Target"}`;
+    if (modeBadge) modeBadge.textContent = `⚡ ${getShortModeName(current.injection_mode ?? 2)}`;
+  }
+  const catCards = document.querySelectorAll(".catalog-card");
+  if (catCards[selectedBinaryIndex]) {
+    const details = catCards[selectedBinaryIndex].querySelectorAll(".catalog-detail strong");
+    if (details.length >= 4) {
+      details[2].textContent = current.target_process || "Not set";
+      details[3].textContent = getShortModeName(current.injection_mode ?? 2);
+    }
+  }
 }
 
 // Ready State Check
