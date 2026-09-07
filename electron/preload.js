@@ -7,5 +7,7 @@ contextBridge.exposeInMainWorld("loader", Object.freeze({
   restoreSession: () => ipcRenderer.invoke("native:restore-session"),
   logout: () => ipcRenderer.invoke("native:logout"),
   refreshBinaries: () => ipcRenderer.invoke("native:refresh-binaries"),
+  saveBinarySettings: (binaryId, targetProcess, mode) =>
+    ipcRenderer.invoke("native:save-binary-settings", { binaryId, targetProcess, mode }),
   inject: (request) => ipcRenderer.invoke("native:inject", request)
 }));

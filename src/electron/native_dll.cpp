@@ -666,6 +666,73 @@ GV_API int __cdecl gv_select_binary(int index)
 	return 1;
 }
 
+GV_API int __cdecl gv_save_binary_settings(const char* binary_id, const char* target_process, int mode)
+{
+	try
+	{
+		std::string token;
+		{
+			std::scoped_lock lock(g_state_mutex);
+			token = g_access_token;
+		}
+		if (token.empty())
+		{
+			set_error("Login is required");
+			return 0;
+		}
+		if (!binary_id || !*binary_id)
+		{
+			set_error("binary_id is required");
+			return 0;
+		}
+
+		nlohmann::json payload = {
+		    {"binary_id", binary_id},
+		    {"target_process", target_process ? target_process : ""},
+		    {"injection_mode", mode}
+		};
+
+		auto response = cpr::Post(
+		    cpr::Url{environment_manager::get_url("/binary/settings")},
+		    cpr::Header{{"Accept", "application/json"}, {"Content-Type", "application/json"}, {"Authorization", authorization_value(token)}, {"User-Agent", user_agent}},
+		    cpr::Body{payload.dump()});
+
+		auto body = nlohmann::ordered_json::parse(response.text, nullptr, false);
+		if (body.is_discarded() || response.status_code < 200 || response.status_code >= 300)
+		{
+			set_error("POST " + environment_manager::get_url("/binary/settings")
+			    + " failed (HTTP " + std::to_string(response.status_code) + "): "
+			    + response_message(response, body));
+			return 0;
+		}
+
+		// Update in-memory g_binaries so it stays in sync
+		{
+			std::scoped_lock lock(g_state_mutex);
+			if (g_binaries.is_array())
+			{
+				for (auto& item : g_binaries)
+				{
+					if (item.contains("id") && item["id"].is_string() && item["id"].get<std::string>() == binary_id)
+					{
+						item["target_process"] = target_process ? target_process : "";
+						item["injection_mode"] = mode;
+						break;
+					}
+				}
+			}
+			clear_error();
+		}
+
+		return 1;
+	}
+	catch (const std::exception& error)
+	{
+		set_error(error);
+		return 0;
+	}
+}
+
 GV_API int __cdecl gv_download_and_inject()
 {
 	set_operation(3, "Preparing download");

@@ -59,10 +59,17 @@ const filterInput = document.querySelector("#filter");
 const refreshButton = document.querySelector("#refresh");
 const quickJumpProcesses = document.querySelector("#quick-jump-processes");
 
-// Injection Engine
+// Injection Engine & Settings
 const selectionPill = document.querySelector("#selection");
 const modeSelect = document.querySelector("#mode");
 const injectButton = document.querySelector("#inject");
+const btnManualTarget = document.querySelector("#btn-manual-target");
+const manualTargetBox = document.querySelector("#manual-target-box");
+const manualTargetInput = document.querySelector("#manual-target-input");
+const btnSaveManualTarget = document.querySelector("#btn-save-manual-target");
+const btnCancelManualTarget = document.querySelector("#btn-cancel-manual-target");
+const cloudSyncStatus = document.querySelector("#cloud-sync-status");
+const cloudSyncText = document.querySelector("#cloud-sync-text");
 const progressCard = document.querySelector("#operation-progress");
 const progressStage = document.querySelector("#progress-stage");
 const progressValue = document.querySelector("#progress-value");
@@ -130,28 +137,105 @@ if (clearLogsBtn) {
   });
 }
 
+// Helpers for Injection Mode and Cloud Sync
+function getModeName(mode) {
+  switch (Number(mode)) {
+    case 0: return "CreateRemoteThread";
+    case 1: return "Thread Hijack";
+    case 2: return "Manual Map (Kernel/Stealth)";
+    case 3: return "Reflective DLL";
+    default: return "Manual Map";
+  }
+}
+
+function getShortModeName(mode) {
+  switch (Number(mode)) {
+    case 0: return "Remote Thread";
+    case 1: return "Thread Hijack";
+    case 2: return "Manual Map";
+    case 3: return "Reflective";
+    default: return "Manual Map";
+  }
+}
+
+function updateSyncStatus(status, text) {
+  if (!cloudSyncStatus || !cloudSyncText) return;
+  cloudSyncStatus.classList.remove("saving", "error");
+  if (status === "saving") cloudSyncStatus.classList.add("saving");
+  else if (status === "error") cloudSyncStatus.classList.add("error");
+  cloudSyncText.textContent = text;
+}
+
+let persistTimeout = null;
+async function persistBinarySettings(binary) {
+  if (!binary || !binary.id) return;
+
+  updateSyncStatus("saving", "Syncing to Ellohim Cloud...");
+
+  // Also save to localStorage fallback
+  try {
+    const localStore = JSON.parse(localStorage.getItem("ellohim_binary_settings") || "{}");
+    localStore[binary.id] = {
+      target_process: binary.target_process || "",
+      injection_mode: Number(binary.injection_mode) || 0
+    };
+    localStorage.setItem("ellohim_binary_settings", JSON.stringify(localStore));
+  } catch (_) {}
+
+  clearTimeout(persistTimeout);
+  persistTimeout = setTimeout(async () => {
+    try {
+      if (window.loader && typeof window.loader.saveBinarySettings === "function") {
+        await window.loader.saveBinarySettings(
+          binary.id,
+          binary.target_process || "",
+          Number(binary.injection_mode) || 0
+        );
+        updateSyncStatus("synced", `Synced: ${binary.target_process || "No target"} • ${getShortModeName(binary.injection_mode)}`);
+        addLog(`Cloud saved [${binary.name || "Binary"}]: target=${binary.target_process || "None"}, mode=${getShortModeName(binary.injection_mode)}`, "success");
+        renderBinaries(binaries);
+      }
+    } catch (err) {
+      updateSyncStatus("error", "Local saved (Cloud error)");
+      addLog(`Failed to sync binary settings to cloud: ${err.message}`, "warn");
+    }
+  }, 400);
+}
+
 // Ready State Check
 function updateReadyState() {
-  const isReady = Boolean(selectedProcess) && selectedBinaryIndex >= 0;
+  const isRunning = Boolean(selectedProcess && selectedProcess.pid > 0);
+  const isReady = isRunning && selectedBinaryIndex >= 0;
   injectButton.disabled = !isReady;
   heroQuickInject.disabled = !isReady;
 
   if (selectedProcess) {
     selectionPill.classList.add("has-target");
-    selectionPill.innerHTML = `
-      <span class="target-icon">🎯</span>
-      <span class="target-text">${escapeHtml(selectedProcess.name)} (PID: ${selectedProcess.pid}) [${selectedProcess.arch}]</span>
-    `;
-    targetState.textContent = selectedProcess.name;
-    targetStateSub.textContent = `PID ${selectedProcess.pid} • ${selectedProcess.arch}`;
+    if (selectedProcess.pid > 0) {
+      selectionPill.classList.remove("waiting-process");
+      selectionPill.innerHTML = `
+        <span class="target-icon">🎯</span>
+        <span class="target-text"><strong>${escapeHtml(selectedProcess.name)}</strong> (PID: ${selectedProcess.pid}) [${selectedProcess.arch}]</span>
+      `;
+      targetState.textContent = selectedProcess.name;
+      targetStateSub.textContent = `PID ${selectedProcess.pid} • ${selectedProcess.arch}`;
+    } else {
+      selectionPill.classList.add("waiting-process");
+      selectionPill.innerHTML = `
+        <span class="target-icon">⏳</span>
+        <span class="target-text"><strong>${escapeHtml(selectedProcess.name)}</strong> (Waiting for game to launch...)</span>
+      `;
+      targetState.textContent = selectedProcess.name;
+      targetStateSub.textContent = "Executable configured • Offline";
+    }
   } else {
-    selectionPill.classList.remove("has-target");
+    selectionPill.classList.remove("has-target", "waiting-process");
     selectionPill.innerHTML = `
       <span class="target-icon">🎯</span>
       <span class="target-text">No target process selected</span>
     `;
     targetState.textContent = "None";
-    targetStateSub.textContent = "Select from process table";
+    targetStateSub.textContent = "Select from process table or set manual";
   }
 }
 
@@ -161,8 +245,40 @@ function selectBinary(index) {
   selectedBinaryIndex = index;
   const binary = binaries[index];
 
+  // Restore fallback from local store if BE didn't have it
+  try {
+    const localStore = JSON.parse(localStorage.getItem("ellohim_binary_settings") || "{}");
+    if (localStore[binary.id]) {
+      if (!binary.target_process && localStore[binary.id].target_process) {
+        binary.target_process = localStore[binary.id].target_process;
+      }
+      if (binary.injection_mode === undefined && localStore[binary.id].injection_mode !== undefined) {
+        binary.injection_mode = localStore[binary.id].injection_mode;
+      }
+    }
+  } catch (_) {}
+
   // Update fallback select
   binarySelect.value = String(index);
+
+  // Restore injection mode
+  const modeVal = binary.injection_mode !== undefined && binary.injection_mode !== null ? String(binary.injection_mode) : "2";
+  modeSelect.value = modeVal;
+
+  // Restore target process
+  if (binary.target_process && binary.target_process.trim()) {
+    const procName = binary.target_process.trim();
+    const match = processes.find((p) => p.name.toLowerCase() === procName.toLowerCase());
+    if (match) {
+      selectedProcess = match;
+      addLog(`Auto-hooked target process ${match.name} (PID: ${match.pid}) for ${binary.name || "binary"}`, "info");
+    } else {
+      selectedProcess = { name: procName, pid: 0, arch: "Configured" };
+      addLog(`Target configured: ${procName} (Waiting for process to launch...)`, "warn");
+    }
+  } else {
+    selectedProcess = null;
+  }
 
   // Update Hero Banner
   const title = binary.name || binary.game || `Binary #${index + 1}`;
@@ -173,6 +289,9 @@ function selectBinary(index) {
   heroDesc.textContent = binary.description || `Authorized binary payload for ${title}. Ready to inject.`;
   heroVersion.textContent = `v${version}`;
   heroArch.textContent = arch;
+
+  // Update sync status text
+  updateSyncStatus("synced", `Active: ${binary.target_process || "No target set"} • ${getShortModeName(binary.injection_mode ?? 2)}`);
 
   // Highlight card items in dashboard
   document.querySelectorAll(".binary-card-item").forEach((card, idx) => {
@@ -186,6 +305,7 @@ function selectBinary(index) {
 
   addLog(`Selected binary: ${title} (v${version})`, "info");
   updateReadyState();
+  renderProcesses();
 }
 
 // Render Binaries
@@ -212,6 +332,8 @@ function renderBinaries(items = []) {
     const filename = binary.file_name || binary.filename || "payload.dll";
     const version = binary.version || "1.0.0";
     const arch = binary.arch || "x64";
+    const targetProc = binary.target_process || "";
+    const modeName = getShortModeName(binary.injection_mode ?? 2);
 
     // 1. Fallback select option
     const opt = document.createElement("option");
@@ -233,6 +355,10 @@ function renderBinaries(items = []) {
             <span class="binary-tag">SAFE</span>
             <span>•</span>
             <span>v${escapeHtml(version)}</span>
+          </div>
+          <div class="binary-settings-summary">
+            <span class="badge-setting-proc" title="Saved Target Executable">🎯 ${escapeHtml(targetProc || "No Target")}</span>
+            <span class="badge-setting-mode" title="Saved Injection Mode">⚡ ${escapeHtml(modeName)}</span>
           </div>
         </div>
       </div>
@@ -260,6 +386,14 @@ function renderBinaries(items = []) {
         <div class="catalog-detail">
           <span>VERSION</span>
           <strong>${escapeHtml(version)}</strong>
+        </div>
+        <div class="catalog-detail">
+          <span>SAVED TARGET</span>
+          <strong style="color: #7dd3fc;">${escapeHtml(targetProc || "Not set")}</strong>
+        </div>
+        <div class="catalog-detail">
+          <span>METHOD</span>
+          <strong style="color: #c084fc;">${escapeHtml(modeName)}</strong>
         </div>
       </div>
       <button class="btn-select-binary">${index === selectedBinaryIndex ? "✓ Selected" : "Select & Configure"}</button>
@@ -296,11 +430,19 @@ function renderProfile(profile = {}) {
 }
 
 // Process Selection
-function selectProcess(proc) {
+function selectProcess(proc, autoSave = true) {
   selectedProcess = proc;
   addLog(`Target locked: ${proc.name} (PID: ${proc.pid}, ${proc.arch})`, "info");
   renderProcesses();
   updateReadyState();
+
+  if (autoSave && selectedBinaryIndex >= 0 && binaries[selectedBinaryIndex]) {
+    const current = binaries[selectedBinaryIndex];
+    if (current.target_process !== proc.name) {
+      current.target_process = proc.name;
+      persistBinarySettings(current);
+    }
+  }
 }
 
 // Render Processes Table
@@ -345,7 +487,25 @@ async function refreshProcesses() {
   try {
     processes = await window.loader.listProcesses();
     processCount.textContent = String(processes.length);
+
+    // Auto-hook check for active binary
+    if (selectedBinaryIndex >= 0 && binaries[selectedBinaryIndex]) {
+      const active = binaries[selectedBinaryIndex];
+      if (active.target_process && active.target_process.trim()) {
+        const match = processes.find(
+          (p) => p.name.toLowerCase() === active.target_process.trim().toLowerCase()
+        );
+        if (match) {
+          if (!selectedProcess || selectedProcess.pid !== match.pid) {
+            selectProcess(match, false);
+            addLog(`Auto-hooked running target: ${match.name} (PID: ${match.pid})`, "success");
+          }
+        }
+      }
+    }
+
     renderProcesses();
+    updateReadyState();
     addLog(`Process scan complete. ${processes.length} processes detected.`, "success");
   } catch (error) {
     addLog(`Process enumeration error: ${error.message}`, "error");
@@ -545,3 +705,60 @@ async function executeInjection() {
 
 injectButton.addEventListener("click", executeInjection);
 heroQuickInject.addEventListener("click", executeInjection);
+
+// Mode Selection Change Listener
+modeSelect.addEventListener("change", () => {
+  if (selectedBinaryIndex >= 0 && binaries[selectedBinaryIndex]) {
+    const current = binaries[selectedBinaryIndex];
+    current.injection_mode = parseInt(modeSelect.value, 10);
+    persistBinarySettings(current);
+  }
+});
+
+// Manual Target Executable Controls
+if (btnManualTarget) {
+  btnManualTarget.addEventListener("click", () => {
+    manualTargetBox.classList.toggle("hidden");
+    if (!manualTargetBox.classList.contains("hidden")) {
+      const active = selectedBinaryIndex >= 0 ? binaries[selectedBinaryIndex] : null;
+      manualTargetInput.value = active?.target_process || selectedProcess?.name || "";
+      manualTargetInput.focus();
+    }
+  });
+}
+
+if (btnCancelManualTarget) {
+  btnCancelManualTarget.addEventListener("click", () => {
+    manualTargetBox.classList.add("hidden");
+  });
+}
+
+if (btnSaveManualTarget) {
+  btnSaveManualTarget.addEventListener("click", () => {
+    const val = manualTargetInput.value.trim();
+    if (!val) return;
+    manualTargetBox.classList.add("hidden");
+    if (selectedBinaryIndex >= 0 && binaries[selectedBinaryIndex]) {
+      const current = binaries[selectedBinaryIndex];
+      current.target_process = val;
+      const match = processes.find((p) => p.name.toLowerCase() === val.toLowerCase());
+      if (match) {
+        selectProcess(match, false);
+      } else {
+        selectedProcess = { name: val, pid: 0, arch: "Configured" };
+        updateReadyState();
+      }
+      persistBinarySettings(current);
+    }
+  });
+}
+
+if (manualTargetInput) {
+  manualTargetInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      btnSaveManualTarget?.click();
+    } else if (e.key === "Escape") {
+      btnCancelManualTarget?.click();
+    }
+  });
+}

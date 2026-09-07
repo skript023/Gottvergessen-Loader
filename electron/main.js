@@ -45,6 +45,7 @@ function loadNative() {
   const refreshBinaries = library.func("str __cdecl gv_refresh_binaries()");
   const profileJson = library.func("str __cdecl gv_profile_json()");
   const selectBinary = library.func("int __cdecl gv_select_binary(int index)");
+  const saveBinarySettings = library.func("int __cdecl gv_save_binary_settings(str binary_id, str target_process, int mode)");
   const downloadAndInject = library.func("int __cdecl gv_download_and_inject()");
   const lastError = library.func("str __cdecl gv_last_error()");
   const operationStatusJson = library.func("str __cdecl gv_operation_status_json()");
@@ -123,6 +124,15 @@ function loadNative() {
     },
     selectBinary(index) {
       if (!selectBinary(index)) throw new Error(lastError() || "Could not select binary");
+    },
+    saveBinarySettings(binaryId, targetProcess, mode) {
+      return new Promise((resolve, reject) => {
+        saveBinarySettings.async(binaryId, targetProcess || "", Number(mode) || 0, (error, result) => {
+          if (error) reject(error);
+          else if (result === 0) reject(new Error(lastError() || "Failed to save binary settings"));
+          else resolve(true);
+        });
+      });
     },
     downloadAndInject() {
       return new Promise((resolve, reject) => {
@@ -209,6 +219,10 @@ function registerIpc() {
   });
 
   ipcMain.handle("native:refresh-binaries", () => requireNative().refreshBinaries());
+
+  ipcMain.handle("native:save-binary-settings", (_event, { binaryId, targetProcess, mode }) => {
+    return requireNative().saveBinarySettings(binaryId, targetProcess, mode);
+  });
 
   ipcMain.handle("native:inject", async (_event, request) => {
     if (!request || typeof request !== "object") throw new TypeError("Invalid request");

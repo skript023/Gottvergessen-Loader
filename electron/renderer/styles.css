@@ -1035,11 +1035,149 @@ button, input, select {
   font-size: 13px;
 }
 
+.target-controls-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .target-selection-pill.has-target {
   border-color: rgba(56, 189, 248, 0.35);
   background: rgba(56, 189, 248, 0.06);
   color: #38bdf8;
   font-weight: 600;
+}
+
+.target-selection-pill.waiting-process {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.08);
+  color: #fbbf24;
+}
+
+.manual-target-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  animation: fadeIn 0.2s ease;
+}
+
+.manual-target-input-row input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--primary-cyan);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #fff;
+  outline: none;
+  font-family: inherit;
+}
+
+.btn-pill-save {
+  padding: 8px 14px;
+  background: var(--primary-cyan);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-pill-save:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+.btn-pill-cancel {
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-pill-cancel:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.target-cloud-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  transition: all 0.2s ease;
+}
+
+.sync-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34d399;
+  display: inline-block;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
+}
+
+.target-cloud-status.saving .sync-dot {
+  background: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+  animation: pulse 1s infinite;
+}
+
+.target-cloud-status.saving {
+  color: var(--primary-cyan);
+}
+
+.target-cloud-status.error .sync-dot {
+  background: #f87171;
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.6);
+}
+
+.target-cloud-status.error {
+  color: #f87171;
+}
+
+/* Binary Card Settings Badges */
+.binary-settings-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.badge-setting-proc {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  color: #7dd3fc;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge-setting-mode {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.28);
+  color: #c084fc;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .select-wrapper select {

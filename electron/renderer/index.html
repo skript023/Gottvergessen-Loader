@@ -285,11 +285,23 @@
                 <div class="control-box">
                   <div class="control-box-header">
                     <span class="control-label">Target Hook Process</span>
-                    <button id="quick-jump-processes" class="btn-link">Browse Process List →</button>
+                    <div class="target-controls-header">
+                      <button id="btn-manual-target" class="btn-link" title="Set process executable manually">✏️ Set Exe</button>
+                      <button id="quick-jump-processes" class="btn-link">Browse List →</button>
+                    </div>
                   </div>
                   <div id="selection" class="target-selection-pill">
                     <span class="target-icon">🎯</span>
                     <span class="target-text">No target process selected</span>
+                  </div>
+                  <div id="manual-target-box" class="manual-target-input-row hidden">
+                    <input type="text" id="manual-target-input" placeholder="e.g. GTA5.exe or RDR2.exe" spellcheck="false" />
+                    <button id="btn-save-manual-target" class="btn-pill-save" type="button">Save</button>
+                    <button id="btn-cancel-manual-target" class="btn-pill-cancel" type="button">✕</button>
+                  </div>
+                  <div class="target-cloud-status" id="cloud-sync-status">
+                    <span class="sync-dot"></span>
+                    <span id="cloud-sync-text">Settings synced with Ellohim Cloud</span>
                   </div>
                 </div>
 
