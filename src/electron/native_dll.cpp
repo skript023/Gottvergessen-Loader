@@ -550,9 +550,14 @@ GV_API int __cdecl gv_logout()
 	{
 		try
 		{
+			std::string hwid = utils::get_hwid();
 			cpr::Get(
 			    cpr::Url{environment_manager::get_url("/auth/logout")},
-			    cpr::Header{{"Accept", "application/json"}, {"Authorization", authorization_value(token)}, {"User-Agent", user_agent}},
+			    cpr::Header{
+			        {"Accept", "application/json"},
+			        {"Authorization", authorization_value(token)},
+			        {"User-Agent", user_agent},
+			        {"X-HWID", hwid}},
 			    cpr::Timeout{3000});
 		}
 		catch (...)
