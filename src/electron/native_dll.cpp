@@ -370,7 +370,13 @@ GV_API int __cdecl gv_login(const char* username, const char* password, int reme
 	try
 	{
 		std::string hwid = utils::get_hwid();
-		nlohmann::ordered_json body_json = {{"username", username}, {"password", password}, {"hwid", hwid}};
+		std::string device_name = utils::get_device_name();
+		nlohmann::ordered_json body_json = {
+			{"username", username},
+			{"password", password},
+			{"hwid", hwid},
+			{"device_name", device_name}
+		};
 		auto response = cpr::Post(
 		    cpr::Url{environment_manager::get_url("/auth/login")},
 		    cpr::Body{body_json.dump()},
@@ -442,7 +448,11 @@ GV_API int __cdecl gv_restore_session()
 	{
 		// 1. Try server-sided device login via HWID first
 		std::string hwid = utils::get_hwid();
-		nlohmann::ordered_json dev_body = {{"hwid", hwid}};
+		std::string device_name = utils::get_device_name();
+		nlohmann::ordered_json dev_body = {
+			{"hwid", hwid},
+			{"device_name", device_name}
+		};
 		auto dev_res = cpr::Post(
 			cpr::Url{environment_manager::get_url("/auth/device-login")},
 			cpr::Body{dev_body.dump()},
@@ -823,3 +833,63 @@ GV_API int __cdecl gv_download_and_inject()
 		return 0;
 	}
 }
+
+GV_API const char* __cdecl gv_get_token()
+{
+	std::scoped_lock lock(g_state_mutex);
+	g_result = g_access_token;
+	return g_result.c_str();
+}
+
+GV_API const char* __cdecl gv_get_hwid()
+{
+	try
+	{
+		g_result = utils::get_hwid();
+		return g_result.c_str();
+	}
+	catch (...)
+	{
+		return "";
+	}
+}
+
+GV_API const char* __cdecl gv_get_hwid_raw()
+{
+	try
+	{
+		g_result = utils::get_hwid_raw();
+		return g_result.c_str();
+	}
+	catch (...)
+	{
+		return "";
+	}
+}
+
+GV_API const char* __cdecl gv_get_device_name()
+{
+	try
+	{
+		g_result = utils::get_device_name();
+		return g_result.c_str();
+	}
+	catch (...)
+	{
+		return "Desktop-PC";
+	}
+}
+
+GV_API const char* __cdecl gv_get_backend_url()
+{
+	try
+	{
+		g_result = environment_manager::get_base_url();
+		return g_result.c_str();
+	}
+	catch (...)
+	{
+		return "https://apie.rena.my.id";
+	}
+}
+

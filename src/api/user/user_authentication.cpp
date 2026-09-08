@@ -179,7 +179,11 @@ namespace gottvergessen
 		try
 		{
 			std::string hwid = utils::get_hwid();
-			nlohmann::json device_body = {{"hwid", hwid}};
+			std::string device_name = utils::get_device_name();
+			nlohmann::json device_body = {
+				{xorstr("hwid"), hwid},
+				{xorstr("device_name"), device_name}
+			};
 			cpr::Url dev_uri = environment_manager::get_url("/auth/device-login");
 			cpr::Header dev_hdr{
 				{xorstr("Accept"), xorstr("application/json")},
@@ -381,7 +385,8 @@ namespace gottvergessen
 		nlohmann::ordered_json json = {
 		    {xorstr("username"), username_param},
 		    {xorstr("password"), password_param},
-		    {xorstr("hwid"), utils::get_hwid()}};
+		    {xorstr("hwid"), utils::get_hwid()},
+		    {xorstr("device_name"), utils::get_device_name()}};
 
 		try
 		{

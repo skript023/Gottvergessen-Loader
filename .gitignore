@@ -43,6 +43,7 @@
 /electron/node_modules/
 /electron/.vite/
 /electron/dist/
+/electron/dist-renderer/
 /electron/native-build/
 /electron/electron/
 

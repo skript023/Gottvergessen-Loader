@@ -49,6 +49,16 @@ function loadNative() {
   const downloadAndInject = library.func("int __cdecl gv_download_and_inject()");
   const lastError = library.func("str __cdecl gv_last_error()");
   const operationStatusJson = library.func("str __cdecl gv_operation_status_json()");
+  let getToken = null;
+  let getHwid = null;
+  let getBackendUrl = null;
+  let getDeviceName = null;
+  try {
+    getToken = library.func("str __cdecl gv_get_token()");
+    getHwid = library.func("str __cdecl gv_get_hwid()");
+    getBackendUrl = library.func("str __cdecl gv_get_backend_url()");
+    getDeviceName = library.func("str __cdecl gv_get_device_name()");
+  } catch (_) {}
 
   if (!initialize(path.join(app.getPath("appData"), "Ellohim Menu"))) {
     throw new Error(lastError() || "Native DLL initialization failed");
@@ -151,6 +161,18 @@ function loadNative() {
           else resolve(true);
         });
       });
+    },
+    getToken() {
+      return (typeof getToken === "function" ? getToken() : "") || "";
+    },
+    getHwid() {
+      return (typeof getHwid === "function" ? getHwid() : "") || "";
+    },
+    getBackendUrl() {
+      return (typeof getBackendUrl === "function" ? getBackendUrl() : "") || "https://apie.rena.my.id";
+    },
+    getDeviceName() {
+      return (typeof getDeviceName === "function" ? getDeviceName() : "") || "Desktop-PC";
     }
   };
 }
@@ -196,10 +218,15 @@ function registerIpc() {
     }
     await requireNative().login(credentials.username, credentials.password, credentials.rememberMe === true);
     try {
+      const addon = requireNative();
       const [binaries, profile] = await Promise.all([
-        requireNative().refreshBinaries(), requireNative().profile().catch(() => ({}))
+        addon.refreshBinaries(), addon.profile().catch(() => ({}))
       ]);
-      return { binaries, profile };
+      const token = addon.getToken();
+      const hwid = addon.getHwid();
+      const backendUrl = addon.getBackendUrl();
+      const deviceName = addon.getDeviceName();
+      return { binaries, profile, token, hwid, backendUrl, deviceName };
     } catch (error) {
       throw new Error(`Login succeeded, but catalog loading failed: ${error.message}`);
     }
@@ -208,10 +235,25 @@ function registerIpc() {
   ipcMain.handle("native:restore-session", async () => {
     const restored = await requireNative().restoreSession();
     if (!restored) return null;
+    const addon = requireNative();
     const [binaries, profile] = await Promise.all([
-      requireNative().refreshBinaries(), requireNative().profile().catch(() => ({}))
+      addon.refreshBinaries(), addon.profile().catch(() => ({}))
     ]);
-    return { binaries, profile };
+    const token = addon.getToken();
+    const hwid = addon.getHwid();
+    const backendUrl = addon.getBackendUrl();
+    const deviceName = addon.getDeviceName();
+    return { binaries, profile, token, hwid, backendUrl, deviceName };
+  });
+
+  ipcMain.handle("native:get-session-info", () => {
+    const addon = requireNative();
+    return {
+      token: addon.getToken(),
+      hwid: addon.getHwid(),
+      backendUrl: addon.getBackendUrl(),
+      deviceName: addon.getDeviceName()
+    };
   });
 
   ipcMain.handle("native:logout", async () => {
@@ -241,6 +283,14 @@ function registerIpc() {
   });
 }
 
+function getRendererPath() {
+  const vueDist = path.join(__dirname, "dist-renderer", "index.html");
+  if (fs.existsSync(vueDist)) {
+    return vueDist;
+  }
+  return path.join(__dirname, "renderer", "index.html");
+}
+
 function createWindow() {
   const window = new BrowserWindow({
     width: 1120,
@@ -258,7 +308,12 @@ function createWindow() {
     }
   });
   window.setMenuBarVisibility(false);
-  window.loadFile(path.join(__dirname, "renderer", "index.html"));
+
+  if (process.env.VITE_DEV_SERVER_URL) {
+    window.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    window.loadFile(getRendererPath());
+  }
 }
 
 let isExiting = false;
