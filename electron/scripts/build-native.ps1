@@ -3,7 +3,43 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$cmake = "C:\Program Files\Microsoft Visual Studio\18\Insiders\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
+$cmake = $null
+
+$cmakeCmd = Get-Command cmake -ErrorAction SilentlyContinue
+if ($cmakeCmd) {
+    $cmake = $cmakeCmd.Source
+}
+
+if (-not $cmake) {
+    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+    if (Test-Path -LiteralPath $vswhere) {
+        $vsPath = & $vswhere -latest -products * -property installationPath
+        if ($vsPath) {
+            $candidate = Join-Path $vsPath "Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
+            if (Test-Path -LiteralPath $candidate) {
+                $cmake = $candidate
+            }
+        }
+    }
+}
+
+if (-not $cmake) {
+    $candidates = @(
+        "D:\Tools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe",
+        "C:\Program Files\Microsoft Visual Studio\18\Insiders\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe",
+        "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe",
+        "C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe",
+        "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe",
+        "C:\Program Files\CMake\bin\cmake.exe"
+    )
+    foreach ($cand in $candidates) {
+        if (Test-Path -LiteralPath $cand) {
+            $cmake = $cand
+            break
+        }
+    }
+}
+
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $build = Join-Path $root "out\build\electron"
 $cache = Join-Path $build "CMakeCache.txt"
@@ -12,8 +48,8 @@ $cache = Join-Path $build "CMakeCache.txt"
 # System32 before Git's Unix tools so `find` cannot accidentally scan C:\.
 $env:PATH = "$env:SystemRoot\System32;C:\Program Files\Git\cmd;$env:PATH"
 
-if (-not (Test-Path -LiteralPath $cmake)) {
-    throw "CMake was not found at $cmake"
+if (-not $cmake -or -not (Test-Path -LiteralPath $cmake)) {
+    throw "CMake was not found. Please ensure CMake or Visual Studio with C++ CMake tools is installed."
 }
 
 if ($ConfigureOnly -or -not (Test-Path -LiteralPath $cache)) {
