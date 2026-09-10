@@ -70,7 +70,7 @@ export const useAuthStore = defineStore('auth', () => {
     // High-frequency 3-second heartbeat to ensure real-time kick detection under any proxy/network conditions
     heartbeatInterval = setInterval(async () => {
       await verifySession();
-    }, 3000);
+    }, 10000);
   }
 
   function handleKick(reason: string) {
@@ -86,7 +86,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Clear local native session
     if (window.loader?.logout) {
-      window.loader.logout().catch(() => {});
+      window.loader.logout().catch(() => { });
     }
 
     // Reset store states
@@ -143,7 +143,7 @@ export const useAuthStore = defineStore('auth', () => {
         hwid = info.hwid || hwid;
         backendUrl = info.backendUrl || backendUrl;
         deviceName = (info as any).deviceName || deviceName;
-      } catch (_) {}
+      } catch (_) { }
     }
 
     if (token) {
