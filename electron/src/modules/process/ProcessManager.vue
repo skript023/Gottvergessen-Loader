@@ -59,7 +59,17 @@ function handleSelect(proc: ProcessItem) {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="processStore.filteredProcesses.length === 0">
+          <!-- Active Scanning State Indicator -->
+          <tr v-if="processStore.isScanning">
+            <td colspan="5" class="process-scanning-row">
+              <div class="scanning-flex">
+                <span class="scanning-spinner"></span>
+                <span>Scanning active host processes & memory hooks...</span>
+              </div>
+            </td>
+          </tr>
+
+          <tr v-else-if="processStore.filteredProcesses.length === 0">
             <td colspan="5" class="empty-state">
               {{ processStore.processes.length === 0 ? 'No processes detected. Click "Scan Processes" to refresh.' : 'No processes match your search filter.' }}
             </td>

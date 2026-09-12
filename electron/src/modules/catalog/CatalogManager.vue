@@ -33,11 +33,30 @@ function handleRefresh() {
     </div>
 
     <div class="catalog-grid">
-      <div v-if="binariesStore.binaries.length === 0" class="empty-state" style="grid-column: 1 / -1;">
+      <!-- Skeleton Loading Cards while Syncing -->
+      <template v-if="binariesStore.isSyncing">
+        <div v-for="i in 4" :key="i" class="catalog-card-skeleton">
+          <div class="catalog-card-header">
+            <div class="skeleton-line tag shimmer"></div>
+            <div class="skeleton-line badge shimmer"></div>
+          </div>
+          <div class="skeleton-line title shimmer"></div>
+          <div class="skeleton-grid-lines">
+            <div class="skeleton-line detail shimmer"></div>
+            <div class="skeleton-line detail shimmer"></div>
+            <div class="skeleton-line detail shimmer"></div>
+            <div class="skeleton-line detail shimmer"></div>
+          </div>
+          <div class="skeleton-line btn shimmer"></div>
+        </div>
+      </template>
+
+      <div v-else-if="binariesStore.binaries.length === 0" class="empty-state" style="grid-column: 1 / -1;">
         No binaries available.
       </div>
 
       <div
+        v-else
         v-for="(binary, index) in binariesStore.binaries"
         :key="binary.id || index"
         class="catalog-card"

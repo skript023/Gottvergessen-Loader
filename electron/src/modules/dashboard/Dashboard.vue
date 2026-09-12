@@ -48,11 +48,28 @@ function handleSelectBinary(index: number) {
         </div>
 
         <div class="binary-cards-container">
-          <div v-if="binariesStore.binaries.length === 0" class="empty-state">
+          <!-- Skeleton Loading Placeholders during HTTP Catalog Sync -->
+          <template v-if="binariesStore.isSyncing">
+            <div class="sync-banner-card">
+              <div class="sync-spinner"></div>
+              <span>Syncing software catalog & licenses from server...</span>
+            </div>
+            <div v-for="i in 3" :key="i" class="binary-card-skeleton">
+              <div class="skeleton-icon shimmer"></div>
+              <div class="skeleton-info">
+                <div class="skeleton-line title shimmer"></div>
+                <div class="skeleton-line meta shimmer"></div>
+                <div class="skeleton-line badges shimmer"></div>
+              </div>
+            </div>
+          </template>
+
+          <div v-else-if="binariesStore.binaries.length === 0" class="empty-state">
             No binaries assigned to your account.
           </div>
 
           <div
+            v-else
             v-for="(binary, index) in binariesStore.binaries"
             :key="binary.id || index"
             class="binary-card-item"

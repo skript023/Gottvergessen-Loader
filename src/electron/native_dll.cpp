@@ -982,9 +982,18 @@ GV_API int __cdecl gv_download_and_inject()
 		if (!target.empty())
 			injection::set_target_process(target);
 		const bool success = injection::inject_library(decrypted_path);
-		std::error_code ignored;
-		// Clean up plaintext decrypted temporary DLL only! Keep encrypted_path in disk cache!
-		std::filesystem::remove(decrypted_path, ignored);
+		// Clean up plaintext decrypted temporary DLL: Try direct delete, fallback to .tmp rename + delayed delete
+		std::error_code ec;
+		std::filesystem::remove(decrypted_path, ec);
+		if (ec)
+		{
+			std::filesystem::path renamed_tmp_path = decrypted_path;
+			renamed_tmp_path.replace_extension(".tmp");
+			std::error_code rename_ec;
+			std::filesystem::rename(decrypted_path, renamed_tmp_path, rename_ec);
+			std::filesystem::path file_to_flag = rename_ec ? decrypted_path : renamed_tmp_path;
+			MoveFileExW(file_to_flag.c_str(), NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
+		}
 		if (!success)
 		{
 			set_error("Native injection returned false");
