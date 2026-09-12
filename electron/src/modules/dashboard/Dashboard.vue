@@ -77,6 +77,9 @@ function handleSelectBinary(index: number) {
                   <span class="badge-setting-mode" title="Saved Injection Mode">
                     ⚡ {{ binariesStore.getShortModeName(binary.injection_mode ?? 2) }}
                   </span>
+                  <span v-if="binary.expiry_date" class="badge-setting-mode" style="color: #c084fc; border-color: rgba(192, 132, 252, 0.3);" title="Product License Expiry">
+                    ⏳ {{ binary.expiry_date }}
+                  </span>
                 </div>
               </div>
             </div>

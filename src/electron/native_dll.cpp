@@ -28,6 +28,7 @@ namespace
 	std::string g_error;
 	std::mutex g_state_mutex;
 	std::string g_access_token;
+	std::string g_login_expired_date;
 	std::filesystem::path g_session_path;
 	nlohmann::ordered_json g_binaries = nlohmann::ordered_json::array();
 	int g_selected_binary{-1};
@@ -401,6 +402,20 @@ GV_API int __cdecl gv_login(const char* username, const char* password, int reme
 			set_error(body.value("message", "Login failed"));
 			return 0;
 		}
+		std::string login_exp;
+		if (body.contains("expired_date") && body["expired_date"].is_string())
+			login_exp = body["expired_date"].get<std::string>();
+		else if (body.contains("expiry_date") && body["expiry_date"].is_string())
+			login_exp = body["expiry_date"].get<std::string>();
+		else if (body.contains("data") && body["data"].is_object())
+		{
+			const auto& data = body["data"];
+			if (data.contains("expired_date") && data["expired_date"].is_string())
+				login_exp = data["expired_date"].get<std::string>();
+			else if (data.contains("expiry_date") && data["expiry_date"].is_string())
+				login_exp = data["expiry_date"].get<std::string>();
+		}
+
 		const std::string refresh = refresh_cookie(response);
 		// The current server truncates the 15-minute login lifetime to whole
 		// hours, which produces an already-expired access token. Exchange the
@@ -422,6 +437,8 @@ GV_API int __cdecl gv_login(const char* username, const char* password, int reme
 		{
 			std::scoped_lock lock(g_state_mutex);
 			g_access_token = std::move(token);
+			if (!login_exp.empty())
+				g_login_expired_date = std::move(login_exp);
 			g_error.clear();
 		}
 		if (remember_me != 0)
@@ -463,11 +480,14 @@ GV_API int __cdecl gv_restore_session()
 			if (body.is_object() && body.value("success", false) && body.contains("data") && body["data"].is_object())
 			{
 				std::string token = body["data"].value("token", "");
+				std::string dev_exp = body["data"].value("expired_date", body["data"].value("expiry_date", ""));
 				if (!token.empty())
 				{
 					token = normalize_access_token(std::move(token));
 					std::scoped_lock lock(g_state_mutex);
 					g_access_token = std::move(token);
+					if (!dev_exp.empty())
+						g_login_expired_date = std::move(dev_exp);
 					g_error.clear();
 					return 1;
 				}
@@ -522,9 +542,14 @@ GV_API int __cdecl gv_restore_session()
 			return 0;
 		}
 		token = normalize_access_token(std::move(token));
+		std::string refresh_exp;
+		if (body.is_object() && body.contains("data") && body["data"].is_object())
+			refresh_exp = body["data"].value("expired_date", body["data"].value("expiry_date", ""));
 		{
 			std::scoped_lock lock(g_state_mutex);
 			g_access_token = std::move(token);
+			if (!refresh_exp.empty())
+				g_login_expired_date = std::move(refresh_exp);
 			g_error.clear();
 		}
 		const std::string rotated = refresh_cookie(response);
@@ -550,6 +575,7 @@ GV_API int __cdecl gv_logout()
 		std::scoped_lock lock(g_state_mutex);
 		token = g_access_token;
 		g_access_token.clear();
+		g_login_expired_date.clear();
 		g_binaries = nlohmann::ordered_json::array();
 		g_selected_binary = -1;
 	}
@@ -608,6 +634,57 @@ GV_API const char* __cdecl gv_refresh_binaries()
 		auto catalog = body.contains("data") && body["data"].is_array() ? body["data"] : body;
 		if (!catalog.is_array())
 			catalog = nlohmann::ordered_json::array();
+
+		// Cross-reference with GET /license/my-licenses so each product carries its own license expiry & status
+		try
+		{
+			auto lic_res = cpr::Get(
+			    cpr::Url{environment_manager::get_url("/license/my-licenses")},
+			    cpr::Header{{"Accept", "application/json"}, {"Content-Type", "application/json"}, {"Authorization", authorization_value(token)}, {"User-Agent", user_agent}},
+			    cpr::Timeout{3500});
+			auto lic_body = nlohmann::ordered_json::parse(lic_res.text, nullptr, false);
+			if (!lic_body.is_discarded() && lic_res.status_code >= 200 && lic_res.status_code < 300)
+			{
+				auto lic_list = lic_body.contains("data") && lic_body["data"].is_array()
+				    ? lic_body["data"]
+				    : (lic_body.is_array() ? lic_body : nlohmann::ordered_json::array());
+
+				for (auto& item : catalog)
+				{
+					if (!item.is_object()) continue;
+					std::string bin_id = item.value("id", "");
+					std::string bin_name = item.value("name", item.value("game", ""));
+
+					for (const auto& lic : lic_list)
+					{
+						if (!lic.is_object()) continue;
+						std::string lic_pid = lic.value("product_id", lic.value("binary_id", ""));
+						std::string lic_pname = lic.value("product_name", "");
+						if (lic.contains("product") && lic["product"].is_object())
+						{
+							if (lic_pid.empty()) lic_pid = lic["product"].value("id", "");
+							if (lic_pname.empty()) lic_pname = lic["product"].value("name", "");
+						}
+
+						bool match = false;
+						if (!bin_id.empty() && !lic_pid.empty() && bin_id == lic_pid) match = true;
+						else if (!bin_name.empty() && !lic_pname.empty() && _stricmp(bin_name.c_str(), lic_pname.c_str()) == 0) match = true;
+
+						if (match)
+						{
+							item["expiry_date"] = lic.value("expiry_date", lic.value("expired_date", "Lifetime"));
+							item["license_status"] = lic.value("status", "ACTIVE");
+							item["license_key"] = lic.value("license_key", "");
+							break;
+						}
+					}
+				}
+			}
+		}
+		catch (...)
+		{
+		}
+
 		{
 			std::scoped_lock lock(g_state_mutex);
 			g_binaries = catalog;
@@ -629,9 +706,11 @@ GV_API const char* __cdecl gv_profile_json()
 	try
 	{
 		std::string token;
+		std::string cached_login_expiry;
 		{
 			std::scoped_lock lock(g_state_mutex);
 			token = g_access_token;
+			cached_login_expiry = g_login_expired_date;
 		}
 		if (token.empty())
 		{
@@ -652,6 +731,48 @@ GV_API const char* __cdecl gv_profile_json()
 		auto profile = body.contains("data") && body["data"].is_object() ? body["data"] : body;
 		if (!profile.is_object())
 			profile = nlohmann::ordered_json::object();
+
+		// Fetch licenses from GET /license/my-licenses to obtain official license expiry dates
+		try
+		{
+			auto lic_res = cpr::Get(
+			    cpr::Url{environment_manager::get_url("/license/my-licenses")},
+			    cpr::Header{{"Accept", "application/json"}, {"Content-Type", "application/json"}, {"Authorization", authorization_value(token)}, {"User-Agent", user_agent}},
+			    cpr::Timeout{3500});
+			auto lic_body = nlohmann::ordered_json::parse(lic_res.text, nullptr, false);
+			if (!lic_body.is_discarded() && lic_res.status_code >= 200 && lic_res.status_code < 300)
+			{
+				auto lic_list = lic_body.contains("data") && lic_body["data"].is_array()
+				    ? lic_body["data"]
+				    : (lic_body.is_array() ? lic_body : nlohmann::ordered_json::array());
+				profile["licenses"] = lic_list;
+
+				if (!profile.contains("expired_date") || !profile["expired_date"].is_string() || profile["expired_date"].get<std::string>().empty())
+				{
+					for (const auto& lic : lic_list)
+					{
+						if (lic.is_object())
+						{
+							std::string exp = lic.value("expiry_date", lic.value("expired_date", ""));
+							if (!exp.empty())
+							{
+								profile["expired_date"] = exp;
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+		catch (...)
+		{
+		}
+
+		if ((!profile.contains("expired_date") || !profile["expired_date"].is_string() || profile["expired_date"].get<std::string>().empty()) && !cached_login_expiry.empty())
+		{
+			profile["expired_date"] = cached_login_expiry;
+		}
+
 		g_result = profile.dump();
 		clear_error();
 		return g_result.c_str();
@@ -774,21 +895,47 @@ GV_API int __cdecl gv_download_and_inject()
 	std::filesystem::path decrypted_path;
 	try
 	{
-		set_operation(8, "Creating secure download session");
-		encrypted_path = std::filesystem::temp_directory_path() / ("el_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".enc");
-		if (!encrypted_downloader::download_encrypted_to_file(
-		        environment_manager::get_base_url(),
-		        binary_id,
-		        token,
-		        encrypted_path,
-		        [](float progress) {
-			        set_operation(10 + static_cast<int>(progress * 65.0f), "Downloading encrypted binary");
-		        }))
+		auto cache_dir = file_manager::get_base_dir() / "Cache" / "Binaries";
+		std::error_code dir_ec;
+		std::filesystem::create_directories(cache_dir, dir_ec);
+		encrypted_path = cache_dir / (binary_id + ".enc");
+
+		bool need_download = true;
+		std::error_code check_ec;
+		if (std::filesystem::exists(encrypted_path, check_ec))
 		{
-			set_error("Encrypted binary download failed");
-			set_operation(0, "Download failed", false);
-			return 0;
+			auto file_sz = std::filesystem::file_size(encrypted_path, check_ec);
+			// Valid encrypted file contains 32B AES Key + 12B IV + 16B tag + ciphertext
+			if (!check_ec && file_sz >= 64)
+			{
+				need_download = false;
+			}
 		}
+
+		if (need_download)
+		{
+			set_operation(8, "Downloading encrypted binary");
+			if (!encrypted_downloader::download_encrypted_to_file(
+			        environment_manager::get_base_url(),
+			        binary_id,
+			        token,
+			        encrypted_path,
+			        [](float progress) {
+				        set_operation(10 + static_cast<int>(progress * 65.0f), "Downloading encrypted binary");
+			        }))
+			{
+				set_error("Encrypted binary download failed");
+				set_operation(0, "Download failed", false);
+				std::error_code ignored;
+				std::filesystem::remove(encrypted_path, ignored);
+				return 0;
+			}
+		}
+		else
+		{
+			set_operation(75, "Using cached binary payload from disk");
+		}
+
 		set_operation(80, "Decrypting binary");
 		if (!encrypted_downloader::decrypt_file_to_temp(
 		        environment_manager::get_base_url(),
@@ -797,11 +944,38 @@ GV_API int __cdecl gv_download_and_inject()
 		        encrypted_path,
 		        decrypted_path))
 		{
-			set_error("Binary decryption failed");
-			set_operation(0, "Decryption failed", false);
+			// If cached file was corrupted or payload format changed, clean and retry fresh download
 			std::error_code ignored;
 			std::filesystem::remove(encrypted_path, ignored);
-			return 0;
+
+			set_operation(20, "Cached binary payload invalid, re-downloading fresh payload");
+			if (!encrypted_downloader::download_encrypted_to_file(
+			        environment_manager::get_base_url(),
+			        binary_id,
+			        token,
+			        encrypted_path,
+			        [](float progress) {
+				        set_operation(20 + static_cast<int>(progress * 55.0f), "Re-downloading encrypted binary");
+			        }))
+			{
+				set_error("Encrypted binary download failed on retry");
+				set_operation(0, "Download failed", false);
+				return 0;
+			}
+
+			set_operation(80, "Decrypting fresh binary");
+			if (!encrypted_downloader::decrypt_file_to_temp(
+			        environment_manager::get_base_url(),
+			        binary_id,
+			        token,
+			        encrypted_path,
+			        decrypted_path))
+			{
+				set_error("Binary decryption failed");
+				set_operation(0, "Decryption failed", false);
+				std::filesystem::remove(encrypted_path, ignored);
+				return 0;
+			}
 		}
 
 		set_operation(92, "Starting native operation");
@@ -809,7 +983,7 @@ GV_API int __cdecl gv_download_and_inject()
 			injection::set_target_process(target);
 		const bool success = injection::inject_library(decrypted_path);
 		std::error_code ignored;
-		std::filesystem::remove(encrypted_path, ignored);
+		// Clean up plaintext decrypted temporary DLL only! Keep encrypted_path in disk cache!
 		std::filesystem::remove(decrypted_path, ignored);
 		if (!success)
 		{
@@ -824,8 +998,6 @@ GV_API int __cdecl gv_download_and_inject()
 	catch (const std::exception& error)
 	{
 		std::error_code ignored;
-		if (!encrypted_path.empty())
-			std::filesystem::remove(encrypted_path, ignored);
 		if (!decrypted_path.empty())
 			std::filesystem::remove(decrypted_path, ignored);
 		set_error(error);

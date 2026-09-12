@@ -121,8 +121,89 @@ export const useAuthStore = defineStore('auth', () => {
     return profile.value?.role || 'VIP CLIENT';
   });
 
+  function formatExpiryDisplay(rawDate?: string): string {
+    if (!rawDate || typeof rawDate !== 'string') return 'Lifetime Active';
+    const trimmed = rawDate.trim();
+    if (!trimmed || trimmed.toLowerCase() === 'lifetime' || trimmed.toLowerCase() === 'lifetime access' || trimmed.toLowerCase() === 'null') {
+      return 'Lifetime Active';
+    }
+
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+
+    return trimmed;
+  }
+
+  const activeLicense = computed(() => {
+    const currentBinary = binariesStore.activeBinary;
+    if (!currentBinary) return null;
+
+    // 1. If binary object itself has license information attached
+    if (currentBinary.expiry_date || currentBinary.expired_date) {
+      return {
+        product_id: currentBinary.id,
+        product_name: currentBinary.name,
+        expiry_date: currentBinary.expiry_date || currentBinary.expired_date,
+        status: currentBinary.license_status || 'ACTIVE',
+        license_key: currentBinary.license_key
+      };
+    }
+
+    // 2. Search profile.licenses for matching product
+    if (profile.value?.licenses && Array.isArray(profile.value.licenses)) {
+      const match = profile.value.licenses.find((l) => {
+        const pid = l.product_id || l.binary_id || (l.product && l.product.id) || l.id;
+        const pname = l.product_name || (l.product && l.product.name);
+        if (pid && currentBinary.id && String(pid).toLowerCase() === String(currentBinary.id).toLowerCase()) return true;
+        if (pname && currentBinary.name && pname.trim().toLowerCase() === currentBinary.name.trim().toLowerCase()) return true;
+        if (pname && currentBinary.game && pname.trim().toLowerCase() === currentBinary.game.trim().toLowerCase()) return true;
+        return false;
+      });
+      if (match) return match;
+    }
+
+    return null;
+  });
+
   const expiryDate = computed(() => {
-    return profile.value?.expired_date || profile.value?.expiry_date || 'Lifetime Active';
+    const currentBinary = binariesStore.activeBinary;
+    if (!currentBinary) {
+      return 'Select Product';
+    }
+
+    const lic = activeLicense.value;
+    if (lic) {
+      const raw = lic.expiry_date || lic.expired_date;
+      if (raw) return formatExpiryDisplay(raw);
+    }
+
+    const accountFallback = profile.value?.expired_date || profile.value?.expiry_date || profile.value?.expires_at;
+    if (accountFallback && accountFallback.toLowerCase() !== 'null') {
+      return formatExpiryDisplay(accountFallback);
+    }
+
+    return 'No Active License';
+  });
+
+  const licenseStatusText = computed(() => {
+    const currentBinary = binariesStore.activeBinary;
+    if (!currentBinary) {
+      return 'Choose from binary catalog';
+    }
+
+    const lic = activeLicense.value;
+    if (lic) {
+      const status = (lic.status || 'ACTIVE').toUpperCase();
+      return `${currentBinary.name} • ${status}`;
+    }
+
+    return `${currentBinary.name} • Unlicensed or Expired`;
   });
 
   const avatarInitial = computed(() => {
@@ -247,6 +328,8 @@ export const useAuthStore = defineStore('auth', () => {
     displayHandle,
     role,
     expiryDate,
+    activeLicense,
+    licenseStatusText,
     avatarInitial,
     handleKick,
     dismissKick,

@@ -16,6 +16,27 @@ export interface BinaryItem {
   description?: string;
   target_process?: string;
   injection_mode?: number;
+  expiry_date?: string;
+  expired_date?: string;
+  license_status?: string;
+  license_key?: string;
+}
+
+export interface UserLicenseItem {
+  id?: string;
+  license_id?: string;
+  license_key?: string;
+  product_id?: string;
+  product_name?: string;
+  product?: {
+    id?: string;
+    name?: string;
+  };
+  issued_at?: string;
+  created_at?: string;
+  expiry_date?: string;
+  expired_date?: string;
+  status?: string;
 }
 
 export interface UserProfile {
@@ -26,6 +47,8 @@ export interface UserProfile {
   role?: string;
   expired_date?: string;
   expiry_date?: string;
+  expires_at?: string;
+  licenses?: UserLicenseItem[];
 }
 
 export interface LoginCredentials {

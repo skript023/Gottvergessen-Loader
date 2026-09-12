@@ -291,10 +291,61 @@ function getRendererPath() {
   return path.join(__dirname, "renderer", "index.html");
 }
 
-function createWindow() {
-  const window = new BrowserWindow({
+function getWindowStateFile() {
+  return path.join(app.getPath("userData"), "window-state.json");
+}
+
+function loadWindowState() {
+  const defaultState = {
     width: 1120,
     height: 740,
+    isMaximized: false
+  };
+  try {
+    const filePath = getWindowStateFile();
+    if (fs.existsSync(filePath)) {
+      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      if (typeof data.width === "number" && typeof data.height === "number") {
+        return {
+          width: Math.max(960, data.width),
+          height: Math.max(620, data.height),
+          x: typeof data.x === "number" ? data.x : undefined,
+          y: typeof data.y === "number" ? data.y : undefined,
+          isMaximized: Boolean(data.isMaximized)
+        };
+      }
+    }
+  } catch (_) {}
+  return defaultState;
+}
+
+function saveWindowState(win) {
+  if (!win || win.isDestroyed()) return;
+  try {
+    const isMaximized = win.isMaximized();
+    let bounds;
+    if (isMaximized) {
+      bounds = typeof win.getNormalBounds === "function" ? win.getNormalBounds() : win.getBounds();
+    } else {
+      bounds = win.getBounds();
+    }
+    const state = {
+      width: bounds.width,
+      height: bounds.height,
+      x: bounds.x,
+      y: bounds.y,
+      isMaximized
+    };
+    fs.writeFileSync(getWindowStateFile(), JSON.stringify(state, null, 2), "utf8");
+  } catch (_) {}
+}
+
+function createWindow() {
+  const state = loadWindowState();
+
+  const options = {
+    width: state.width,
+    height: state.height,
     minWidth: 960,
     minHeight: 620,
     backgroundColor: "#080c14",
@@ -306,8 +357,31 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: true
     }
-  });
+  };
+
+  if (typeof state.x === "number" && typeof state.y === "number") {
+    options.x = state.x;
+    options.y = state.y;
+  }
+
+  const window = new BrowserWindow(options);
   window.setMenuBarVisibility(false);
+
+  if (state.isMaximized) {
+    window.maximize();
+  }
+
+  let saveTimer = null;
+  const debouncedSave = () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => saveWindowState(window), 300);
+  };
+
+  window.on("resize", debouncedSave);
+  window.on("move", debouncedSave);
+  window.on("close", () => {
+    saveWindowState(window);
+  });
 
   if (process.env.VITE_DEV_SERVER_URL) {
     window.loadURL(process.env.VITE_DEV_SERVER_URL);

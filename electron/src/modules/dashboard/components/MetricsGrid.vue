@@ -66,7 +66,7 @@ const processStore = useProcessStore();
       <div class="metric-data">
         <span class="metric-label">License Expiry</span>
         <strong class="metric-value">{{ auth.expiryDate }}</strong>
-        <span class="metric-sub">Subscription Status</span>
+        <span class="metric-sub">{{ auth.licenseStatusText }}</span>
       </div>
     </div>
   </div>

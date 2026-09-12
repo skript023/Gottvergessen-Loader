@@ -71,6 +71,12 @@ function handleRefresh() {
               {{ binariesStore.getShortModeName(binary.injection_mode ?? 2) }}
             </strong>
           </div>
+          <div v-if="binary.expiry_date" class="catalog-detail">
+            <span>LICENSE EXPIRY</span>
+            <strong style="color: #34d399;">
+              {{ binary.expiry_date }}
+            </strong>
+          </div>
         </div>
 
         <button class="btn-select-binary" @click="selectAndConfigure(index)">
