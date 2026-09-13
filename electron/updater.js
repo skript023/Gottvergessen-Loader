@@ -61,6 +61,19 @@ class ClientUpdater {
     }
   }
 
+  isVersionNewer(current, latest) {
+    if (!latest || !current) return false;
+    const cParts = String(current).replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
+    const lParts = String(latest).replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
+    for (let i = 0; i < Math.max(cParts.length, lParts.length); i++) {
+      const c = cParts[i] || 0;
+      const l = lParts[i] || 0;
+      if (l > c) return true;
+      if (l < c) return false;
+    }
+    return false;
+  }
+
   async checkUpdate(backendUrl) {
     this.updateState.isChecking = true;
     this.updateState.error = null;
@@ -97,9 +110,11 @@ class ClientUpdater {
       });
 
       const data = payload.data || {};
-      this.updateState.hasUpdate = Boolean(data.has_update);
-      this.updateState.isMandatory = Boolean(data.is_mandatory);
-      this.updateState.latestVersion = data.latest_version || this.currentVersion;
+      const latestVer = data.latest_version || this.currentVersion;
+      const isNewer = this.isVersionNewer(this.currentVersion, latestVer);
+      this.updateState.hasUpdate = Boolean(data.has_update) && isNewer;
+      this.updateState.isMandatory = Boolean(data.is_mandatory) && isNewer;
+      this.updateState.latestVersion = latestVer;
       this.updateState.latestRelease = data.latest_release || null;
       this.updateState.releaseNotes = data.latest_release?.release_notes || "";
       this.updateState.modules = data.modules || [];
@@ -405,60 +420,96 @@ class ClientUpdater {
     // In development mode, launching the downloaded portable build directly avoids overwriting electron.exe
     if (!app.isPackaged) {
       shell.openPath(downloadedExe);
-      if (typeof cleanupFn === "function") {
-        cleanupFn();
-      } else {
-        app.exit(0);
-      }
+      setTimeout(() => {
+        if (typeof cleanupFn === "function") {
+          cleanupFn();
+        } else {
+          app.exit(0);
+        }
+      }, 400);
       return { success: true };
     }
 
     // In portable electron-builder apps, the actual executable path is in PORTABLE_EXECUTABLE_FILE
     const targetExe = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
     const currentPid = process.pid;
+    const updateDir = this.getUpdateDir();
+    const scriptPath = path.join(updateDir, "apply-update.ps1");
+    const logPath = path.join(updateDir, "update.log");
 
-    // Modern native process runner (Identical to Discord / Squirrel architecture)
-    // Uses native Windows kernel process handle (Wait-Process / WaitForSingleObject) instead of fragile batch/findstr
-    const psScript = `
-$ErrorActionPreference = 'SilentlyContinue'
+    // Robust, Discord-grade native process runner written to a real .ps1 file (immune to CLI quote & comment bugs)
+    const psContent = `
+$ErrorActionPreference = 'Continue'
+$logPath = '${logPath.replace(/'/g, "''")}'
+function Log-Msg($msg) {
+    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff"
+    "[$ts] $msg" | Out-File -FilePath $logPath -Append -Encoding utf8
+}
+
+Log-Msg "=== UPDATE RUNNER LAUNCHED ==="
+Log-Msg "Target PID: ${currentPid}"
+Log-Msg "New Exe: ${downloadedExe.replace(/["'$`]/g, "")}"
+Log-Msg "Target Exe: ${targetExe.replace(/["'$`]/g, "")}"
+
 $targetPid = ${currentPid}
 $newExe = '${downloadedExe.replace(/'/g, "''")}'
 $targetExe = '${targetExe.replace(/'/g, "''")}'
 
-# 1. Wait natively for process handle to terminate via Windows kernel
-try {
-    Wait-Process -Id $targetPid -Timeout 5 -ErrorAction Stop
-} catch {
-    Stop-Process -Id $targetPid -Force -ErrorAction SilentlyContinue
-}
-
-Start-Sleep -Milliseconds 400
-
-# 2. In-place replace new executable over target
-$replaced = $false
-for ($i = 0; $i -lt 5; $i++) {
+if ($targetPid -gt 0) {
+    Log-Msg "Waiting natively for PID $targetPid to exit..."
     try {
-        Move-Item -LiteralPath $newExe -Destination $targetExe -Force -ErrorAction Stop
-        $replaced = $true
-        break
+        Wait-Process -Id $targetPid -Timeout 10 -ErrorAction Stop
+        Log-Msg "PID $targetPid terminated cleanly."
     } catch {
-        Start-Sleep -Milliseconds 600
+        Log-Msg "Wait-Process error ($($_)). Force stopping PID $targetPid..."
+        Stop-Process -Id $targetPid -Force -ErrorAction SilentlyContinue
     }
 }
 
-# 3. Relaunch updated application
-if ($replaced -or (Test-Path -LiteralPath $targetExe)) {
-    Start-Process -FilePath $targetExe
+# Wait for Windows file system locks and mutexes to be released
+Start-Sleep -Milliseconds 800
+
+# In-place replace target executable
+$replaced = $false
+for ($i = 1; $i -le 25; $i++) {
+    try {
+        Move-Item -LiteralPath $newExe -Destination $targetExe -Force -ErrorAction Stop
+        $replaced = $true
+        Log-Msg "Move-Item succeeded on attempt $i."
+        break
+    } catch {
+        Log-Msg "Move-Item attempt $i failed ($($_)). Retrying in 400ms..."
+        Start-Sleep -Milliseconds 400
+    }
 }
+
+# Relaunch updated application
+$targetDir = Split-Path -Parent $targetExe
+if ($replaced) {
+    Log-Msg "Relaunching target application: $targetExe in $targetDir"
+    Start-Process -FilePath $targetExe -WorkingDirectory $targetDir
+} else {
+    $newDir = Split-Path -Parent $newExe
+    Log-Msg "Could not overwrite target. Fallback relaunching new executable directly: $newExe in $newDir"
+    Start-Process -FilePath $newExe -WorkingDirectory $newDir
+}
+
+Log-Msg "=== UPDATE RUNNER FINISHED ==="
 `;
 
-    // Spawn completely detached and hidden PowerShell process
+    try {
+      fs.writeFileSync(scriptPath, psContent, "utf8");
+    } catch (err) {
+      return { success: false, error: `Failed to write update script: ${err.message}` };
+    }
+
+    // Spawn completely detached and hidden PowerShell process with -File
     const child = spawn("powershell.exe", [
       "-NoProfile",
-      "-NonInteractive",
+      "-ExecutionPolicy", "Bypass",
       "-WindowStyle", "Hidden",
-      "-Command",
-      psScript
+      "-File",
+      scriptPath
     ], {
       detached: true,
       stdio: "ignore",
@@ -466,12 +517,14 @@ if ($replaced -or (Test-Path -LiteralPath $targetExe)) {
     });
     child.unref();
 
-    // Clean up native libraries and exit process
-    if (typeof cleanupFn === "function") {
-      cleanupFn();
-    } else {
-      app.exit(0);
-    }
+    // Give OS 500ms to register child process before terminating parent
+    setTimeout(() => {
+      if (typeof cleanupFn === "function") {
+        cleanupFn();
+      } else {
+        app.exit(0);
+      }
+    }, 500);
 
     return { success: true };
   }
