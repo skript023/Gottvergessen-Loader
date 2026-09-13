@@ -8,6 +8,7 @@ import { useInjectionStore } from './stores/injection';
 import Sidebar from './components/Sidebar.vue';
 import Header from './components/Header.vue';
 import KickModal from './components/KickModal.vue';
+import TitleBar from './components/TitleBar.vue';
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -23,10 +24,15 @@ const isGlobalLoading = computed(() => {
 </script>
 
 <template>
-  <!-- Global Neon Top Progress Bar (Active during any HTTP / Native task) -->
-  <div v-if="isGlobalLoading" class="global-top-progress">
-    <div class="global-top-bar-indeterminate"></div>
-  </div>
+  <div class="app-root-shell">
+    <!-- Windows 11 Custom TitleBar Strip (Ellohim-Explorer Style) -->
+    <TitleBar />
+
+    <div class="app-root-body">
+      <!-- Global Neon Top Progress Bar (Active during any HTTP / Native task) -->
+      <div v-if="isGlobalLoading" class="global-top-progress">
+        <div class="global-top-bar-indeterminate"></div>
+      </div>
 
   <!-- High-Tech Startup Splash Loader (Prevents blank screen flash on app launch) -->
   <transition name="splash-fade">
@@ -84,6 +90,8 @@ const isGlobalLoading = computed(() => {
     </main>
   </div>
 
-  <!-- Real-time Kick / Force-Logout Notification Modal -->
-  <KickModal />
+    <!-- Real-time Kick / Force-Logout Notification Modal -->
+    <KickModal />
+    </div>
+  </div>
 </template>

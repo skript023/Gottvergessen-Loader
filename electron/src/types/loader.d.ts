@@ -39,12 +39,22 @@ export interface UserLicenseItem {
   status?: string;
 }
 
+export interface UserRoleItem {
+  id?: string;
+  name?: string;
+  role_name?: string;
+  description?: string;
+  user_type?: string;
+}
+
 export interface UserProfile {
   username: string;
   firstname?: string;
   lastname?: string;
   fullname?: string;
-  role?: string;
+  role?: string | UserRoleItem;
+  roles?: (string | UserRoleItem)[];
+  user_type?: string;
   expired_date?: string;
   expiry_date?: string;
   expires_at?: string;
@@ -85,6 +95,49 @@ export interface InjectRequest {
   mode: number;
 }
 
+export interface InstalledGameItem {
+  id: string;
+  appId?: string;
+  name: string;
+  platform: 'steam' | 'epic' | 'custom' | string;
+  installDir: string;
+  exeName: string;
+  launchUri: string;
+  iconUrl?: string;
+  bannerUrl?: string;
+  isCustom?: boolean;
+}
+
+export interface BrowseExecutableResult {
+  exePath: string;
+  exeName: string;
+  name: string;
+  installDir: string;
+}
+
+export interface PlayAndInjectParams {
+  launchUri?: string;
+  exePath?: string;
+  targetProcess?: string;
+  binaryIndex?: number;
+  mode?: number;
+}
+
+export interface PlayAndInjectResult {
+  success: boolean;
+  pid?: number;
+  processName?: string;
+  injected?: boolean;
+  message?: string;
+}
+
+export interface WindowControlsApi {
+  minimize(): Promise<boolean>;
+  maximize(): Promise<boolean>;
+  close(): Promise<boolean>;
+  isMaximized(): Promise<boolean>;
+}
+
 export interface LoaderApi {
   listProcesses(): Promise<ProcessItem[]>;
   operationStatus(): Promise<OperationStatus>;
@@ -95,10 +148,21 @@ export interface LoaderApi {
   saveBinarySettings(binaryId: string, targetProcess: string, mode: number): Promise<boolean>;
   inject(request: InjectRequest): Promise<boolean>;
   getSessionInfo(): Promise<SessionInfo>;
+  listInstalledGames(): Promise<InstalledGameItem[]>;
+  browseGameExecutable(): Promise<BrowseExecutableResult | null>;
+  addCustomGame(data: { name: string; exePath: string }): Promise<InstalledGameItem[]>;
+  removeCustomGame(gameId: string): Promise<InstalledGameItem[]>;
+  playAndInject(params: PlayAndInjectParams): Promise<PlayAndInjectResult>;
+  killGameProcess(pid: number): Promise<boolean>;
+  window?: WindowControlsApi;
 }
 
 declare global {
   interface Window {
     loader?: LoaderApi;
+    ellohim?: {
+      window?: WindowControlsApi;
+    };
   }
 }
+

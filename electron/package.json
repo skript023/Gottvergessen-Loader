@@ -38,6 +38,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "gameScanner.js",
       "dist-renderer/**/*",
       "renderer/**/*",
       "node_modules/**/*"

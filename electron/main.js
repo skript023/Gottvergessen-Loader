@@ -1,7 +1,9 @@
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
+const { spawn, exec } = require("node:child_process");
 const koffi = require("koffi");
+const gameScanner = require("./gameScanner");
 
 let native;
 let nativeLibrary;
@@ -246,6 +248,36 @@ function registerIpc() {
     return { binaries, profile, token, hwid, backendUrl, deviceName };
   });
 
+  // ==================== WINDOW CONTROLS IPC ====================
+  ipcMain.handle("window:minimize", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+    if (win) win.minimize();
+    return true;
+  });
+
+  ipcMain.handle("window:maximize", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+    if (win) {
+      if (win.isMaximized()) {
+        win.unmaximize();
+      } else {
+        win.maximize();
+      }
+    }
+    return true;
+  });
+
+  ipcMain.handle("window:close", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+    if (win) win.close();
+    return true;
+  });
+
+  ipcMain.handle("window:is-maximized", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+    return win ? win.isMaximized() : false;
+  });
+
   ipcMain.handle("native:get-session-info", () => {
     const addon = requireNative();
     return {
@@ -280,6 +312,148 @@ function registerIpc() {
     if (!Number.isInteger(request.binaryIndex) || request.binaryIndex < 0) throw new TypeError("Invalid binary selection");
     addon.selectBinary(request.binaryIndex);
     return await addon.downloadAndInject();
+  });
+
+  // ==================== GAME SCANNER & LAUNCHER IPC ====================
+  ipcMain.handle("game:list-installed", () => {
+    return gameScanner.getAllGames();
+  });
+
+  ipcMain.handle("game:browse-executable", async () => {
+    const focusedWin = BrowserWindow.getFocusedWindow();
+    const result = await dialog.showOpenDialog(focusedWin || undefined, {
+      title: "Select Game Executable",
+      properties: ["openFile"],
+      filters: [{ name: "Executable (*.exe)", extensions: ["exe"] }]
+    });
+    if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+      return null;
+    }
+    const exePath = result.filePaths[0];
+    const exeName = path.basename(exePath);
+    const parsed = path.parse(exePath);
+    return {
+      exePath,
+      exeName,
+      name: parsed.name,
+      installDir: parsed.dir
+    };
+  });
+
+  ipcMain.handle("game:add-custom", (_event, { name, exePath }) => {
+    if (!exePath || !fs.existsSync(exePath)) {
+      throw new Error("Specified executable does not exist");
+    }
+    const custom = gameScanner.loadCustomGames();
+    const exeName = path.basename(exePath);
+    const id = `custom_${Date.now()}`;
+    const newGame = {
+      id,
+      name: name || path.parse(exePath).name,
+      platform: "custom",
+      installDir: path.dirname(exePath),
+      exeName,
+      launchUri: exePath,
+      iconUrl: "",
+      bannerUrl: "",
+      isCustom: true
+    };
+    custom.push(newGame);
+    gameScanner.saveCustomGames(custom);
+    return gameScanner.getAllGames();
+  });
+
+  ipcMain.handle("game:remove-custom", (_event, gameId) => {
+    const custom = gameScanner.loadCustomGames().filter(g => g.id !== gameId);
+    gameScanner.saveCustomGames(custom);
+    return gameScanner.getAllGames();
+  });
+
+  ipcMain.handle("game:play-and-inject", async (_event, params) => {
+    const { launchUri, exePath, targetProcess, binaryIndex, mode } = params || {};
+    const addon = requireNative();
+
+    // 1. Configure binary if provided
+    const hasBinary = Number.isInteger(binaryIndex) && binaryIndex >= 0;
+    if (hasBinary) {
+      addon.selectBinary(binaryIndex);
+      addon.setInjectionMode(Number.isInteger(mode) ? mode : 2);
+    }
+
+    // 2. Launch game
+    if (launchUri && (launchUri.startsWith("steam://") || launchUri.startsWith("com.epicgames."))) {
+      await shell.openExternal(launchUri);
+    } else if (exePath && fs.existsSync(exePath)) {
+      const child = spawn(exePath, [], {
+        detached: true,
+        stdio: "ignore",
+        cwd: path.dirname(exePath)
+      });
+      child.unref();
+    } else if (launchUri) {
+      await shell.openExternal(launchUri);
+    } else {
+      throw new Error("No launch command or executable path provided.");
+    }
+
+    // 3. If no target process specified, simply launch
+    if (!targetProcess) {
+      return { success: true, message: "Game launched." };
+    }
+
+    const targetLower = targetProcess.trim().toLowerCase();
+
+    // 4. Poll process list for target process (up to 45 seconds)
+    const maxPolls = 90; // 90 * 500ms = 45s
+    let foundProc = null;
+
+    for (let i = 0; i < maxPolls; i++) {
+      await new Promise(r => setTimeout(r, 500));
+      try {
+        const procs = addon.listProcesses();
+        foundProc = procs.find(p => {
+          const nameLower = p.name.toLowerCase();
+          return nameLower === targetLower || nameLower.startsWith(targetLower.replace(".exe", ""));
+        });
+        if (foundProc) break;
+      } catch (_) {}
+    }
+
+    if (!foundProc) {
+      throw new Error(`Game launched, but process "${targetProcess}" was not detected within 45 seconds.`);
+    }
+
+    // 5. Target discovered! Lock target
+    addon.setTarget(foundProc.name, foundProc.pid);
+
+    // 6. Wait 2 seconds for memory initialization
+    await new Promise(r => setTimeout(r, 2000));
+
+    // 7. If binary was selected, execute auto-injection
+    let injected = false;
+    if (hasBinary) {
+      injected = await addon.downloadAndInject();
+      if (!injected) {
+        throw new Error("Process detected, but auto-injection failed. Check engine logs.");
+      }
+    }
+
+    return {
+      success: true,
+      pid: foundProc.pid,
+      processName: foundProc.name,
+      injected,
+      message: injected ? `Game running and payload injected (PID: ${foundProc.pid})` : `Game running (PID: ${foundProc.pid})`
+    };
+  });
+
+  ipcMain.handle("game:kill-process", async (_event, pid) => {
+    if (!pid || pid <= 0) return false;
+    return new Promise(resolve => {
+      exec(`taskkill /F /PID ${pid}`, err => {
+        resolve(!err);
+      });
+    });
   });
 }
 
@@ -348,14 +522,15 @@ function createWindow() {
     height: state.height,
     minWidth: 960,
     minHeight: 620,
+    frame: false,
     backgroundColor: "#080c14",
-    title: "Gottvergessen Loader",
+    title: "Gottvergessen Loader - Control Center",
     icon: iconPath(),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      sandbox: false
     }
   };
 

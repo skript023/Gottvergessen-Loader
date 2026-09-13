@@ -118,7 +118,34 @@ export const useAuthStore = defineStore('auth', () => {
   });
 
   const role = computed(() => {
-    return profile.value?.role || 'VIP CLIENT';
+    const p = profile.value as any;
+    if (!p) return 'Member';
+
+    // 1. Extract from roles array (e.g. from Ellohim-Server UserDto roles: [{ name: "Super Admin" }])
+    if (Array.isArray(p.roles) && p.roles.length > 0) {
+      const first = p.roles[0];
+      const rName = typeof first === 'string'
+        ? first
+        : (first?.name || first?.role_name || first?.description || first?.user_type);
+      if (rName && typeof rName === 'string' && rName.trim()) {
+        return rName.trim();
+      }
+    }
+
+    // 2. Extract from role string or object
+    if (typeof p.role === 'string' && p.role.trim()) {
+      return p.role.trim();
+    }
+    if (p.role && typeof p.role.name === 'string' && p.role.name.trim()) {
+      return p.role.name.trim();
+    }
+
+    // 3. Extract from user_type
+    if (typeof p.user_type === 'string' && p.user_type.trim()) {
+      return p.user_type.trim();
+    }
+
+    return 'Member';
   });
 
   function formatExpiryDisplay(rawDate?: string): string {
