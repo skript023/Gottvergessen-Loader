@@ -1,25 +1,35 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthStore } from './stores/auth';
 import { useBinariesStore } from './stores/binaries';
 import { useProcessStore } from './stores/process';
 import { useInjectionStore } from './stores/injection';
+import { useUpdaterStore } from './stores/updater';
 import Sidebar from './components/Sidebar.vue';
 import Header from './components/Header.vue';
 import KickModal from './components/KickModal.vue';
 import TitleBar from './components/TitleBar.vue';
+import UpdateModal from './components/UpdateModal.vue';
 
 const route = useRoute();
 const auth = useAuthStore();
 const binariesStore = useBinariesStore();
 const processStore = useProcessStore();
 const injection = useInjectionStore();
+const updater = useUpdaterStore();
 
 const isAuthRoute = computed(() => route.name === 'Login');
 
 const isGlobalLoading = computed(() => {
   return auth.isLoading || binariesStore.isSyncing || processStore.isScanning || injection.isInjecting;
+});
+
+onMounted(() => {
+  // Check for client updates in the background on startup
+  setTimeout(() => {
+    updater.checkForUpdates(true);
+  }, 1200);
 });
 </script>
 
@@ -92,6 +102,9 @@ const isGlobalLoading = computed(() => {
 
     <!-- Real-time Kick / Force-Logout Notification Modal -->
     <KickModal />
+
+    <!-- Client Auto-Updater Resumable Modal -->
+    <UpdateModal />
     </div>
   </div>
 </template>

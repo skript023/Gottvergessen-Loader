@@ -39,6 +39,7 @@
       "main.js",
       "preload.js",
       "gameScanner.js",
+      "updater.js",
       "dist-renderer/**/*",
       "renderer/**/*",
       "node_modules/**/*"

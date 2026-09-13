@@ -331,7 +331,7 @@ function handleRemoveCustom() {
           class="log-row"
           :class="`log-${item.type}`"
         >
-          <span class="log-time">{{ item.timestamp }}</span>
+          <span class="log-time">{{ item.time }}</span>
           <span class="log-msg">{{ item.message }}</span>
         </div>
       </div>

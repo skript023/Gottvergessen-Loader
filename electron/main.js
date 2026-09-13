@@ -4,6 +4,7 @@ const path = require("node:path");
 const { spawn, exec } = require("node:child_process");
 const koffi = require("koffi");
 const gameScanner = require("./gameScanner");
+const { updater, registerUpdaterIpc } = require("./updater");
 
 let native;
 let nativeLibrary;
@@ -455,6 +456,8 @@ function registerIpc() {
       });
     });
   });
+
+  registerUpdaterIpc(() => native);
 }
 
 function getRendererPath() {

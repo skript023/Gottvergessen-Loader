@@ -24,6 +24,7 @@ export interface BinaryItem {
 
 export interface UserLicenseItem {
   id?: string;
+  binary_id?: string;
   license_id?: string;
   license_key?: string;
   product_id?: string;
@@ -138,6 +139,45 @@ export interface WindowControlsApi {
   isMaximized(): Promise<boolean>;
 }
 
+export interface UpdateProgress {
+  version: string;
+  downloadedBytes: number;
+  totalBytes: number;
+  percent: number;
+  speed: number;
+  state: 'downloading' | 'paused' | 'verifying' | 'ready-to-install' | 'error';
+}
+
+export interface UpdateStatus {
+  isChecking?: boolean;
+  hasUpdate: boolean;
+  isMandatory: boolean;
+  latestVersion: string;
+  releaseNotes?: string;
+  latestRelease?: any;
+  modules?: any[];
+  state: 'idle' | 'downloading' | 'paused' | 'verifying' | 'ready-to-install' | 'error';
+  downloadedBytes: number;
+  totalBytes: number;
+  percent: number;
+  speed: number;
+  error?: string | null;
+  exePath?: string;
+}
+
+export interface UpdaterApi {
+  checkUpdate(): Promise<{ success: boolean } & UpdateStatus>;
+  startDownload(): Promise<{ success: boolean; error?: string; message?: string }>;
+  pauseDownload(): Promise<{ success: boolean; message?: string }>;
+  cancelDownload(): Promise<{ success: boolean }>;
+  install(): Promise<{ success: boolean; error?: string }>;
+  getState(): Promise<UpdateStatus>;
+  syncModules(): Promise<{ success: boolean; results?: any[] }>;
+  onProgress(callback: (data: UpdateProgress) => void): () => void;
+  onStatus(callback: (data: UpdateStatus) => void): () => void;
+  onModuleSync(callback: (data: any) => void): () => void;
+}
+
 export interface LoaderApi {
   listProcesses(): Promise<ProcessItem[]>;
   operationStatus(): Promise<OperationStatus>;
@@ -155,6 +195,7 @@ export interface LoaderApi {
   playAndInject(params: PlayAndInjectParams): Promise<PlayAndInjectResult>;
   killGameProcess(pid: number): Promise<boolean>;
   window?: WindowControlsApi;
+  updater?: UpdaterApi;
 }
 
 declare global {
@@ -165,4 +206,5 @@ declare global {
     };
   }
 }
+
 

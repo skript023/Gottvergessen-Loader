@@ -22,6 +22,30 @@ contextBridge.exposeInMainWorld("loader", Object.freeze({
     maximize: () => ipcRenderer.invoke("window:maximize"),
     close: () => ipcRenderer.invoke("window:close"),
     isMaximized: () => ipcRenderer.invoke("window:is-maximized")
+  },
+  updater: {
+    checkUpdate: () => ipcRenderer.invoke("updater:check-update"),
+    startDownload: () => ipcRenderer.invoke("updater:start-download"),
+    pauseDownload: () => ipcRenderer.invoke("updater:pause-download"),
+    cancelDownload: () => ipcRenderer.invoke("updater:cancel-download"),
+    install: () => ipcRenderer.invoke("updater:install"),
+    getState: () => ipcRenderer.invoke("updater:get-state"),
+    syncModules: () => ipcRenderer.invoke("updater:sync-modules"),
+    onProgress: (callback) => {
+      const sub = (_event, data) => callback(data);
+      ipcRenderer.on("updater:progress", sub);
+      return () => ipcRenderer.removeListener("updater:progress", sub);
+    },
+    onStatus: (callback) => {
+      const sub = (_event, data) => callback(data);
+      ipcRenderer.on("updater:status", sub);
+      return () => ipcRenderer.removeListener("updater:status", sub);
+    },
+    onModuleSync: (callback) => {
+      const sub = (_event, data) => callback(data);
+      ipcRenderer.on("updater:module-sync", sub);
+      return () => ipcRenderer.removeListener("updater:module-sync", sub);
+    }
   }
 }));
 
