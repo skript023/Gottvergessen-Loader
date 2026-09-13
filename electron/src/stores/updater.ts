@@ -15,6 +15,7 @@ export const useUpdaterStore = defineStore('updater', {
     speed: 0,
     error: null as string | null,
     modalVisible: false,
+    allowModal: true,
     listenersAttached: false
   }),
 
@@ -65,22 +66,22 @@ export const useUpdaterStore = defineStore('updater', {
         this.speed = data.speed;
         this.error = data.error || null;
 
-        if (data.state === 'ready-to-install' || data.isMandatory) {
+        if (this.allowModal && (data.state === 'ready-to-install' || data.isMandatory)) {
           this.modalVisible = true;
         }
       });
     },
 
-    async checkForUpdates(silent = false) {
-      if (!window.loader?.updater) return;
+    async checkForUpdates(silent = false, showModal = true) {
+      if (!window.loader?.updater) return null;
       this.initListeners();
       this.isChecking = true;
       this.error = null;
 
       try {
         const res = await window.loader.updater.checkUpdate();
-        this.hasUpdate = res.hasUpdate;
-        this.isMandatory = res.isMandatory;
+        this.hasUpdate = Boolean(res.hasUpdate);
+        this.isMandatory = Boolean(res.isMandatory);
         this.latestVersion = res.latestVersion;
         this.releaseNotes = res.releaseNotes || '';
         this.state = res.state;
@@ -88,9 +89,9 @@ export const useUpdaterStore = defineStore('updater', {
         this.totalBytes = res.totalBytes;
         this.percent = res.percent;
 
-        if (res.hasUpdate) {
+        if (res.hasUpdate && showModal && this.allowModal) {
           this.modalVisible = true;
-        } else if (!silent) {
+        } else if (!silent && !res.hasUpdate) {
           console.log('[AutoUpdater] Gottvergessen Loader is already on the latest version.');
         }
 
@@ -98,8 +99,10 @@ export const useUpdaterStore = defineStore('updater', {
         if (window.loader.updater.syncModules) {
           window.loader.updater.syncModules().catch(() => {});
         }
+        return res;
       } catch (err: any) {
         this.error = err.message;
+        return null;
       } finally {
         this.isChecking = false;
       }

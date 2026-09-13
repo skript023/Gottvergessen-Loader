@@ -4,7 +4,7 @@ const http = require("node:http");
 const https = require("node:https");
 const crypto = require("node:crypto");
 const { spawn } = require("node:child_process");
-const { app, ipcMain } = require("electron");
+const { app, ipcMain, shell } = require("electron");
 
 class ClientUpdater {
   constructor() {
@@ -388,7 +388,7 @@ class ClientUpdater {
     return { success: true };
   }
 
-  installUpdate() {
+  installUpdate(cleanupFn) {
     if (!this.updateState.latestRelease) {
       return { success: false, error: "No update release found" };
     }
@@ -402,56 +402,77 @@ class ClientUpdater {
       return { success: false, error: "Downloaded executable file not found" };
     }
 
-    const targetExe = process.execPath;
+    // In development mode, launching the downloaded portable build directly avoids overwriting electron.exe
+    if (!app.isPackaged) {
+      shell.openPath(downloadedExe);
+      if (typeof cleanupFn === "function") {
+        cleanupFn();
+      } else {
+        app.exit(0);
+      }
+      return { success: true };
+    }
+
+    // In portable electron-builder apps, the actual executable path is in PORTABLE_EXECUTABLE_FILE
+    const targetExe = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
     const currentPid = process.pid;
 
-    // Helper Windows Batch Script that waits for the loader process to exit,
-    // copies the downloaded executable over targetExe, and relaunches it.
-    const tempBat = path.join(app.getPath("temp"), `gottvergessen_update_${Date.now()}.bat`);
-    const batScript = `@echo off
-set PID=%1
-set NEW_EXE=%~2
-set TARGET_EXE=%~3
+    // Modern native process runner (Identical to Discord / Squirrel architecture)
+    // Uses native Windows kernel process handle (Wait-Process / WaitForSingleObject) instead of fragile batch/findstr
+    const psScript = `
+$ErrorActionPreference = 'SilentlyContinue'
+$targetPid = ${currentPid}
+$newExe = '${downloadedExe.replace(/'/g, "''")}'
+$targetExe = '${targetExe.replace(/'/g, "''")}'
 
-:wait_loop
-tasklist /fi "pid eq %PID%" 2>nul | findstr /i "%PID%" >nul
-if not errorlevel 1 (
-    timeout /t 1 /nobreak >nul
-    goto wait_loop
-)
+# 1. Wait natively for process handle to terminate via Windows kernel
+try {
+    Wait-Process -Id $targetPid -Timeout 5 -ErrorAction Stop
+} catch {
+    Stop-Process -Id $targetPid -Force -ErrorAction SilentlyContinue
+}
 
-:: Brief cooling delay for OS file handle release
-timeout /t 1 /nobreak >nul
+Start-Sleep -Milliseconds 400
 
-:: Copy new binary over existing target
-copy /y "%NEW_EXE%" "%TARGET_EXE%" >nul
-if errorlevel 1 (
-    timeout /t 2 /nobreak >nul
-    copy /y "%NEW_EXE%" "%TARGET_EXE%" >nul
-)
+# 2. In-place replace new executable over target
+$replaced = $false
+for ($i = 0; $i -lt 5; $i++) {
+    try {
+        Move-Item -LiteralPath $newExe -Destination $targetExe -Force -ErrorAction Stop
+        $replaced = $true
+        break
+    } catch {
+        Start-Sleep -Milliseconds 600
+    }
+}
 
-:: Delete downloaded update file
-del "%NEW_EXE%" >nul 2>nul
-
-:: Relaunch updated loader
-start "" "%TARGET_EXE%"
-
-:: Self destruct
-del "%~f0" >nul 2>nul
-exit
+# 3. Relaunch updated application
+if ($replaced -or (Test-Path -LiteralPath $targetExe)) {
+    Start-Process -FilePath $targetExe
+}
 `;
 
-    fs.writeFileSync(tempBat, batScript, "utf8");
-
-    // Spawn detached process
-    const child = spawn("cmd.exe", ["/c", tempBat, String(currentPid), downloadedExe, targetExe], {
+    // Spawn completely detached and hidden PowerShell process
+    const child = spawn("powershell.exe", [
+      "-NoProfile",
+      "-NonInteractive",
+      "-WindowStyle", "Hidden",
+      "-Command",
+      psScript
+    ], {
       detached: true,
-      stdio: "ignore"
+      stdio: "ignore",
+      windowsHide: true
     });
     child.unref();
 
-    // Terminate current Electron application cleanly
-    app.exit(0);
+    // Clean up native libraries and exit process
+    if (typeof cleanupFn === "function") {
+      cleanupFn();
+    } else {
+      app.exit(0);
+    }
+
     return { success: true };
   }
 
@@ -538,7 +559,7 @@ exit
 
 const updater = new ClientUpdater();
 
-function registerUpdaterIpc(getNative) {
+function registerUpdaterIpc(getNative, cleanupFn) {
   ipcMain.handle("updater:check-update", async (event) => {
     const window = event.sender.getOwnerBrowserWindow();
     const backendUrl = updater.getBackendUrl(getNative ? getNative() : null);
@@ -562,7 +583,7 @@ function registerUpdaterIpc(getNative) {
   });
 
   ipcMain.handle("updater:install", async () => {
-    return updater.installUpdate();
+    return updater.installUpdate(cleanupFn);
   });
 
   ipcMain.handle("updater:get-state", async () => {

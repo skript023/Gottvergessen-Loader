@@ -11,6 +11,20 @@ let nativeLibrary;
 
 app.setAppUserModelId("com.ellohim.gottvergessen-loader");
 
+let mainWindow = null;
+
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+
 function iconPath() {
   return app.isPackaged
     ? path.join(process.resourcesPath, "assets", "logo.ico")
@@ -457,7 +471,7 @@ function registerIpc() {
     });
   });
 
-  registerUpdaterIpc(() => native);
+  registerUpdaterIpc(() => native, cleanupAndExit);
 }
 
 function getRendererPath() {
@@ -542,29 +556,32 @@ function createWindow() {
     options.y = state.y;
   }
 
-  const window = new BrowserWindow(options);
-  window.setMenuBarVisibility(false);
+  mainWindow = new BrowserWindow(options);
+  mainWindow.setMenuBarVisibility(false);
 
   if (state.isMaximized) {
-    window.maximize();
+    mainWindow.maximize();
   }
 
   let saveTimer = null;
   const debouncedSave = () => {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => saveWindowState(window), 300);
+    saveTimer = setTimeout(() => saveWindowState(mainWindow), 300);
   };
 
-  window.on("resize", debouncedSave);
-  window.on("move", debouncedSave);
-  window.on("close", () => {
-    saveWindowState(window);
+  mainWindow.on("resize", debouncedSave);
+  mainWindow.on("move", debouncedSave);
+  mainWindow.on("close", () => {
+    saveWindowState(mainWindow);
+  });
+  mainWindow.on("closed", () => {
+    mainWindow = null;
   });
 
   if (process.env.VITE_DEV_SERVER_URL) {
-    window.loadURL(process.env.VITE_DEV_SERVER_URL);
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    window.loadFile(getRendererPath());
+    mainWindow.loadFile(getRendererPath());
   }
 }
 
