@@ -485,13 +485,23 @@ for ($i = 1; $i -le 25; $i++) {
 
 # Relaunch updated application
 $targetDir = Split-Path -Parent $targetExe
-if ($replaced) {
-    Log-Msg "Relaunching target application: $targetExe in $targetDir"
-    Start-Process -FilePath $targetExe -WorkingDirectory $targetDir
-} else {
-    $newDir = Split-Path -Parent $newExe
-    Log-Msg "Could not overwrite target. Fallback relaunching new executable directly: $newExe in $newDir"
-    Start-Process -FilePath $newExe -WorkingDirectory $newDir
+try {
+    if ($replaced) {
+        Log-Msg "Relaunching target application: $targetExe in $targetDir"
+        Start-Process -FilePath $targetExe -WorkingDirectory $targetDir
+    } else {
+        $newDir = Split-Path -Parent $newExe
+        Log-Msg "Could not overwrite target. Fallback relaunching new executable directly: $newExe in $newDir"
+        Start-Process -FilePath $newExe -WorkingDirectory $newDir
+    }
+    Log-Msg "Start-Process executed successfully."
+} catch {
+    Log-Msg "Start-Process failed ($($_)). Attempting Windows Explorer shell relaunch..."
+    if ($replaced) {
+        explorer.exe "$targetExe"
+    } else {
+        explorer.exe "$newExe"
+    }
 }
 
 Log-Msg "=== UPDATE RUNNER FINISHED ==="
@@ -503,8 +513,12 @@ Log-Msg "=== UPDATE RUNNER FINISHED ==="
       return { success: false, error: `Failed to write update script: ${err.message}` };
     }
 
-    // Spawn completely detached and hidden PowerShell process with -File
-    const child = spawn("powershell.exe", [
+    // Spawn via Windows Shell 'cmd.exe /c start /min' to guarantee process detachment and survival across parent exit
+    const child = spawn("cmd.exe", [
+      "/c",
+      "start",
+      "/min",
+      "powershell.exe",
       "-NoProfile",
       "-ExecutionPolicy", "Bypass",
       "-WindowStyle", "Hidden",
