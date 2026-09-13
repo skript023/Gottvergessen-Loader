@@ -61,6 +61,50 @@ class ClientUpdater {
     }
   }
 
+  resolveCurrentVersion() {
+    let baseVer = app.isPackaged ? app.getVersion() : "1.0.0";
+    try {
+      const exeTarget = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath || "";
+      const exeName = path.basename(exeTarget);
+      const match = exeName.match(/(\d+\.\d+\.\d+)/);
+      if (match && this.isVersionNewer(baseVer, match[1])) {
+        return match[1];
+      }
+    } catch (_) {}
+    return baseVer;
+  }
+
+  getHistoryFilePath() {
+    return path.join(this.getUpdateDir(), "update-history.json");
+  }
+
+  recordInstalledVersion(version) {
+    try {
+      const historyFile = this.getHistoryFilePath();
+      const data = {
+        version,
+        installedAt: Date.now()
+      };
+      fs.writeFileSync(historyFile, JSON.stringify(data, null, 2));
+    } catch (_) {}
+  }
+
+  isLoopingOnVersion(serverVersion) {
+    try {
+      const historyFile = this.getHistoryFilePath();
+      if (!fs.existsSync(historyFile)) return false;
+      const data = JSON.parse(fs.readFileSync(historyFile, "utf8"));
+      if (data && data.version === serverVersion) {
+        const elapsed = Date.now() - (data.installedAt || 0);
+        // If an update was installed within the last 5 minutes and the version is still reported as older
+        if (elapsed < 300000) {
+          return true;
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
   isVersionNewer(current, latest) {
     if (!latest || !current) return false;
     const cParts = String(current).replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
@@ -77,6 +121,7 @@ class ClientUpdater {
   async checkUpdate(backendUrl) {
     this.updateState.isChecking = true;
     this.updateState.error = null;
+    this.currentVersion = this.resolveCurrentVersion();
 
     try {
       const url = new URL(`${backendUrl}/client/check-update`);
@@ -112,6 +157,26 @@ class ClientUpdater {
       const data = payload.data || {};
       const latestVer = data.latest_version || this.currentVersion;
       const isNewer = this.isVersionNewer(this.currentVersion, latestVer);
+
+      // Guard against infinite relaunch loops when server hosts a binary with stale package.json
+      if (isNewer && this.isLoopingOnVersion(latestVer)) {
+        console.warn(`[AutoUpdater] Prevented relaunch loop! Version ${latestVer} was applied recently, but client still reports version ${this.currentVersion}.`);
+        this.updateState.hasUpdate = false;
+        this.updateState.isMandatory = false;
+        this.updateState.latestVersion = latestVer;
+        this.updateState.isChecking = false;
+        this.updateState.error = `Loop prevented: Server version ${latestVer} was installed, but binary package.json version is still ${this.currentVersion}.`;
+        return { success: true, ...this.updateState, loopPrevented: true };
+      }
+
+      // If client is already on the latest version, clear history marker
+      if (!isNewer) {
+        try {
+          const historyFile = this.getHistoryFilePath();
+          if (fs.existsSync(historyFile)) fs.unlinkSync(historyFile);
+        } catch (_) {}
+      }
+
       this.updateState.hasUpdate = Boolean(data.has_update) && isNewer;
       this.updateState.isMandatory = Boolean(data.is_mandatory) && isNewer;
       this.updateState.latestVersion = latestVer;
@@ -403,7 +468,7 @@ class ClientUpdater {
     return { success: true };
   }
 
-  installUpdate(cleanupFn) {
+  installUpdate(cleanupFn, getNative, getRunnerPath) {
     if (!this.updateState.latestRelease) {
       return { success: false, error: "No update release found" };
     }
@@ -416,6 +481,9 @@ class ClientUpdater {
     if (!fs.existsSync(downloadedExe)) {
       return { success: false, error: "Downloaded executable file not found" };
     }
+
+    // Record installation attempt to prevent infinite relaunch loops if version doesn't bump
+    this.recordInstalledVersion(this.updateState.latestRelease.version);
 
     // In development mode, launching the downloaded portable build directly avoids overwriting electron.exe
     if (!app.isPackaged) {
@@ -430,117 +498,46 @@ class ClientUpdater {
       return { success: true };
     }
 
-    // In portable electron-builder apps, the actual executable path is in PORTABLE_EXECUTABLE_FILE
     const targetExe = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
     const currentPid = process.pid;
-    const updateDir = this.getUpdateDir();
-    const scriptPath = path.join(updateDir, "apply-update.ps1");
-    const logPath = path.join(updateDir, "update.log");
+    const parentPid = process.ppid || 0;
+    const runnerPath = typeof getRunnerPath === "function" ? getRunnerPath() : null;
+    const native = typeof getNative === "function" ? getNative() : null;
 
-    // Robust, Discord-grade native process runner written to a real .ps1 file (immune to CLI quote & comment bugs)
-    const psContent = `
-$ErrorActionPreference = 'Continue'
-$logPath = '${logPath.replace(/'/g, "''")}'
-function Log-Msg($msg) {
-    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff"
-    "[$ts] $msg" | Out-File -FilePath $logPath -Append -Encoding utf8
-}
-
-Log-Msg "=== UPDATE RUNNER LAUNCHED ==="
-Log-Msg "Target PID: ${currentPid}"
-Log-Msg "New Exe: ${downloadedExe.replace(/["'$`]/g, "")}"
-Log-Msg "Target Exe: ${targetExe.replace(/["'$`]/g, "")}"
-
-$targetPid = ${currentPid}
-$newExe = '${downloadedExe.replace(/'/g, "''")}'
-$targetExe = '${targetExe.replace(/'/g, "''")}'
-
-if ($targetPid -gt 0) {
-    Log-Msg "Waiting natively for PID $targetPid to exit..."
-    try {
-        Wait-Process -Id $targetPid -Timeout 10 -ErrorAction Stop
-        Log-Msg "PID $targetPid terminated cleanly."
-    } catch {
-        Log-Msg "Wait-Process error ($($_)). Force stopping PID $targetPid..."
-        Stop-Process -Id $targetPid -Force -ErrorAction SilentlyContinue
-    }
-}
-
-# Wait for Windows file system locks and mutexes to be released
-Start-Sleep -Milliseconds 800
-
-# In-place replace target executable
-$replaced = $false
-for ($i = 1; $i -le 25; $i++) {
-    try {
-        Move-Item -LiteralPath $newExe -Destination $targetExe -Force -ErrorAction Stop
-        $replaced = $true
-        Log-Msg "Move-Item succeeded on attempt $i."
-        break
-    } catch {
-        Log-Msg "Move-Item attempt $i failed ($($_)). Retrying in 400ms..."
-        Start-Sleep -Milliseconds 400
-    }
-}
-
-# Relaunch updated application
-$targetDir = Split-Path -Parent $targetExe
-try {
-    if ($replaced) {
-        Log-Msg "Relaunching target application: $targetExe in $targetDir"
-        Start-Process -FilePath $targetExe -WorkingDirectory $targetDir
-    } else {
-        $newDir = Split-Path -Parent $newExe
-        Log-Msg "Could not overwrite target. Fallback relaunching new executable directly: $newExe in $newDir"
-        Start-Process -FilePath $newExe -WorkingDirectory $newDir
-    }
-    Log-Msg "Start-Process executed successfully."
-} catch {
-    Log-Msg "Start-Process failed ($($_)). Attempting Windows Explorer shell relaunch..."
-    if ($replaced) {
-        explorer.exe "$targetExe"
-    } else {
-        explorer.exe "$newExe"
-    }
-}
-
-Log-Msg "=== UPDATE RUNNER FINISHED ==="
-`;
-
-    try {
-      fs.writeFileSync(scriptPath, psContent, "utf8");
-    } catch (err) {
-      return { success: false, error: `Failed to write update script: ${err.message}` };
-    }
-
-    // Spawn via Windows Shell 'cmd.exe /c start /min' to guarantee process detachment and survival across parent exit
-    const child = spawn("cmd.exe", [
-      "/c",
-      "start",
-      "/min",
-      "powershell.exe",
-      "-NoProfile",
-      "-ExecutionPolicy", "Bypass",
-      "-WindowStyle", "Hidden",
-      "-File",
-      scriptPath
-    ], {
-      detached: true,
-      stdio: "ignore",
-      windowsHide: true
-    });
-    child.unref();
-
-    // Give OS 500ms to register child process before terminating parent
-    setTimeout(() => {
-      if (typeof cleanupFn === "function") {
-        cleanupFn();
-      } else {
-        app.exit(0);
+    // 1. Primary: Native C++ update runner with Win32 Job Breakaway
+    if (runnerPath && fs.existsSync(runnerPath) && native && typeof native.applyUpdate === "function") {
+      const launched = native.applyUpdate(runnerPath, downloadedExe, targetExe, currentPid, parentPid);
+      if (launched) {
+        setTimeout(() => {
+          if (typeof cleanupFn === "function") cleanupFn();
+          else app.exit(0);
+        }, 350);
+        return { success: true, method: "native-c++" };
       }
-    }, 500);
+    }
 
-    return { success: true };
+    // 2. Direct spawn of native C++ runner executable if FFI call failed
+    if (runnerPath && fs.existsSync(runnerPath)) {
+      const child = spawn(runnerPath, [String(currentPid), downloadedExe, targetExe, String(parentPid)], {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true
+      });
+      child.unref();
+      setTimeout(() => {
+        if (typeof cleanupFn === "function") cleanupFn();
+        else app.exit(0);
+      }, 350);
+      return { success: true, method: "native-exe" };
+    }
+
+    // 3. Fallback: ShellExecuteEx via shell.openPath if runner not found
+    shell.openPath(downloadedExe);
+    setTimeout(() => {
+      if (typeof cleanupFn === "function") cleanupFn();
+      else app.exit(0);
+    }, 400);
+    return { success: true, method: "shell-fallback" };
   }
 
   async syncModules(backendUrl, mainWindow) {
@@ -626,7 +623,7 @@ Log-Msg "=== UPDATE RUNNER FINISHED ==="
 
 const updater = new ClientUpdater();
 
-function registerUpdaterIpc(getNative, cleanupFn) {
+function registerUpdaterIpc(getNative, cleanupFn, getRunnerPath) {
   ipcMain.handle("updater:check-update", async (event) => {
     const window = event.sender.getOwnerBrowserWindow();
     const backendUrl = updater.getBackendUrl(getNative ? getNative() : null);
@@ -650,7 +647,7 @@ function registerUpdaterIpc(getNative, cleanupFn) {
   });
 
   ipcMain.handle("updater:install", async () => {
-    return updater.installUpdate(cleanupFn);
+    return updater.installUpdate(cleanupFn, getNative, getRunnerPath);
   });
 
   ipcMain.handle("updater:get-state", async () => {

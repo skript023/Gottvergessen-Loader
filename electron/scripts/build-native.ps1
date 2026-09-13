@@ -58,6 +58,6 @@ if ($ConfigureOnly -or -not (Test-Path -LiteralPath $cache)) {
 }
 
 if (-not $ConfigureOnly) {
-    & $cmake --build $build --config Release --target GottvergessenNative
+    & $cmake --build $build --config Release --target GottvergessenNative GottvergessenUpdater
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }

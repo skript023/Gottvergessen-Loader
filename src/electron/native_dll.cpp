@@ -9,6 +9,7 @@
 #include <cpr/cpr.h>
 #include <nlohmann/json.hpp>
 #include <Windows.h>
+#include <shellapi.h>
 #include <wincrypt.h>
 #include <cstdlib>
 #include <cctype>
@@ -1072,5 +1073,69 @@ GV_API const char* __cdecl gv_get_backend_url()
 	{
 		return "https://apie.rena.my.id";
 	}
+}
+
+GV_API int __cdecl gv_apply_update(const wchar_t* runner_exe, const wchar_t* new_exe, const wchar_t* target_exe, uint32_t current_pid, uint32_t parent_pid)
+{
+	if (!runner_exe || !new_exe || !target_exe) return 0;
+
+	std::wstring cmd = L"\"" + std::wstring(runner_exe) + L"\" " +
+					   std::to_wstring(current_pid) + L" \"" +
+					   std::wstring(new_exe) + L"\" \"" +
+					   std::wstring(target_exe) + L"\" " +
+					   std::to_wstring(parent_pid);
+
+	STARTUPINFOW si{sizeof(si)};
+	PROCESS_INFORMATION pi{};
+
+	// 1. Try CreateProcessW with breakaway
+	BOOL ok = CreateProcessW(
+		NULL,
+		cmd.data(),
+		NULL,
+		NULL,
+		FALSE,
+		CREATE_BREAKAWAY_FROM_JOB | CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS,
+		NULL,
+		NULL,
+		&si,
+		&pi
+	);
+
+	// 2. Retry without breakaway if job disallowed it
+	if (!ok && GetLastError() == ERROR_ACCESS_DENIED)
+	{
+		ok = CreateProcessW(
+			NULL,
+			cmd.data(),
+			NULL,
+			NULL,
+			FALSE,
+			CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS,
+			NULL,
+			NULL,
+			&si,
+			&pi
+		);
+	}
+
+	if (ok)
+	{
+		CloseHandle(pi.hProcess);
+		CloseHandle(pi.hThread);
+		return 1;
+	}
+
+	// 3. Fallback: ShellExecuteExW
+	SHELLEXECUTEINFOW sei{sizeof(sei)};
+	sei.cbSize = sizeof(sei);
+	sei.fMask = SEE_MASK_NOZONECHECKS;
+	sei.lpVerb = L"open";
+	sei.lpFile = runner_exe;
+	std::wstring params = std::to_wstring(current_pid) + L" \"" + std::wstring(new_exe) + L"\" \"" + std::wstring(target_exe) + L"\" " + std::to_wstring(parent_pid);
+	sei.lpParameters = params.c_str();
+	sei.nShow = SW_HIDE;
+
+	return ShellExecuteExW(&sei) ? 1 : 0;
 }
 

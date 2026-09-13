@@ -38,6 +38,13 @@ function nativePath() {
   return path.join(__dirname, "..", "out", "build", "electron", "bin", "Release", "native-core.dll");
 }
 
+function updateRunnerPath() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "native", "update-runner.exe");
+  }
+  return path.join(__dirname, "..", "out", "build", "electron", "bin", "Release", "update-runner.exe");
+}
+
 function loadNative() {
   const addonPath = nativePath();
   if (!fs.existsSync(addonPath)) {
@@ -70,11 +77,13 @@ function loadNative() {
   let getHwid = null;
   let getBackendUrl = null;
   let getDeviceName = null;
+  let applyUpdate = null;
   try {
     getToken = library.func("str __cdecl gv_get_token()");
     getHwid = library.func("str __cdecl gv_get_hwid()");
     getBackendUrl = library.func("str __cdecl gv_get_backend_url()");
     getDeviceName = library.func("str __cdecl gv_get_device_name()");
+    applyUpdate = library.func("int __cdecl gv_apply_update(str16 runner_exe, str16 new_exe, str16 target_exe, uint32_t current_pid, uint32_t parent_pid)");
   } catch (_) {}
 
   if (!initialize(path.join(app.getPath("appData"), "Ellohim Menu"))) {
@@ -190,6 +199,14 @@ function loadNative() {
     },
     getDeviceName() {
       return (typeof getDeviceName === "function" ? getDeviceName() : "") || "Desktop-PC";
+    },
+    applyUpdate(runnerExe, newExe, targetExe, currentPid, parentPid) {
+      if (typeof applyUpdate === "function") {
+        try {
+          return applyUpdate(runnerExe, newExe, targetExe, currentPid, parentPid || 0) !== 0;
+        } catch (_) {}
+      }
+      return false;
     }
   };
 }
@@ -471,7 +488,7 @@ function registerIpc() {
     });
   });
 
-  registerUpdaterIpc(() => native, cleanupAndExit);
+  registerUpdaterIpc(() => native, cleanupAndExit, updateRunnerPath);
 }
 
 function getRendererPath() {

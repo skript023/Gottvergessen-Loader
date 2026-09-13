@@ -97,7 +97,7 @@ onMounted(async () => {
     const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 4000));
     const res = (await Promise.race([checkPromise, timeoutPromise])) as any;
 
-    if (res && res.hasUpdate && res.latestVersion) {
+    if (res && res.hasUpdate && res.latestVersion && !res.loopPrevented) {
       await startStartupDownload();
       return; // Hold on splash until download finishes and app restarts
     }

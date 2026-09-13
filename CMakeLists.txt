@@ -104,5 +104,22 @@ if(WIN32)
         cpr
         crypt32
         bcrypt
+        shell32
+    )
+
+    add_executable(GottvergessenUpdater WIN32 "${SRC_DIR}/electron/updater_runner.cpp")
+    set_target_properties(GottvergessenUpdater PROPERTIES
+        OUTPUT_NAME "update-runner"
+        CXX_STANDARD 23
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
+    target_compile_definitions(GottvergessenUpdater PRIVATE
+        _CRT_SECURE_NO_WARNINGS
+        NOMINMAX
+        WIN32_LEAN_AND_MEAN
+    )
+    target_link_libraries(GottvergessenUpdater PRIVATE
+        shell32
+        user32
     )
 endif()
