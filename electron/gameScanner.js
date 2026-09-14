@@ -75,18 +75,10 @@ function findMainExecutable(dirPath, defaultName) {
       );
     });
 
-    if (defaultName) {
-      const sanitizedName = defaultName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-      // Match exact or contains name
-      const exactMatch = exes.find(e => {
-        const cleanE = e.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-        return cleanE.startsWith(sanitizedName) || cleanE.includes(sanitizedName);
-      });
-      if (exactMatch) return exactMatch;
-    }
-
-    // Look inside Win64 / Binaries subdirectories commonly used in Unreal/Unity games
-    const subdirs = ["bin", "bin64", "bin/x64", "Binaries/Win64", "Game/Binaries/Win64"];
+    // 1. Look inside Win64 / Binaries subdirectories commonly used in Unreal/Unity games FIRST
+    // Real game shipping executables live in Binaries/Win64 (e.g. ScarletNexus-Win64-Shipping.exe)
+    // while root directory executables are usually just launcher/bootstrap stubs.
+    const subdirs = ["Binaries/Win64", "Game/Binaries/Win64", "bin/x64", "bin64", "bin"];
     for (const sub of subdirs) {
       const fullSub = path.join(dirPath, sub);
       if (fs.existsSync(fullSub)) {
@@ -102,6 +94,9 @@ function findMainExecutable(dirPath, defaultName) {
             );
           });
           if (subExes.length > 0) {
+            // Prioritize Shipping / Win64 executables over bootstrap stubs
+            const shippingExe = subExes.find(e => /win64-shipping|shipping/i.test(e));
+            if (shippingExe) return shippingExe;
             if (defaultName) {
               const sanitizedName = defaultName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
               const match = subExes.find(e => e.replace(/[^a-zA-Z0-9]/g, "").toLowerCase().includes(sanitizedName));
@@ -111,6 +106,17 @@ function findMainExecutable(dirPath, defaultName) {
           }
         } catch (_) {}
       }
+    }
+
+    // 2. Fall back to root directory executables
+    if (defaultName) {
+      const sanitizedName = defaultName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+      // Match exact or contains name
+      const exactMatch = exes.find(e => {
+        const cleanE = e.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+        return cleanE.startsWith(sanitizedName) || cleanE.includes(sanitizedName);
+      });
+      if (exactMatch) return exactMatch;
     }
 
     if (exes.length > 0) {

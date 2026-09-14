@@ -22,6 +22,10 @@ const isBusy = computed(() => {
 
 const isRunning = computed(() => gamesStore.launchStatus === 'running');
 
+const defaultTarget = computed(() => {
+  return binary.value?.target_process || (binary.value as any)?.target || game.value?.exeName || '';
+});
+
 const platformBadgeClass = computed(() => {
   switch (game.value?.platform) {
     case 'steam': return 'platform-steam';
@@ -226,7 +230,10 @@ function handleRemoveCustom() {
             </svg>
             <h3>Target Process</h3>
           </div>
-          <span class="config-status-tag">AUTO-ATTACH</span>
+          <span v-if="gamesStore.runningPid" class="config-status-tag tag-ready">
+            LOCKED (PID: {{ gamesStore.runningPid }})
+          </span>
+          <span v-else class="config-status-tag">AUTO-ATTACH</span>
         </div>
 
         <div class="config-card-body">
@@ -236,13 +243,14 @@ function handleRemoveCustom() {
               v-model="gamesStore.customTargetProcess"
               type="text"
               class="wand-input"
-              placeholder="e.g. Game.exe"
+              :placeholder="defaultTarget || 'e.g. Game.exe'"
+              :disabled="isRunning"
             />
             <button
-              v-if="game.exeName && gamesStore.customTargetProcess !== game.exeName"
+              v-if="defaultTarget && gamesStore.customTargetProcess !== defaultTarget && !isRunning"
               class="btn-reset-target"
-              @click="gamesStore.customTargetProcess = game.exeName"
-              title="Reset to detected executable"
+              @click="gamesStore.customTargetProcess = defaultTarget"
+              title="Reset to recommended target process"
             >
               Reset
             </button>
@@ -301,9 +309,9 @@ function handleRemoveCustom() {
         <div class="config-card-body">
           <p class="config-desc">Execution hook method for target process:</p>
           <select v-model="gamesStore.selectedMode" class="wand-select">
-            <option :value="2">Manual Map (Kernel/Stealth) [Recommended]</option>
+            <option :value="0">CreateRemoteThread (Standard) [Recommended]</option>
+            <option :value="2">Manual Map (Kernel/Stealth - requires GH Injector)</option>
             <option :value="1">Thread Hijack (Evasion)</option>
-            <option :value="0">CreateRemoteThread (Standard)</option>
             <option :value="3">Reflective DLL Injection</option>
           </select>
         </div>

@@ -78,12 +78,14 @@ function loadNative() {
   let getBackendUrl = null;
   let getDeviceName = null;
   let applyUpdate = null;
+  let isWindowReady = null;
   try {
     getToken = library.func("str __cdecl gv_get_token()");
     getHwid = library.func("str __cdecl gv_get_hwid()");
     getBackendUrl = library.func("str __cdecl gv_get_backend_url()");
     getDeviceName = library.func("str __cdecl gv_get_device_name()");
     applyUpdate = library.func("int __cdecl gv_apply_update(str16 runner_exe, str16 new_exe, str16 target_exe, uint32_t current_pid, uint32_t parent_pid)");
+    isWindowReady = library.func("bool __cdecl gv_is_window_ready(uint32_t pid)");
   } catch (_) {}
 
   if (!initialize(path.join(app.getPath("appData"), "Ellohim Menu"))) {
@@ -105,6 +107,14 @@ function loadNative() {
     },
     operationStatus() {
       return JSON.parse(operationStatusJson());
+    },
+    isWindowReady(pid) {
+      if (typeof isWindowReady === "function") {
+        try {
+          return Boolean(isWindowReady(pid));
+        } catch (_) {}
+      }
+      return false;
     },
     setTarget(processName, pid) {
       if (!setTarget(processName, pid)) throw new Error(lastError() || "Could not set target");
@@ -436,11 +446,11 @@ function registerIpc() {
     const { launchUri, exePath, targetProcess, binaryIndex, mode } = params || {};
     const addon = requireNative();
 
-    // 1. Configure binary if provided
+    // 1. Configure binary if provided (default to Mode 0: CreateRemoteThread which is rock-solid)
     const hasBinary = Number.isInteger(binaryIndex) && binaryIndex >= 0;
     if (hasBinary) {
       addon.selectBinary(binaryIndex);
-      addon.setInjectionMode(Number.isInteger(mode) ? mode : 2);
+      addon.setInjectionMode(Number.isInteger(mode) ? mode : 0);
     }
 
     // 2. Launch game
@@ -459,49 +469,104 @@ function registerIpc() {
       throw new Error("No launch command or executable path provided.");
     }
 
-    // 3. If no target process specified, simply launch
-    if (!targetProcess) {
+    // 3. Resolve target process (fallback to binary settings if targetProcess not provided)
+    let effectiveTarget = targetProcess ? targetProcess.trim() : "";
+    if (!effectiveTarget && hasBinary) {
+      try {
+        const binList = addon.refreshBinaries ? await addon.refreshBinaries() : [];
+        if (Array.isArray(binList) && binList[binaryIndex]) {
+          effectiveTarget = (binList[binaryIndex].target_process || binList[binaryIndex].target || "").trim();
+        }
+      } catch (_) {}
+    }
+
+    if (!effectiveTarget) {
       return { success: true, message: "Game launched." };
     }
 
-    const targetLower = targetProcess.trim().toLowerCase();
+    const targetLower = effectiveTarget.toLowerCase();
+    const targetStem = targetLower.replace(/\.exe$/i, "");
+    const isLauncherCandidate = !targetLower.includes("shipping") && !targetLower.includes("win64");
 
     // 4. Poll process list for target process (up to 45 seconds)
     const maxPolls = 90; // 90 * 500ms = 45s
     let foundProc = null;
+    let launcherProcSeen = null;
 
     for (let i = 0; i < maxPolls; i++) {
       await new Promise(r => setTimeout(r, 500));
       try {
         const procs = addon.listProcesses();
-        foundProc = procs.find(p => {
-          const nameLower = p.name.toLowerCase();
-          return nameLower === targetLower || nameLower.startsWith(targetLower.replace(".exe", ""));
+
+        // 4a. Check exact match on targetProcess
+        let match = procs.find(p => p.name.toLowerCase() === targetLower);
+
+        // 4b. If targetProcess might be a launcher (e.g. Game.exe), check if a shipping child has spawned (e.g. Game-Win64-Shipping.exe)
+        const shippingMatch = procs.find(p => {
+          const nl = p.name.toLowerCase();
+          return nl.startsWith(targetStem) && (nl.includes("shipping") || nl.includes("win64"));
         });
-        if (foundProc) break;
+
+        if (shippingMatch) {
+          foundProc = shippingMatch;
+          break;
+        }
+
+        // 4c. If exact match was found
+        if (match) {
+          // If the match is a launcher stub, give 1.5s (3 polls) for shipping child, else lock immediately
+          if (isLauncherCandidate && i < 3) {
+            launcherProcSeen = match;
+          } else {
+            foundProc = match;
+            break;
+          }
+        } else if (!foundProc) {
+          // 4d. Fallback match: target with .exe extension
+          const extMatch = procs.find(p => p.name.toLowerCase() === `${targetLower}.exe`);
+          if (extMatch) {
+            foundProc = extMatch;
+            break;
+          }
+        }
       } catch (_) {}
     }
 
-    if (!foundProc) {
-      throw new Error(`Game launched, but process "${targetProcess}" was not detected within 45 seconds.`);
+    if (!foundProc && launcherProcSeen) {
+      foundProc = launcherProcSeen;
     }
 
-    // 5. Target discovered! Lock target
+    if (!foundProc) {
+      throw new Error(`Game launched, but process "${effectiveTarget}" was not detected within 45 seconds.`);
+    }
+
+    // 5. Target discovered! Lock target process & PID in native core
     addon.setTarget(foundProc.name, foundProc.pid);
 
-    // 6. Wait 2 seconds for memory initialization
-    await new Promise(r => setTimeout(r, 2000));
+    // 6. Wait for game window initialization (DirectX / swapchain creation)
+    let windowDetected = false;
+    const maxWindowPolls = 8; // 8 * 500ms = 4s max
+    for (let w = 0; w < maxWindowPolls; w++) {
+      if (addon.isWindowReady && addon.isWindowReady(foundProc.pid)) {
+        windowDetected = true;
+        break;
+      }
+      await new Promise(r => setTimeout(r, 500));
+    }
 
-    // 7. If binary was selected, execute auto-injection
+    // 7. Settling grace period: Wait 1.0s after window is visible (or 1.5s if timeout fallback)
+    await new Promise(r => setTimeout(r, windowDetected ? 1000 : 1500));
+
+    // 8. If binary was selected, execute auto-injection
     let injected = false;
     if (hasBinary) {
       injected = await addon.downloadAndInject();
       if (!injected) {
-        throw new Error("Process detected, but auto-injection failed. Check engine logs.");
+        throw new Error(`Process "${foundProc.name}" (PID: ${foundProc.pid}) detected, but auto-injection failed. Check engine logs.`);
       }
     }
 
-    // 8. Start active liveness monitor for running game
+    // 9. Start active liveness monitor for running game
     stopGameMonitor();
     const runningTargetPid = foundProc.pid;
     const runningTargetName = foundProc.name;
@@ -523,7 +588,9 @@ function registerIpc() {
       pid: foundProc.pid,
       processName: foundProc.name,
       injected,
-      message: injected ? `Game running and payload injected (PID: ${foundProc.pid})` : `Game running (PID: ${foundProc.pid})`
+      message: injected
+        ? `Playing with Ellohim Payload Injected into ${foundProc.name} (PID: ${foundProc.pid})`
+        : `Game running (${foundProc.name}, PID: ${foundProc.pid})`
     };
   });
 

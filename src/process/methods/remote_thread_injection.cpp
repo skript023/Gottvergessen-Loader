@@ -9,7 +9,7 @@ namespace gottvergessen
 		HANDLE m_create_remote_thread{ NULL };
 		LPVOID m_virtual_alloc{ NULL };
 
-		auto cleanup = [m_handle, m_create_remote_thread, m_virtual_alloc]() -> void
+		auto cleanup = [&]() -> void
 		{
 			if (m_virtual_alloc && m_handle)
 				VirtualFreeEx(m_handle, m_virtual_alloc, NULL, MEM_RELEASE);
@@ -75,8 +75,26 @@ namespace gottvergessen
 			return false;
 		}
 
-		// Wait up to 5 seconds for LoadLibraryA to finish executing inside target process before cleaning up
-		WaitForSingleObject(m_create_remote_thread, 5000);
+		// Wait up to 10 seconds for LoadLibraryA to finish executing inside target process
+		DWORD wait_res = WaitForSingleObject(m_create_remote_thread, 10000);
+		if (wait_res != WAIT_OBJECT_0)
+		{
+			LOG(WARNING) << "Timed out waiting for LoadLibraryA thread in target process.";
+			cleanup();
+			return false;
+		}
+
+		DWORD thread_exit_code = 0;
+		if (GetExitCodeThread(m_create_remote_thread, &thread_exit_code))
+		{
+			if (thread_exit_code == 0)
+			{
+				LOG(WARNING) << "LoadLibraryA returned NULL in target process (failed to load " << file_name << ").";
+				cleanup();
+				return false;
+			}
+			LOG(HACKER) << "Remote LoadLibraryA returned base module address: 0x" << std::uppercase << std::hex << thread_exit_code;
+		}
 
 		cleanup();
 		return true;

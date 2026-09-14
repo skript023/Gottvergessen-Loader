@@ -36,11 +36,14 @@ export const useBinariesStore = defineStore('binaries', () => {
       case 1: return 'Thread Hijack';
       case 2: return 'Manual Map';
       case 3: return 'Reflective';
-      default: return 'Manual Map';
+      default: return 'Remote Thread';
     }
   }
 
   function restoreLocalFallback(binary: BinaryItem) {
+    if (!binary.target_process && (binary as any).target) {
+      binary.target_process = (binary as any).target;
+    }
     try {
       const localStore = JSON.parse(localStorage.getItem('ellohim_binary_settings') || '{}');
       if (localStore[binary.id]) {
@@ -64,6 +67,9 @@ export const useBinariesStore = defineStore('binaries', () => {
   function setBinaries(items: BinaryItem[]) {
     binaries.value = items.map((b) => {
       const clone = { ...b };
+      if (!clone.target_process && (b as any).target) {
+        clone.target_process = (b as any).target;
+      }
       restoreLocalFallback(clone);
       return clone;
     });

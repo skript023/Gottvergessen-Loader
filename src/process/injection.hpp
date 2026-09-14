@@ -99,7 +99,7 @@ namespace gottvergessen
 		void set_injection_mode_impl(InjectionMode mode);
 		InjectionMode get_injection_mode_impl() const { return m_mode; }
 
-		void set_target_process_impl(const std::string& process_name) { m_target_process = process_name; m_selected_pid = 0; }
+		void set_target_process_impl(const std::string& process_name) { m_target_process = process_name; }
 		std::string get_target_process_impl() const { return m_target_process; }
 
 		void set_target_pid_impl(std::uint32_t pid) { m_selected_pid = pid; }

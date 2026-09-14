@@ -23,7 +23,7 @@ export const useGamesStore = defineStore('games', () => {
   const runningPid = ref<number | null>(null);
   const customTargetProcess = ref('');
   const selectedBinaryId = ref<string | null>(null);
-  const selectedMode = ref<number>(2);
+  const selectedMode = ref<number>(0);
   const isSavingServerConfig = ref(false);
 
   const selectedGame = computed<InstalledGameItem | null>(() => {
@@ -60,7 +60,8 @@ export const useGamesStore = defineStore('games', () => {
     const getBinaryTokens = (b: BinaryItem) => {
       const bName = (b.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       const bGame = (b.game || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const bTarget = (b.target_process || '').toLowerCase().trim();
+      const rawTarget = b.target_process || (b as any).target || '';
+      const bTarget = rawTarget.toLowerCase().trim();
       return { bName, bGame, bTarget };
     };
 
@@ -151,8 +152,9 @@ export const useGamesStore = defineStore('games', () => {
         const matched = getGameMatchedBinary(g);
         if (matched) {
           selectedBinaryId.value = matched.id;
-          customTargetProcess.value = g.exeName || matched.target_process || '';
-          selectedMode.value = matched.injection_mode ?? 2;
+          const targetProc = matched.target_process || (matched as any).target || g.exeName || '';
+          customTargetProcess.value = targetProc;
+          selectedMode.value = matched.injection_mode ?? 0;
 
           const bIdx = binariesStore.binaries.findIndex((b) => b.id === matched.id);
           if (bIdx >= 0) binariesStore.selectBinary(bIdx);
@@ -181,8 +183,9 @@ export const useGamesStore = defineStore('games', () => {
     if (binaryId) {
       const b = binariesStore.binaries.find((item) => item.id === binaryId);
       if (b) {
-        if (b.target_process) {
-          customTargetProcess.value = b.target_process;
+        const targetProc = b.target_process || (b as any).target || '';
+        if (targetProc) {
+          customTargetProcess.value = targetProc;
         } else if (selectedGame.value?.exeName) {
           customTargetProcess.value = selectedGame.value.exeName;
         }
@@ -197,8 +200,9 @@ export const useGamesStore = defineStore('games', () => {
       const matched = getGameMatchedBinary(selectedGame.value);
       if (matched) {
         selectedBinaryId.value = matched.id;
-        customTargetProcess.value = selectedGame.value.exeName || matched.target_process || '';
-        selectedMode.value = matched.injection_mode ?? 2;
+        const targetProc = matched.target_process || (matched as any).target || selectedGame.value.exeName || '';
+        customTargetProcess.value = targetProc;
+        selectedMode.value = matched.injection_mode ?? 0;
         const bIdx = binariesStore.binaries.findIndex((item) => item.id === matched.id);
         if (bIdx >= 0) binariesStore.selectBinary(bIdx);
       } else {
@@ -302,8 +306,8 @@ export const useGamesStore = defineStore('games', () => {
     const game = selectedGame.value;
     if (!game) return;
 
-    const targetProc = customTargetProcess.value || game.exeName || '';
     const binary = matchedBinary.value;
+    const targetProc = customTargetProcess.value || game.exeName || (binary?.target_process || (binary as any)?.target) || '';
     const binaryIndex = binary
       ? binariesStore.binaries.findIndex((b) => b.id === binary.id)
       : -1;
@@ -340,15 +344,24 @@ export const useGamesStore = defineStore('games', () => {
       if (result.success) {
         launchStatus.value = 'running';
         runningPid.value = result.pid || null;
+        if (result.processName) {
+          customTargetProcess.value = result.processName;
+        }
         launchMessage.value = result.injected
-          ? `Playing with Ellohim Payload Injected (PID: ${result.pid})`
-          : `Game running (PID: ${result.pid})`;
+          ? `Playing with Ellohim Payload Injected into ${result.processName || targetProc} (PID: ${result.pid})`
+          : `Game running (${result.processName || targetProc}, PID: ${result.pid})`;
         diagnostics.addLog(
-          `${game.name} launched successfully! ${result.injected ? `[Injected ${binary?.name || 'DLL'}]` : ''} PID: ${result.pid}`,
+          `${game.name} launched successfully! ${result.injected ? `[Injected ${binary?.name || 'DLL'}]` : ''} Target: ${result.processName || targetProc}, PID: ${result.pid}`,
           'success'
         );
         if (result.pid) {
-          startProcessLivenessMonitor(result.pid, targetProc || game.exeName || '');
+          processStore.selectProcess({
+            name: result.processName || targetProc,
+            pid: result.pid,
+            arch: 'x64',
+            accessible: true
+          }, false);
+          startProcessLivenessMonitor(result.pid, result.processName || targetProc);
         }
       } else {
         launchStatus.value = 'error';

@@ -15,14 +15,60 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <memory>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <vector>
 
 namespace
 {
 	using namespace gottvergessen;
+
+	std::string calculate_file_sha256(const std::filesystem::path& path)
+	{
+		std::ifstream file(path, std::ios::binary);
+		if (!file.is_open())
+			return "";
+
+		HCRYPTPROV hProv = 0;
+		if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT))
+			return "";
+
+		HCRYPTHASH hHash = 0;
+		if (!CryptCreateHash(hProv, CALG_SHA_256, 0, 0, &hHash))
+		{
+			CryptReleaseContext(hProv, 0);
+			return "";
+		}
+
+		char buffer[8192];
+		while (file.read(buffer, sizeof(buffer)) || file.gcount() > 0)
+		{
+			if (!CryptHashData(hHash, reinterpret_cast<const BYTE*>(buffer), static_cast<DWORD>(file.gcount()), 0))
+			{
+				CryptDestroyHash(hHash);
+				CryptReleaseContext(hProv, 0);
+				return "";
+			}
+		}
+
+		BYTE hash_bytes[32];
+		DWORD hash_len = sizeof(hash_bytes);
+		std::string hash_hex;
+		if (CryptGetHashParam(hHash, HP_HASHVAL, hash_bytes, &hash_len, 0))
+		{
+			std::ostringstream oss;
+			for (DWORD i = 0; i < hash_len; ++i)
+				oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash_bytes[i]);
+			hash_hex = oss.str();
+		}
+
+		CryptDestroyHash(hHash);
+		CryptReleaseContext(hProv, 0);
+		return hash_hex;
+	}
 
 	std::unique_ptr<logger> g_native_logger;
 	thread_local std::string g_result;
@@ -297,6 +343,47 @@ GV_API bool __cdecl gv_set_injection_mode(int mode)
 	injection::set_injection_mode(static_cast<InjectionMode>(mode));
 	clear_error();
 	return true;
+}
+
+namespace
+{
+	struct WindowSearch
+	{
+		DWORD pid;
+		HWND hwnd;
+	};
+
+	BOOL CALLBACK EnumWindowsCheckProc(HWND hwnd, LPARAM lParam)
+	{
+		WindowSearch* search = reinterpret_cast<WindowSearch*>(lParam);
+		DWORD pid = 0;
+		GetWindowThreadProcessId(hwnd, &pid);
+		if (pid == search->pid)
+		{
+			if (IsWindowVisible(hwnd))
+			{
+				LONG style = GetWindowLong(hwnd, GWL_STYLE);
+				if ((style & WS_VISIBLE) && !(style & WS_CHILD))
+				{
+					RECT rect;
+					if (GetClientRect(hwnd, &rect) && (rect.right - rect.left > 80) && (rect.bottom - rect.top > 80))
+					{
+						search->hwnd = hwnd;
+						return FALSE; // Window is rendered and ready
+					}
+				}
+			}
+		}
+		return TRUE;
+	}
+}
+
+GV_API bool __cdecl gv_is_window_ready(unsigned int pid)
+{
+	if (pid == 0) return false;
+	WindowSearch search{ static_cast<DWORD>(pid), NULL };
+	EnumWindows(EnumWindowsCheckProc, reinterpret_cast<LPARAM>(&search));
+	return search.hwnd != NULL;
 }
 
 GV_API int __cdecl gv_validate_library(const wchar_t* dll_path)
@@ -885,6 +972,7 @@ GV_API int __cdecl gv_download_and_inject()
 
 	const std::string binary_id = binary.value("id", "");
 	const std::string target = binary.value("target", "");
+	const std::string expected_checksum = binary.value("checksum", "");
 	if (binary_id.empty())
 	{
 		set_error("Selected binary has no server ID");
@@ -893,6 +981,7 @@ GV_API int __cdecl gv_download_and_inject()
 	}
 
 	std::filesystem::path encrypted_path;
+	std::filesystem::path sha256_path;
 	std::filesystem::path decrypted_path;
 	try
 	{
@@ -900,21 +989,42 @@ GV_API int __cdecl gv_download_and_inject()
 		std::error_code dir_ec;
 		std::filesystem::create_directories(cache_dir, dir_ec);
 		encrypted_path = cache_dir / (binary_id + ".enc");
+		sha256_path = cache_dir / (binary_id + ".sha256");
 
 		bool need_download = true;
 		std::error_code check_ec;
-		if (std::filesystem::exists(encrypted_path, check_ec))
+		if (std::filesystem::exists(encrypted_path, check_ec) && !check_ec)
 		{
 			auto file_sz = std::filesystem::file_size(encrypted_path, check_ec);
 			// Valid encrypted file contains 32B AES Key + 12B IV + 16B tag + ciphertext
 			if (!check_ec && file_sz >= 64)
 			{
-				need_download = false;
+				if (!expected_checksum.empty())
+				{
+					std::ifstream sha_file(sha256_path);
+					if (sha_file.is_open())
+					{
+						std::string cached_sha;
+						sha_file >> cached_sha;
+						if (!cached_sha.empty() && _stricmp(cached_sha.c_str(), expected_checksum.c_str()) == 0)
+						{
+							need_download = false;
+						}
+					}
+				}
+				else
+				{
+					need_download = false;
+				}
 			}
 		}
 
 		if (need_download)
 		{
+			std::error_code ignored;
+			std::filesystem::remove(encrypted_path, ignored);
+			std::filesystem::remove(sha256_path, ignored);
+
 			set_operation(8, "Downloading encrypted binary");
 			if (!encrypted_downloader::download_encrypted_to_file(
 			        environment_manager::get_base_url(),
@@ -927,7 +1037,6 @@ GV_API int __cdecl gv_download_and_inject()
 			{
 				set_error("Encrypted binary download failed");
 				set_operation(0, "Download failed", false);
-				std::error_code ignored;
 				std::filesystem::remove(encrypted_path, ignored);
 				return 0;
 			}
@@ -948,6 +1057,7 @@ GV_API int __cdecl gv_download_and_inject()
 			// If cached file was corrupted or payload format changed, clean and retry fresh download
 			std::error_code ignored;
 			std::filesystem::remove(encrypted_path, ignored);
+			std::filesystem::remove(sha256_path, ignored);
 
 			set_operation(20, "Cached binary payload invalid, re-downloading fresh payload");
 			if (!encrypted_downloader::download_encrypted_to_file(
@@ -979,21 +1089,77 @@ GV_API int __cdecl gv_download_and_inject()
 			}
 		}
 
+		// Verify decrypted DLL integrity against server checksum if provided
+		if (!expected_checksum.empty())
+		{
+			std::string actual_sha = calculate_file_sha256(decrypted_path);
+			if (_stricmp(actual_sha.c_str(), expected_checksum.c_str()) != 0)
+			{
+				LOG(WARNING) << "Decrypted DLL checksum mismatch! Expected: " << expected_checksum << ", got: " << actual_sha;
+				std::error_code ignored;
+				std::filesystem::remove(encrypted_path, ignored);
+				std::filesystem::remove(sha256_path, ignored);
+				std::filesystem::remove(decrypted_path, ignored);
+
+				set_operation(20, "Checksum mismatch, re-downloading fresh payload");
+				if (!encrypted_downloader::download_encrypted_to_file(
+				        environment_manager::get_base_url(),
+				        binary_id,
+				        token,
+				        encrypted_path,
+				        [](float progress) {
+					        set_operation(20 + static_cast<int>(progress * 55.0f), "Re-downloading fresh encrypted binary");
+				        }))
+				{
+					set_error("Encrypted binary download failed on retry");
+					set_operation(0, "Download failed", false);
+					return 0;
+				}
+
+				set_operation(80, "Decrypting fresh binary");
+				if (!encrypted_downloader::decrypt_file_to_temp(
+				        environment_manager::get_base_url(),
+				        binary_id,
+				        token,
+				        encrypted_path,
+				        decrypted_path))
+				{
+					set_error("Binary decryption failed on retry");
+					set_operation(0, "Decryption failed", false);
+					std::filesystem::remove(encrypted_path, ignored);
+					return 0;
+				}
+
+				actual_sha = calculate_file_sha256(decrypted_path);
+				if (_stricmp(actual_sha.c_str(), expected_checksum.c_str()) != 0)
+				{
+					set_error("Binary integrity verification failed after fresh download");
+					set_operation(0, "Integrity check failed", false);
+					std::filesystem::remove(decrypted_path, ignored);
+					return 0;
+				}
+			}
+
+			// Save verified checksum sidecar
+			std::ofstream sha_out(sha256_path);
+			if (sha_out.is_open())
+				sha_out << expected_checksum;
+		}
+
 		set_operation(92, "Starting native operation");
-		if (!target.empty())
+		// Only set target process from binary payload if no target process has been explicitly locked by caller
+		if (injection::get_target_process().empty() && !target.empty())
 			injection::set_target_process(target);
+		LOG(HACKER) << "[gv_download_and_inject] Target process: " << injection::get_target_process()
+		            << ", PID: " << injection::get_target_pid()
+		            << ", Method Mode: " << static_cast<int>(injection::get_injection_mode());
 		const bool success = injection::inject_library(decrypted_path);
-		// Clean up plaintext decrypted temporary DLL: Try direct delete, fallback to .tmp rename + delayed delete
+		// Clean up plaintext decrypted temporary DLL: Try direct delete, fallback to delayed delete WITHOUT renaming
 		std::error_code ec;
 		std::filesystem::remove(decrypted_path, ec);
 		if (ec)
 		{
-			std::filesystem::path renamed_tmp_path = decrypted_path;
-			renamed_tmp_path.replace_extension(".tmp");
-			std::error_code rename_ec;
-			std::filesystem::rename(decrypted_path, renamed_tmp_path, rename_ec);
-			std::filesystem::path file_to_flag = rename_ec ? decrypted_path : renamed_tmp_path;
-			MoveFileExW(file_to_flag.c_str(), NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
+			MoveFileExW(decrypted_path.c_str(), NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
 		}
 		if (!success)
 		{
