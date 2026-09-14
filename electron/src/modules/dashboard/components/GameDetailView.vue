@@ -95,8 +95,8 @@ function handleRemoveCustom() {
               </span>
               <span v-if="game.appId" class="badge-appid">ID: {{ game.appId }}</span>
               <span v-if="game.isCustom" class="badge-custom">CUSTOM EXECUTABLE</span>
-              <span v-if="binary" class="badge-server-linked" title="Payload linked from Ellohim Server">
-                ⚡ SERVER MOD LINKED
+              <span v-if="binary" class="badge-server-linked" title="Payload linked from Cloud Security Network">
+                ⚡ CLOUD MOD LINKED
               </span>
               <span v-else class="badge-unsupported" title="This game is not supported by Quantum Mod">
                 🛡️ NOT SUPPORTED BY QUANTUM MOD
@@ -140,7 +140,7 @@ function handleRemoveCustom() {
                   <span class="play-main-text">
                     {{ gamesStore.launchStatus === 'launching' ? 'LAUNCHING...' : 'INITIALIZING...' }}
                   </span>
-                  <span class="play-sub-text">Connecting to Ellohim Core</span>
+                  <span class="play-sub-text">Connecting to Mod Core</span>
                 </div>
               </template>
 
@@ -265,14 +265,14 @@ function handleRemoveCustom() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
             </svg>
-            <h3>Ellohim Server Payload</h3>
+            <h3>Cloud Mod Payload</h3>
           </div>
           <span class="config-status-tag tag-ready">SYNCED</span>
         </div>
 
         <div class="config-card-body">
           <p class="config-desc">
-            DLL payload from Ellohim backend
+            DLL payload from Cloud Security Network
             <span class="binary-filename-tag">({{ binary.file_name || 'payload.dll' }})</span>:
           </p>
           <select
@@ -318,11 +318,11 @@ function handleRemoveCustom() {
       </div>
     </div>
 
-    <!-- Ellohim-Server Sync & License Bar: Only shown when binary is linked -->
+    <!-- Cloud Sync & License Bar: Only shown when binary is linked -->
     <div v-if="binary" class="server-sync-bar">
       <div class="server-sync-info">
         <div class="server-status-dot"></div>
-        <span>Ellohim Server: <strong>https://apie.rena.my.id</strong></span>
+        <span>Cloud Network: <strong>Encrypted & Connected</strong></span>
         <span>•</span>
         <span>User: <strong>{{ auth.displayName }}</strong> ({{ auth.role || 'Member' }})</span>
         <span>•</span>
@@ -335,9 +335,9 @@ function handleRemoveCustom() {
           :disabled="gamesStore.isSavingServerConfig"
           @click="handleSaveToServer"
         >
-          <span v-if="saveSuccess">✓ Saved to Ellohim Server!</span>
-          <span v-else-if="gamesStore.isSavingServerConfig">Saving to Server...</span>
-          <span v-else>Save Mapping to Ellohim Server</span>
+          <span v-if="saveSuccess">✓ Saved to Cloud!</span>
+          <span v-else-if="gamesStore.isSavingServerConfig">Saving to Cloud...</span>
+          <span v-else>Save Mapping to Cloud</span>
         </button>
       </div>
     </div>

@@ -98,8 +98,14 @@ onMounted(async () => {
     const res = (await Promise.race([checkPromise, timeoutPromise])) as any;
 
     if (res && res.hasUpdate && res.latestVersion && !res.loopPrevented) {
-      await startStartupDownload();
-      return; // Hold on splash until download finishes and app restarts
+      if (res.isMandatory) {
+        await startStartupDownload();
+        return; // Hold on splash until download finishes and app restarts
+      } else {
+        // Optional update: let user into the app, show update modal / banner
+        updater.allowModal = true;
+        updater.modalVisible = true;
+      }
     }
   } catch (err) {
     console.warn('[AutoUpdater] Startup update check failed, proceeding to session:', err);
@@ -144,8 +150,8 @@ onMounted(async () => {
         <div class="splash-info">
           <span class="splash-eyebrow">
             {{ startupPhase === 'updating'
-                ? (updater.isMandatory ? 'CRITICAL SYSTEM GATE • v' + updater.latestVersion : 'ELLOHIM AUTO-UPDATER • v' + updater.latestVersion)
-                : 'ELLOHIM SECURITY GATEWAY' }}
+                ? (updater.isMandatory ? 'CRITICAL SYSTEM GATE • v' + updater.latestVersion : 'QUANTUM AUTO-UPDATER • v' + updater.latestVersion)
+                : 'QUANTUM SECURITY GATEWAY' }}
           </span>
           <h2 class="splash-title">
             {{ startupPhase === 'updating' ? 'Updating Gottvergessen Loader' : 'Gottvergessen Loader' }}

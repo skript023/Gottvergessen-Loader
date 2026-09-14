@@ -51,6 +51,13 @@ function loadNative() {
     throw new Error(`Native addon not found: ${addonPath}. Run npm run native:build first.`);
   }
 
+  // Hide C++ console in production/packaged builds, but allow in development mode
+  if (!app.isPackaged || process.env.NODE_ENV === "development") {
+    process.env.GV_ENABLE_CONSOLE = "1";
+  } else {
+    delete process.env.GV_ENABLE_CONSOLE;
+  }
+
   nativeLibrary = koffi.load(addonPath);
   const library = nativeLibrary;
   const initialize = library.func("bool __cdecl gv_initialize(str16 base_directory)");
@@ -589,7 +596,7 @@ function registerIpc() {
       processName: foundProc.name,
       injected,
       message: injected
-        ? `Playing with Ellohim Payload Injected into ${foundProc.name} (PID: ${foundProc.pid})`
+        ? `Playing with Mod Payload Injected into ${foundProc.name} (PID: ${foundProc.pid})`
         : `Game running (${foundProc.name}, PID: ${foundProc.pid})`
     };
   });

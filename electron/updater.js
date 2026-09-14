@@ -8,7 +8,7 @@ const { app, ipcMain, shell } = require("electron");
 
 class ClientUpdater {
   constructor() {
-    this.currentVersion = app.isPackaged ? app.getVersion() : "1.0.0";
+    this.currentVersion = this.resolveCurrentVersion();
     this.activeDownload = null;
     this.updateState = {
       isChecking: false,
@@ -62,16 +62,28 @@ class ClientUpdater {
   }
 
   resolveCurrentVersion() {
-    let baseVer = app.isPackaged ? app.getVersion() : "1.0.0";
+    let pkgVer = "1.0.5";
+    try {
+      pkgVer = require("./package.json").version || "1.0.5";
+    } catch (_) {}
+
+    let baseVer = "";
+    try {
+      baseVer = app.getVersion();
+    } catch (_) {}
+    if (!baseVer || baseVer === "1.0.0") {
+      baseVer = pkgVer;
+    }
+
     try {
       const exeTarget = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath || "";
       const exeName = path.basename(exeTarget);
       const match = exeName.match(/(\d+\.\d+\.\d+)/);
       if (match && this.isVersionNewer(baseVer, match[1])) {
-        return match[1];
+        baseVer = match[1];
       }
     } catch (_) {}
-    return baseVer;
+    return baseVer || "1.0.5";
   }
 
   getHistoryFilePath() {
@@ -123,6 +135,16 @@ class ClientUpdater {
     this.updateState.error = null;
     this.currentVersion = this.resolveCurrentVersion();
 
+    // 1. Guard: Check if running in development mode or explicitly bypassed
+    const isDev = !app.isPackaged || process.argv.includes("--no-updater") || process.argv.includes("--skip-update") || process.env.SKIP_UPDATE === "1";
+    if (isDev) {
+      console.log(`[AutoUpdater] Dev/unpackaged environment or --skip-update flag detected (version ${this.currentVersion}). Auto-update bypassed.`);
+      this.updateState.hasUpdate = false;
+      this.updateState.isMandatory = false;
+      this.updateState.isChecking = false;
+      return { success: true, ...this.updateState, isDev: true, message: "Auto-updater bypassed in development" };
+    }
+
     try {
       const url = new URL(`${backendUrl}/client/check-update`);
       url.searchParams.set("version", this.currentVersion);
@@ -157,6 +179,26 @@ class ClientUpdater {
       const data = payload.data || {};
       const latestVer = data.latest_version || this.currentVersion;
       const isNewer = this.isVersionNewer(this.currentVersion, latestVer);
+
+      // 2. Guard: Check if running executable SHA-256 matches latest release checksum
+      if (isNewer && data.latest_release && data.latest_release.checksum) {
+        try {
+          const currentExe = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
+          if (currentExe && fs.existsSync(currentExe)) {
+            const currentHash = await this.computeFileSha256(currentExe);
+            if (currentHash.toLowerCase() === data.latest_release.checksum.toLowerCase()) {
+              console.log(`[AutoUpdater] Current running executable checksum matches server latest release (${currentHash}). Client is already on this build.`);
+              this.updateState.hasUpdate = false;
+              this.updateState.isMandatory = false;
+              this.updateState.latestVersion = latestVer;
+              this.updateState.isChecking = false;
+              return { success: true, ...this.updateState, message: "Client binary is identical to latest release" };
+            }
+          }
+        } catch (hashErr) {
+          console.warn("[AutoUpdater] Failed to verify current executable hash:", hashErr);
+        }
+      }
 
       // Guard against infinite relaunch loops when server hosts a binary with stale package.json
       if (isNewer && this.isLoopingOnVersion(latestVer)) {

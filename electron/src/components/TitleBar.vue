@@ -73,7 +73,7 @@ async function handleClose() {
         </svg>
       </div>
       <span class="titlebar-title-text">Gottvergessen Loader - Control Center</span>
-      <span class="titlebar-badge-core">ELLOHIM</span>
+      <span class="titlebar-badge-core">SECURITY CORE</span>
     </div>
 
     <!-- Draggable Middle Area -->

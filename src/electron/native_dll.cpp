@@ -713,8 +713,7 @@ GV_API const char* __cdecl gv_refresh_binaries()
 		auto body = nlohmann::ordered_json::parse(response.text, nullptr, false);
 		if (body.is_discarded() || response.status_code < 200 || response.status_code >= 300)
 		{
-			set_error("GET " + environment_manager::get_url("/binary/my-binaries")
-			    + " failed (HTTP " + std::to_string(response.status_code) + "): "
+			set_error("Failed to load catalog (HTTP " + std::to_string(response.status_code) + "): "
 			    + response_message(response, body));
 			return nullptr;
 		}
@@ -812,8 +811,7 @@ GV_API const char* __cdecl gv_profile_json()
 		auto body = nlohmann::ordered_json::parse(response.text, nullptr, false);
 		if (body.is_discarded() || response.status_code < 200 || response.status_code >= 300)
 		{
-			set_error("GET " + environment_manager::get_url("/user/profile")
-			    + " failed (HTTP " + std::to_string(response.status_code) + "): " + response_message(response, body));
+			set_error("Failed to load profile (HTTP " + std::to_string(response.status_code) + "): " + response_message(response, body));
 			return nullptr;
 		}
 		auto profile = body.contains("data") && body["data"].is_object() ? body["data"] : body;
@@ -919,8 +917,7 @@ GV_API int __cdecl gv_save_binary_settings(const char* binary_id, const char* ta
 		auto body = nlohmann::ordered_json::parse(response.text, nullptr, false);
 		if (body.is_discarded() || response.status_code < 200 || response.status_code >= 300)
 		{
-			set_error("POST " + environment_manager::get_url("/binary/settings")
-			    + " failed (HTTP " + std::to_string(response.status_code) + "): "
+			set_error("Failed to save settings (HTTP " + std::to_string(response.status_code) + "): "
 			    + response_message(response, body));
 			return 0;
 		}

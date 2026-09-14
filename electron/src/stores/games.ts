@@ -160,7 +160,7 @@ export const useGamesStore = defineStore('games', () => {
           if (bIdx >= 0) binariesStore.selectBinary(bIdx);
 
           diagnostics.addLog(
-            `Matched Ellohim Server binary: ${matched.name} (${matched.file_name || 'payload.dll'}) -> ${g.name}`,
+            `Matched Cloud Mod binary: ${matched.name} (${matched.file_name || 'payload.dll'}) -> ${g.name}`,
             'info'
           );
         } else {
@@ -290,12 +290,12 @@ export const useGamesStore = defineStore('games', () => {
       binary.injection_mode = mode;
       await binariesStore.persistBinarySettings(binary);
       diagnostics.addLog(
-        `[ELOHIM SERVER SYNC] Successfully updated ${binary.name} mapping on backend!`,
+        `[CLOUD SYNC] Successfully updated ${binary.name} mapping on server!`,
         'success'
       );
       return true;
     } catch (err: any) {
-      diagnostics.addLog(`[SERVER SYNC ERROR] Could not save setting to Ellohim-Server: ${err.message}`, 'error');
+      diagnostics.addLog(`[SERVER SYNC ERROR] Could not save setting to Cloud: ${err.message}`, 'error');
       return false;
     } finally {
       isSavingServerConfig.value = false;
@@ -348,7 +348,7 @@ export const useGamesStore = defineStore('games', () => {
           customTargetProcess.value = result.processName;
         }
         launchMessage.value = result.injected
-          ? `Playing with Ellohim Payload Injected into ${result.processName || targetProc} (PID: ${result.pid})`
+          ? `Playing with Mod Payload Injected into ${result.processName || targetProc} (PID: ${result.pid})`
           : `Game running (${result.processName || targetProc}, PID: ${result.pid})`;
         diagnostics.addLog(
           `${game.name} launched successfully! ${result.injected ? `[Injected ${binary?.name || 'DLL'}]` : ''} Target: ${result.processName || targetProc}, PID: ${result.pid}`,

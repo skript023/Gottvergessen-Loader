@@ -11,7 +11,7 @@ export const useBinariesStore = defineStore('binaries', () => {
   const selectedBinaryIndex = ref<number>(-1);
   const isSyncing = ref(false);
   const syncStatus = ref<'idle' | 'saving' | 'synced' | 'error'>('idle');
-  const syncText = ref('Settings synced with Ellohim Cloud');
+  const syncText = ref('Settings synced with Cloud');
 
   const activeBinary = computed<BinaryItem | null>(() => {
     if (selectedBinaryIndex.value >= 0 && selectedBinaryIndex.value < binaries.value.length) {
@@ -100,7 +100,7 @@ export const useBinariesStore = defineStore('binaries', () => {
     if (!item || !item.id) return;
 
     syncStatus.value = 'saving';
-    syncText.value = 'Syncing to Ellohim Cloud...';
+    syncText.value = 'Syncing to Cloud...';
 
     // LocalStorage fallback
     try {

@@ -73,15 +73,23 @@ namespace gottvergessen
 			m_file_path(std::getenv("appdata")),
 			m_worker(g3::LogWorker::createLogWorker())
 		{
-			if ((m_did_console_exist = AttachConsole(GetCurrentProcessId())) == false)
-				AllocConsole();
+			char env_buf[32] = { 0 };
+			DWORD env_len = GetEnvironmentVariableA("GV_ENABLE_CONSOLE", env_buf, sizeof(env_buf));
+			const char* enable_console_env = (env_len > 0) ? env_buf : std::getenv("GV_ENABLE_CONSOLE");
+			const bool enable_console = enable_console_env && (std::strcmp(enable_console_env, "1") == 0 || _stricmp(enable_console_env, "true") == 0);
 
-			if ((m_console_handle = GetStdHandle(STD_OUTPUT_HANDLE)) != nullptr)
+			if (enable_console)
 			{
-				SetConsoleTitleA(m_window_name.c_str());
-				SetConsoleOutputCP(CP_UTF8);
+				if ((m_did_console_exist = AttachConsole(GetCurrentProcessId())) == false)
+					AllocConsole();
 
-				m_console_out.open("CONOUT$", std::ios_base::out | std::ios_base::app);
+				if ((m_console_handle = GetStdHandle(STD_OUTPUT_HANDLE)) != nullptr)
+				{
+					SetConsoleTitleA(m_window_name.c_str());
+					SetConsoleOutputCP(CP_UTF8);
+
+					m_console_out.open("CONOUT$", std::ios_base::out | std::ios_base::app);
+				}
 			}
 
 			m_file_path /= "Ellohim Menu";
@@ -134,7 +142,8 @@ namespace gottvergessen
 			}
 			catch (std::filesystem::filesystem_error const& error)
 			{
-				m_console_out << error.what();
+				if (m_console_out.is_open())
+					m_console_out << error.what();
 			}
 
 			g_logger = this;
@@ -143,7 +152,7 @@ namespace gottvergessen
 		~logger()
 		{
 			m_worker.reset();
-			if (!m_did_console_exist)
+			if (m_console_handle != nullptr && !m_did_console_exist)
 				FreeConsole();
 
 			g_logger = nullptr;
@@ -176,8 +185,11 @@ namespace gottvergessen
 						g_logger->send_warning(log_message.toString(format_raw), log_message.file(), log_message.line());
 					}
 				#endif
-					SetConsoleTextAttribute(g_logger->m_console_handle, static_cast<std::uint16_t>(log_colors[log_message._level.text]));
-					g_logger->m_console_out << log_message.toString(is_raw ? format_raw : format_console) << std::flush;
+					if (g_logger->m_console_handle != nullptr && g_logger->m_console_out.is_open())
+					{
+						SetConsoleTextAttribute(g_logger->m_console_handle, static_cast<std::uint16_t>(log_colors[log_message._level.text]));
+						g_logger->m_console_out << log_message.toString(is_raw ? format_raw : format_console) << std::flush;
+					}
 				}
 
 				if (!(level_value & FLAG_NO_DISK))

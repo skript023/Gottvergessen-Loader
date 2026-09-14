@@ -45,7 +45,7 @@ async function handleLogout() {
       </div>
       <div class="brand-text">
         <span class="brand-name">GOTTVERGESSEN</span>
-        <span class="brand-version">ELLOHIM GATEWAY</span>
+        <span class="brand-version">QUANTUM GATEWAY</span>
       </div>
     </div>
 
@@ -153,7 +153,7 @@ async function handleLogout() {
               <span
                 v-if="gamesStore.getGameMatchedBinary(game)"
                 class="badge-game-mod"
-                title="Assigned Ellohim Server Payload"
+                title="Assigned Cloud Mod Payload"
               >
                 MOD
               </span>

@@ -83,7 +83,7 @@ function selectGame(id: string) {
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
             </svg>
           </div>
-          <span class="badge-gem-label">ELLOHIM CORE</span>
+          <span class="badge-gem-label">QUANTUM CORE</span>
         </div>
 
         <div class="badge-gem-item">

@@ -170,7 +170,7 @@ let persistTimeout = null;
 async function persistBinarySettings(binary) {
   if (!binary || !binary.id) return;
 
-  updateSyncStatus("saving", "Syncing to Ellohim Cloud...");
+  updateSyncStatus("saving", "Syncing to Cloud...");
 
   // Also save to localStorage fallback
   try {
