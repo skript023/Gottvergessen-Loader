@@ -194,6 +194,8 @@ export interface LoaderApi {
   removeCustomGame(gameId: string): Promise<InstalledGameItem[]>;
   playAndInject(params: PlayAndInjectParams): Promise<PlayAndInjectResult>;
   killGameProcess(pid: number): Promise<boolean>;
+  isProcessRunning?(pid: number, processName?: string): Promise<boolean>;
+  onGameProcessExited?(callback: (data: { pid: number; processName: string }) => void): () => void;
   window?: WindowControlsApi;
   updater?: UpdaterApi;
 }

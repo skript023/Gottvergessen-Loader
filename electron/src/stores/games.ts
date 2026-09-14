@@ -45,55 +45,71 @@ export const useGamesStore = defineStore('games', () => {
   /**
    * Find if a game matches any authorized binary from Ellohim-Server.
    * Priority 1: Exact Game Name match (b.name === g.name || b.game === g.name)
-   * Priority 2: Substring Game Name match (e.g. "Valheim" in "Valheim")
-   * Priority 3: Executable stem match (e.g. "valheim.exe" -> "valheim")
-   * Priority 4: Target Process match
+   * Priority 2: Exact stem match (e.g. "valheim.exe" stem "valheim" === b.name / b.game)
+   * Priority 3: Title boundary / prefix match (e.g. "Valheim Mod" for "Valheim")
+   * Priority 4: Verified Target Process match (only if compatible with game name)
    */
   function getGameMatchedBinary(g: InstalledGameItem | null): BinaryItem | null {
     if (!g || !binariesStore.binaries || binariesStore.binaries.length === 0) return null;
-    const cleanGName = g.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanGName = (g.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const cleanExe = (g.exeName || '').toLowerCase().trim();
     const exeStem = cleanExe.replace(/\.exe$/i, '').replace(/[^a-z0-9]/g, '');
 
-    // 1. Exact match by game title
-    const exactMatch = binariesStore.binaries.find((b) => {
+    if (!cleanGName && !exeStem) return null;
+
+    const getBinaryTokens = (b: BinaryItem) => {
       const bName = (b.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       const bGame = (b.game || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const bTarget = (b.target_process || '').toLowerCase().trim();
+      return { bName, bGame, bTarget };
+    };
+
+    // 1. Exact match by game title
+    const exactMatch = binariesStore.binaries.find((b) => {
+      const { bName, bGame } = getBinaryTokens(b);
       return (bName && bName === cleanGName) || (bGame && bGame === cleanGName);
     });
     if (exactMatch) return exactMatch;
 
-    // 2. Substring match by game title
-    if (cleanGName.length >= 3) {
-      const subMatch = binariesStore.binaries.find((b) => {
-        const bName = (b.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        const bGame = (b.game || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        return (
-          (bName && bName.length >= 3 && (cleanGName.includes(bName) || bName.includes(cleanGName))) ||
-          (bGame && bGame.length >= 3 && (cleanGName.includes(bGame) || bGame.includes(cleanGName)))
-        );
-      });
-      if (subMatch) return subMatch;
-    }
-
-    // 3. Match game executable stem with binary name (e.g. valheim.exe -> valheim)
-    if (exeStem.length >= 3) {
+    // 2. Exact match by game executable stem with binary name or game (e.g. valheim.exe -> valheim)
+    if (exeStem && exeStem.length >= 3) {
       const stemMatch = binariesStore.binaries.find((b) => {
-        const bName = (b.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        const bGame = (b.game || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        return (
-          (bName && bName.length >= 3 && (exeStem.includes(bName) || bName.includes(exeStem))) ||
-          (bGame && bGame.length >= 3 && (exeStem.includes(bGame) || bGame.includes(exeStem)))
-        );
+        const { bName, bGame } = getBinaryTokens(b);
+        return (bName && bName === exeStem) || (bGame && bGame === exeStem);
       });
       if (stemMatch) return stemMatch;
     }
 
-    // 4. Target process match (only as last resort)
+    // 3. Prefix/Title boundary match (e.g. "Valheim Mod" or "Valheim Internal" for game "Valheim")
+    const boundaryMatch = binariesStore.binaries.find((b) => {
+      const { bName, bGame } = getBinaryTokens(b);
+      const matchName = (token: string, target: string) => {
+        if (!token || !target || token.length < 4 || target.length < 4) return false;
+        return (token.startsWith(target) && target.length >= 4) || (target.startsWith(token) && token.length >= 4);
+      };
+      return matchName(bName, cleanGName) || matchName(bGame, cleanGName);
+    });
+    if (boundaryMatch) return boundaryMatch;
+
+    // 4. Target process match (only if the binary does NOT manifestly belong to a different game)
     if (cleanExe) {
-      const procMatch = binariesStore.binaries.find(
-        (b) => b.target_process && b.target_process.toLowerCase().trim() === cleanExe
-      );
+      const procMatch = binariesStore.binaries.find((b) => {
+        const { bName, bGame, bTarget } = getBinaryTokens(b);
+        if (!bTarget || bTarget !== cleanExe) return false;
+
+        // Ensure binary does not have a clearly conflicting game name
+        if (bName && bName.length >= 3) {
+          const compatible = cleanGName.includes(bName) || bName.includes(cleanGName) ||
+                             exeStem.includes(bName) || bName.includes(exeStem);
+          if (!compatible) return false;
+        }
+        if (bGame && bGame.length >= 3) {
+          const compatible = cleanGName.includes(bGame) || bGame.includes(cleanGName) ||
+                             exeStem.includes(bGame) || bGame.includes(exeStem);
+          if (!compatible) return false;
+        }
+        return true;
+      });
       if (procMatch) return procMatch;
     }
 
@@ -148,11 +164,11 @@ export const useGamesStore = defineStore('games', () => {
         } else {
           selectedBinaryId.value = null;
           customTargetProcess.value = g.exeName || '';
-          diagnostics.addLog(`Selected game: ${g.name} (${g.platform.toUpperCase()})`, 'info');
+          diagnostics.addLog(`Selected game: ${g.name} (${g.platform.toUpperCase()}) [Vanilla / No Server Mod]`, 'info');
         }
 
         if (customTargetProcess.value) {
-          processStore.setManualTarget(customTargetProcess.value);
+          processStore.setManualTarget(customTargetProcess.value, false);
         }
       }
     } else {
@@ -185,10 +201,13 @@ export const useGamesStore = defineStore('games', () => {
         selectedMode.value = matched.injection_mode ?? 2;
         const bIdx = binariesStore.binaries.findIndex((item) => item.id === matched.id);
         if (bIdx >= 0) binariesStore.selectBinary(bIdx);
+      } else {
+        selectedBinaryId.value = null;
+        customTargetProcess.value = selectedGame.value.exeName || '';
       }
     }
     if (customTargetProcess.value) {
-      processStore.setManualTarget(customTargetProcess.value);
+      processStore.setManualTarget(customTargetProcess.value, false);
     }
   }
 
@@ -202,11 +221,60 @@ export const useGamesStore = defineStore('games', () => {
           selectedBinaryId.value = matched.id;
           const bIdx = binariesStore.binaries.findIndex((b) => b.id === matched.id);
           if (bIdx >= 0) binariesStore.selectBinary(bIdx);
+        } else {
+          selectedBinaryId.value = null;
         }
       }
     },
     { deep: true }
   );
+
+  let livenessCheckTimer: any = null;
+
+  function startProcessLivenessMonitor(pid: number, procName: string) {
+    stopProcessLivenessMonitor();
+    livenessCheckTimer = setInterval(async () => {
+      if (launchStatus.value !== 'running' || !runningPid.value) {
+        stopProcessLivenessMonitor();
+        return;
+      }
+      try {
+        if (window.loader?.isProcessRunning) {
+          const isAlive = await window.loader.isProcessRunning(pid, procName);
+          if (!isAlive) {
+            handleProcessTerminated(`Game process "${procName || 'Game'}" (PID: ${pid}) closed.`);
+          }
+        }
+      } catch (_) {}
+    }, 1500);
+  }
+
+  function stopProcessLivenessMonitor() {
+    if (livenessCheckTimer) {
+      clearInterval(livenessCheckTimer);
+      livenessCheckTimer = null;
+    }
+  }
+
+  function handleProcessTerminated(reason?: string) {
+    stopProcessLivenessMonitor();
+    if (launchStatus.value === 'running') {
+      const gName = selectedGame.value?.name || 'Game';
+      launchStatus.value = 'idle';
+      runningPid.value = null;
+      launchMessage.value = '';
+      diagnostics.addLog(reason || `${gName} process ended. Ready to play again.`, 'info');
+    }
+  }
+
+  // Global listener for native process exit event
+  if (typeof window !== 'undefined' && window.loader?.onGameProcessExited) {
+    window.loader.onGameProcessExited((data) => {
+      if (runningPid.value && data.pid === runningPid.value) {
+        handleProcessTerminated(`Detected process "${data.processName || 'Game'}" (PID: ${data.pid}) exited.`);
+      }
+    });
+  }
 
   async function saveGameMappingToServer(binaryId: string, processName: string, mode: number) {
     const binary = binariesStore.binaries.find((b) => b.id === binaryId);
@@ -279,6 +347,9 @@ export const useGamesStore = defineStore('games', () => {
           `${game.name} launched successfully! ${result.injected ? `[Injected ${binary?.name || 'DLL'}]` : ''} PID: ${result.pid}`,
           'success'
         );
+        if (result.pid) {
+          startProcessLivenessMonitor(result.pid, targetProc || game.exeName || '');
+        }
       } else {
         launchStatus.value = 'error';
         launchMessage.value = result.message || 'Failed to start or hook game.';
@@ -293,6 +364,7 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   async function stopGame() {
+    stopProcessLivenessMonitor();
     if (!runningPid.value) {
       launchStatus.value = 'idle';
       return;

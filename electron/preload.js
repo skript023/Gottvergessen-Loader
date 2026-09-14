@@ -17,6 +17,12 @@ contextBridge.exposeInMainWorld("loader", Object.freeze({
   removeCustomGame: (gameId) => ipcRenderer.invoke("game:remove-custom", gameId),
   playAndInject: (params) => ipcRenderer.invoke("game:play-and-inject", params),
   killGameProcess: (pid) => ipcRenderer.invoke("game:kill-process", pid),
+  isProcessRunning: (pid, processName) => ipcRenderer.invoke("game:is-process-running", { pid, processName }),
+  onGameProcessExited: (callback) => {
+    const sub = (_event, data) => callback(data);
+    ipcRenderer.on("game:process-exited", sub);
+    return () => ipcRenderer.removeListener("game:process-exited", sub);
+  },
   window: {
     minimize: () => ipcRenderer.invoke("window:minimize"),
     maximize: () => ipcRenderer.invoke("window:maximize"),

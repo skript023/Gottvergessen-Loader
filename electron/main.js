@@ -239,6 +239,37 @@ function validateDllPath(dllPath) {
   return resolved;
 }
 
+let runningGameMonitor = null;
+
+function stopGameMonitor() {
+  if (runningGameMonitor) {
+    clearInterval(runningGameMonitor);
+    runningGameMonitor = null;
+  }
+}
+
+function isPidAlive(pid, procName) {
+  if (!pid || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+  } catch (_) {
+    return false;
+  }
+  if (procName) {
+    try {
+      const procs = requireNative().listProcesses();
+      const procLower = procName.trim().toLowerCase();
+      const baseName = procLower.replace(/\.exe$/i, "");
+      const match = procs.some(p => {
+        const nameLower = p.name.toLowerCase();
+        return p.pid === pid || nameLower === procLower || (baseName.length >= 3 && nameLower.startsWith(baseName));
+      });
+      return match;
+    } catch (_) {}
+  }
+  return true;
+}
+
 function registerIpc() {
   ipcMain.handle("native:list-processes", () => requireNative().listProcesses());
   ipcMain.handle("native:operation-status", () => requireNative().operationStatus());
@@ -470,6 +501,23 @@ function registerIpc() {
       }
     }
 
+    // 8. Start active liveness monitor for running game
+    stopGameMonitor();
+    const runningTargetPid = foundProc.pid;
+    const runningTargetName = foundProc.name;
+    runningGameMonitor = setInterval(() => {
+      const alive = isPidAlive(runningTargetPid, runningTargetName);
+      if (!alive) {
+        stopGameMonitor();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("game:process-exited", {
+            pid: runningTargetPid,
+            processName: runningTargetName
+          });
+        }
+      }
+    }, 1200);
+
     return {
       success: true,
       pid: foundProc.pid,
@@ -479,7 +527,12 @@ function registerIpc() {
     };
   });
 
+  ipcMain.handle("game:is-process-running", (_event, { pid, processName } = {}) => {
+    return isPidAlive(pid, processName);
+  });
+
   ipcMain.handle("game:kill-process", async (_event, pid) => {
+    stopGameMonitor();
     if (!pid || pid <= 0) return false;
     return new Promise(resolve => {
       exec(`taskkill /F /PID ${pid}`, err => {
@@ -592,6 +645,7 @@ function createWindow() {
     saveWindowState(mainWindow);
   });
   mainWindow.on("closed", () => {
+    stopGameMonitor();
     mainWindow = null;
   });
 

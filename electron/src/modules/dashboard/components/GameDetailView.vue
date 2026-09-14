@@ -94,8 +94,8 @@ function handleRemoveCustom() {
               <span v-if="binary" class="badge-server-linked" title="Payload linked from Ellohim Server">
                 ⚡ SERVER MOD LINKED
               </span>
-              <span v-else class="badge-no-server" title="No matching DLL in Ellohim Server catalog">
-                VANILLA / NO SERVER MOD
+              <span v-else class="badge-unsupported" title="This game is not supported by Quantum Mod">
+                🛡️ NOT SUPPORTED BY QUANTUM MOD
               </span>
               <span v-if="isRunning" class="badge-running-pulse">
                 <span class="pulse-dot-green"></span>
@@ -116,8 +116,8 @@ function handleRemoveCustom() {
           </div>
         </div>
 
-        <!-- Big Action Bar -->
-        <div class="game-action-bar">
+        <!-- Big Action Bar: Only shown when game has a linked mod payload -->
+        <div v-if="binary" class="game-action-bar">
           <div class="play-btn-wrapper">
             <button
               class="btn-wand-play"
@@ -172,7 +172,7 @@ function handleRemoveCustom() {
                 <div class="play-btn-text-block">
                   <span class="play-main-text">PLAY</span>
                   <span class="play-sub-text">
-                    {{ binary ? `Launch & Inject ${binary.file_name || 'DLL'}` : 'Launch Game Only' }}
+                    Launch & Inject {{ binary.file_name || 'DLL' }}
                   </span>
                 </div>
               </template>
@@ -183,15 +183,36 @@ function handleRemoveCustom() {
           <div class="launch-status-pill" :class="`status-${gamesStore.launchStatus}`">
             <span class="status-indicator-dot"></span>
             <span class="status-indicator-text">
-              {{ gamesStore.launchMessage || (binary ? `Ready to inject ${binary.name} into ${gamesStore.customTargetProcess || game.exeName}` : 'Ready to launch with Ellohim protection') }}
+              {{ gamesStore.launchMessage || `Ready to inject ${binary.name} into ${gamesStore.customTargetProcess || game.exeName}` }}
             </span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Mod & Injection Configuration Grid -->
-    <div class="game-config-grid">
+    <!-- Quantum Mod Unsupported Notice View (Matches Image 3) -->
+    <div v-if="!binary" class="unsupported-mod-view">
+      <div class="unsupported-notice-card">
+        <div class="unsupported-card-header">
+          <div class="unsupported-header-left">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+            <h3 class="unsupported-title">Customize</h3>
+          </div>
+          <span class="badge-unsupported-tag">NOT SUPPORTED</span>
+        </div>
+        <div class="unsupported-card-body">
+          <p class="unsupported-message-text">
+            This game is <strong>not supported by Quantum Mod</strong>. This is due either to technical aspects that make it impractical to mod or to the possible multiplayer nature of the game.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mod & Injection Configuration Grid: Only shown when mod is supported -->
+    <div v-if="binary" class="game-config-grid">
       <!-- Target Process Card -->
       <div class="config-card">
         <div class="config-card-header">
@@ -238,14 +259,13 @@ function handleRemoveCustom() {
             </svg>
             <h3>Ellohim Server Payload</h3>
           </div>
-          <span v-if="binary" class="config-status-tag tag-ready">SYNCED</span>
-          <span v-else class="config-status-tag tag-none">UNASSIGNED</span>
+          <span class="config-status-tag tag-ready">SYNCED</span>
         </div>
 
         <div class="config-card-body">
           <p class="config-desc">
             DLL payload from Ellohim backend
-            <span v-if="binary" class="binary-filename-tag">({{ binary.file_name || 'payload.dll' }})</span>:
+            <span class="binary-filename-tag">({{ binary.file_name || 'payload.dll' }})</span>:
           </p>
           <select
             :value="gamesStore.selectedBinaryId || ''"
@@ -253,7 +273,7 @@ function handleRemoveCustom() {
             class="wand-select"
           >
             <option :value="''">
-              {{ binary ? `Auto-Matched (${binary.name})` : 'Select Server Payload...' }}
+              Auto-Matched ({{ binary.name }})
             </option>
             <option
               v-for="b in binariesStore.binaries"
@@ -290,20 +310,19 @@ function handleRemoveCustom() {
       </div>
     </div>
 
-    <!-- Ellohim-Server Sync & License Bar -->
-    <div class="server-sync-bar">
+    <!-- Ellohim-Server Sync & License Bar: Only shown when binary is linked -->
+    <div v-if="binary" class="server-sync-bar">
       <div class="server-sync-info">
         <div class="server-status-dot"></div>
         <span>Ellohim Server: <strong>https://apie.rena.my.id</strong></span>
         <span>•</span>
         <span>User: <strong>{{ auth.displayName }}</strong> ({{ auth.role || 'Member' }})</span>
-        <span v-if="binary">•</span>
-        <span v-if="binary">Assigned DLL: <strong style="color: #38bdf8;">{{ binary.file_name || 'payload.dll' }}</strong></span>
+        <span>•</span>
+        <span>Assigned DLL: <strong style="color: #38bdf8;">{{ binary.file_name || 'payload.dll' }}</strong></span>
       </div>
 
       <div class="server-sync-action">
         <button
-          v-if="binary"
           class="btn-save-server"
           :disabled="gamesStore.isSavingServerConfig"
           @click="handleSaveToServer"

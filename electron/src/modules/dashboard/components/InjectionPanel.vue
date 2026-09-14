@@ -34,7 +34,7 @@ function toggleManualBox() {
 
 function saveManualTarget() {
   if (!manualInput.value.trim()) return;
-  processStore.setManualTarget(manualInput.value.trim());
+  processStore.setManualTarget(manualInput.value.trim(), true);
   showManualBox.value = false;
 }
 

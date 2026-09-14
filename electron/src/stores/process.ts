@@ -29,7 +29,7 @@ export const useProcessStore = defineStore('process', () => {
     return isProcessRunning.value && binariesStore.selectedBinaryIndex >= 0;
   });
 
-  function selectProcess(proc: ProcessItem, autoSave = true) {
+  function selectProcess(proc: ProcessItem, autoSave = false) {
     selectedProcess.value = proc;
     diagnostics.addLog(`Target locked: ${proc.name} (PID: ${proc.pid}, ${proc.arch})`, 'info');
 
@@ -40,13 +40,13 @@ export const useProcessStore = defineStore('process', () => {
     }
   }
 
-  function setManualTarget(name: string) {
+  function setManualTarget(name: string, syncToBinary = false) {
     const trimmed = name.trim();
     if (!trimmed) return;
 
     const match = processes.value.find((p) => p.name.toLowerCase() === trimmed.toLowerCase());
     if (match) {
-      selectProcess(match, true);
+      selectProcess(match, syncToBinary);
     } else {
       selectedProcess.value = {
         name: trimmed,
@@ -55,7 +55,7 @@ export const useProcessStore = defineStore('process', () => {
         accessible: true
       };
       diagnostics.addLog(`Target configured: ${trimmed} (Waiting for process to launch...)`, 'warn');
-      if (binariesStore.activeBinary) {
+      if (syncToBinary && binariesStore.activeBinary) {
         binariesStore.updateActiveTarget(trimmed);
       }
     }

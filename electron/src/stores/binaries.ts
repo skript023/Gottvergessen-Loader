@@ -44,8 +44,15 @@ export const useBinariesStore = defineStore('binaries', () => {
     try {
       const localStore = JSON.parse(localStorage.getItem('ellohim_binary_settings') || '{}');
       if (localStore[binary.id]) {
-        if (!binary.target_process && localStore[binary.id].target_process) {
-          binary.target_process = localStore[binary.id].target_process;
+        const cachedTarget = (localStore[binary.id].target_process || '').trim();
+        const bName = (binary.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const targetStem = cachedTarget.replace(/\.exe$/i, '').replace(/[^a-z0-9]/g, '');
+
+        // Sanity check: do not restore cached target if it blatantly contradicts binary identity
+        if (cachedTarget && (!bName || bName.length < 3 || targetStem.includes(bName) || bName.includes(targetStem))) {
+          if (!binary.target_process) {
+            binary.target_process = cachedTarget;
+          }
         }
         if (binary.injection_mode === undefined && localStore[binary.id].injection_mode !== undefined) {
           binary.injection_mode = localStore[binary.id].injection_mode;
