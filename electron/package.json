@@ -1,6 +1,6 @@
 {
   "name": "gottvergessen-electron",
-  "version": "1.0.5",
+  "version": "1.0.0",
   "private": true,
   "description": "Electron frontend for the Gottvergessen native C++ core",
   "main": "main.js",
@@ -11,6 +11,8 @@
     "dev:ui": "vite",
     "start": "npm run build:ui && electron .",
     "dev": "npm run build:ui && npm run native:build && electron .",
+    "version:bump": "npm version patch --no-git-tag-version",
+    "predist": "npm run version:bump",
     "dist": "npm run build:ui && npm run native:build && electron-builder --win --x64"
   },
   "dependencies": {
@@ -48,6 +50,10 @@
       {
         "from": "../out/build/electron/bin/Release/native-core.dll",
         "to": "native/native-core.dll"
+      },
+      {
+        "from": "../out/build/electron/bin/Release/injection-core.dll",
+        "to": "native/injection-core.dll"
       },
       {
         "from": "../out/build/electron/bin/Release/update-runner.exe",

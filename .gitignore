@@ -48,6 +48,7 @@
 /electron/electron/
 
 # Logs and local runtime data
+/data/
 *.log
 *.pdb
 *.ilk

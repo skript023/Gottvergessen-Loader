@@ -9,6 +9,7 @@
 #include <cpr/cpr.h>
 #include <nlohmann/json.hpp>
 #include <Windows.h>
+#include <bcrypt.h>
 #include <shellapi.h>
 #include <wincrypt.h>
 #include <cstdlib>
@@ -32,42 +33,58 @@ namespace
 		if (!file.is_open())
 			return "";
 
-		HCRYPTPROV hProv = 0;
-		if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT))
+		BCRYPT_ALG_HANDLE algorithm = nullptr;
+		BCRYPT_HASH_HANDLE hash = nullptr;
+		DWORD object_size = 0;
+		DWORD bytes_written = 0;
+		if (BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0) < 0)
 			return "";
 
-		HCRYPTHASH hHash = 0;
-		if (!CryptCreateHash(hProv, CALG_SHA_256, 0, 0, &hHash))
+		if (BCryptGetProperty(algorithm, BCRYPT_OBJECT_LENGTH,
+		        reinterpret_cast<PUCHAR>(&object_size), sizeof(object_size),
+		        &bytes_written, 0) < 0)
 		{
-			CryptReleaseContext(hProv, 0);
+			BCryptCloseAlgorithmProvider(algorithm, 0);
+			return "";
+		}
+
+		std::vector<unsigned char> hash_object(object_size);
+		if (BCryptCreateHash(algorithm, &hash, hash_object.data(), object_size,
+		        nullptr, 0, 0) < 0)
+		{
+			BCryptCloseAlgorithmProvider(algorithm, 0);
 			return "";
 		}
 
 		char buffer[8192];
 		while (file.read(buffer, sizeof(buffer)) || file.gcount() > 0)
 		{
-			if (!CryptHashData(hHash, reinterpret_cast<const BYTE*>(buffer), static_cast<DWORD>(file.gcount()), 0))
+			if (BCryptHashData(hash, reinterpret_cast<PUCHAR>(buffer),
+			        static_cast<ULONG>(file.gcount()), 0) < 0)
 			{
-				CryptDestroyHash(hHash);
-				CryptReleaseContext(hProv, 0);
+				BCryptDestroyHash(hash);
+				BCryptCloseAlgorithmProvider(algorithm, 0);
 				return "";
 			}
 		}
 
-		BYTE hash_bytes[32];
-		DWORD hash_len = sizeof(hash_bytes);
-		std::string hash_hex;
-		if (CryptGetHashParam(hHash, HP_HASHVAL, hash_bytes, &hash_len, 0))
+		std::array<unsigned char, 32> hash_bytes{};
+		if (BCryptFinishHash(hash, hash_bytes.data(),
+		        static_cast<ULONG>(hash_bytes.size()), 0) < 0)
 		{
-			std::ostringstream oss;
-			for (DWORD i = 0; i < hash_len; ++i)
-				oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash_bytes[i]);
-			hash_hex = oss.str();
+			BCryptDestroyHash(hash);
+			BCryptCloseAlgorithmProvider(algorithm, 0);
+			return "";
 		}
 
-		CryptDestroyHash(hHash);
-		CryptReleaseContext(hProv, 0);
-		return hash_hex;
+		BCryptDestroyHash(hash);
+		BCryptCloseAlgorithmProvider(algorithm, 0);
+
+		std::ostringstream output;
+		for (const auto value : hash_bytes)
+			output << std::hex << std::setw(2) << std::setfill('0')
+			       << static_cast<int>(value);
+		return output.str();
 	}
 
 	std::unique_ptr<logger> g_native_logger;
@@ -79,6 +96,7 @@ namespace
 	std::filesystem::path g_session_path;
 	nlohmann::ordered_json g_binaries = nlohmann::ordered_json::array();
 	int g_selected_binary{-1};
+	std::string g_selected_binary_id;
 	int g_operation_progress{0};
 	std::string g_operation_stage{"Idle"};
 	bool g_operation_active{false};
@@ -255,16 +273,20 @@ GV_API bool __cdecl gv_initialize(const wchar_t* base_directory)
 		std::filesystem::path base_dir;
 		if (base_directory && *base_directory)
 			base_dir = base_directory;
-		else if (const char* appdata = std::getenv("APPDATA"))
-			base_dir = std::filesystem::path(appdata) / "Ellohim Menu";
 		else
-			base_dir = std::filesystem::temp_directory_path() / "Ellohim Menu";
+		{
+			wchar_t executable_path[MAX_PATH] = {};
+			const DWORD length = GetModuleFileNameW(nullptr, executable_path, MAX_PATH);
+			base_dir = length > 0 && length < MAX_PATH
+			    ? std::filesystem::path(executable_path).parent_path() / "data"
+			    : std::filesystem::current_path() / "data";
+		}
 
 		file_manager::init(base_dir);
 		g_session_path = base_dir / "Config" / "session.dat";
 		if (!g_native_logger)
 		{
-			g_native_logger = std::make_unique<logger>("Gottvergessen Electron");
+			g_native_logger = std::make_unique<logger>("Gottvergessen Electron", base_dir);
 			g_native_logger->enable();
 		}
 		clear_error();
@@ -666,6 +688,7 @@ GV_API int __cdecl gv_logout()
 		g_login_expired_date.clear();
 		g_binaries = nlohmann::ordered_json::array();
 		g_selected_binary = -1;
+		g_selected_binary_id.clear();
 	}
 
 	clear_saved_session();
@@ -775,7 +798,21 @@ GV_API const char* __cdecl gv_refresh_binaries()
 		{
 			std::scoped_lock lock(g_state_mutex);
 			g_binaries = catalog;
-			g_selected_binary = catalog.empty() ? -1 : 0;
+			g_selected_binary = -1;
+			if (!g_selected_binary_id.empty())
+			{
+				for (std::size_t index = 0; index < catalog.size(); ++index)
+				{
+					const auto& item = catalog[index];
+					if (item.is_object() && item.value("id", "") == g_selected_binary_id)
+					{
+						g_selected_binary = static_cast<int>(index);
+						break;
+					}
+				}
+				if (g_selected_binary < 0)
+					g_selected_binary_id.clear();
+			}
 			g_result = catalog.dump();
 			g_error.clear();
 		}
@@ -879,8 +916,47 @@ GV_API int __cdecl gv_select_binary(int index)
 		return 0;
 	}
 	g_selected_binary = index;
+	g_selected_binary_id = g_binaries[index].is_object()
+	    ? g_binaries[index].value("id", "")
+	    : "";
+	if (g_selected_binary_id.empty())
+	{
+		g_selected_binary = -1;
+		g_error = "Selected binary has no server ID";
+		return 0;
+	}
 	g_error.clear();
 	return 1;
+}
+
+GV_API int __cdecl gv_select_binary_by_id(const char* binary_id)
+{
+	std::scoped_lock lock(g_state_mutex);
+	if (!binary_id || !*binary_id || !g_binaries.is_array())
+	{
+		g_error = "Invalid binary ID";
+		return 0;
+	}
+
+	for (std::size_t index = 0; index < g_binaries.size(); ++index)
+	{
+		const auto& item = g_binaries[index];
+		if (item.is_object() && item.value("id", "") == binary_id)
+		{
+			g_selected_binary = static_cast<int>(index);
+			g_selected_binary_id = binary_id;
+			LOG(INFO) << "[gv_select_binary_by_id] Selected binary: "
+			          << item.value("name", item.value("game", "Unnamed"))
+			          << " (ID: " << g_selected_binary_id << ")";
+			g_error.clear();
+			return 1;
+		}
+	}
+
+	g_selected_binary = -1;
+	g_selected_binary_id.clear();
+	g_error = std::string("Binary ID not found in current catalog: ") + binary_id;
+	return 0;
 }
 
 GV_API int __cdecl gv_save_binary_settings(const char* binary_id, const char* target_process, int mode)
@@ -956,7 +1032,7 @@ GV_API int __cdecl gv_download_and_inject()
 	nlohmann::ordered_json binary;
 	{
 		std::scoped_lock lock(g_state_mutex);
-		if (g_access_token.empty() || g_selected_binary < 0 || g_selected_binary >= static_cast<int>(g_binaries.size()))
+		if (g_access_token.empty() || g_selected_binary_id.empty() || !g_binaries.is_array())
 		{
 			g_error = "Login and binary selection are required";
 			g_operation_stage = "Failed";
@@ -964,29 +1040,93 @@ GV_API int __cdecl gv_download_and_inject()
 			return 0;
 		}
 		token = g_access_token;
-		binary = g_binaries[g_selected_binary];
+		for (const auto& item : g_binaries)
+		{
+			if (item.is_object() && item.value("id", "") == g_selected_binary_id)
+			{
+				binary = item;
+				break;
+			}
+		}
+		if (binary.is_null() || binary.empty())
+		{
+			g_error = "Selected binary is no longer available in the current catalog";
+			g_operation_stage = "Failed";
+			g_operation_active = false;
+			return 0;
+		}
 	}
 
 	const std::string binary_id = binary.value("id", "");
 	const std::string target = binary.value("target", "");
 	const std::string expected_checksum = binary.value("checksum", "");
+	const std::string expected_version = binary.value("version", "");
 	if (binary_id.empty())
 	{
 		set_error("Selected binary has no server ID");
 		set_operation(0, "Failed", false);
 		return 0;
 	}
+	LOG(INFO) << "[gv_download_and_inject] Using binary: "
+	          << binary.value("name", binary.value("game", "Unnamed"))
+	          << " (ID: " << binary_id << ", version: "
+	          << (expected_version.empty() ? "unknown" : expected_version) << ")";
 
 	std::filesystem::path encrypted_path;
 	std::filesystem::path sha256_path;
+	std::filesystem::path metadata_path;
 	std::filesystem::path decrypted_path;
 	try
 	{
 		auto cache_dir = file_manager::get_base_dir() / "Cache" / "Binaries";
 		std::error_code dir_ec;
 		std::filesystem::create_directories(cache_dir, dir_ec);
-		encrypted_path = cache_dir / (binary_id + ".enc");
-		sha256_path = cache_dir / (binary_id + ".sha256");
+		std::string safe_version = expected_version;
+		for (char& value : safe_version)
+		{
+			if (!std::isalnum(static_cast<unsigned char>(value)) && value != '.' && value != '-' && value != '_')
+				value = '_';
+		}
+		const std::string cache_identity =
+		    (expected_checksum.empty() ? binary_id : expected_checksum)
+		    + (safe_version.empty() ? "" : "-" + safe_version);
+		encrypted_path = cache_dir / (cache_identity + ".enc");
+		sha256_path = cache_dir / (cache_identity + ".sha256");
+		metadata_path = cache_dir / (cache_identity + ".meta.json");
+
+		// Reuse cache files produced by older builds that used binary_id as the key.
+		const auto legacy_encrypted_path = cache_dir / (binary_id + ".enc");
+		const auto legacy_sha256_path = cache_dir / (binary_id + ".sha256");
+		if (!std::filesystem::exists(encrypted_path) && std::filesystem::exists(legacy_encrypted_path))
+		{
+			bool legacy_matches = expected_checksum.empty();
+			if (!legacy_matches)
+			{
+				std::ifstream legacy_sha_file(legacy_sha256_path);
+				std::string legacy_sha;
+				if (legacy_sha_file.is_open())
+					legacy_sha_file >> legacy_sha;
+				legacy_matches = !legacy_sha.empty()
+				    && _stricmp(legacy_sha.c_str(), expected_checksum.c_str()) == 0;
+			}
+			if (legacy_matches)
+			{
+				std::error_code migration_ec;
+				std::filesystem::copy_file(legacy_encrypted_path, encrypted_path,
+				    std::filesystem::copy_options::overwrite_existing, migration_ec);
+				if (!migration_ec && std::filesystem::exists(legacy_sha256_path))
+				{
+					std::filesystem::copy_file(legacy_sha256_path, sha256_path,
+					    std::filesystem::copy_options::overwrite_existing, migration_ec);
+				}
+				if (migration_ec)
+				{
+					encrypted_path = legacy_encrypted_path;
+					sha256_path = legacy_sha256_path;
+					metadata_path = cache_dir / (binary_id + ".meta.json");
+				}
+			}
+		}
 
 		bool need_download = true;
 		std::error_code check_ec;
@@ -996,45 +1136,76 @@ GV_API int __cdecl gv_download_and_inject()
 			// Valid encrypted file contains 32B AES Key + 12B IV + 16B tag + ciphertext
 			if (!check_ec && file_sz >= 64)
 			{
-				if (!expected_checksum.empty())
+				bool metadata_matches = false;
+				std::ifstream metadata_file(metadata_path);
+				if (metadata_file.is_open())
 				{
-					std::ifstream sha_file(sha256_path);
-					if (sha_file.is_open())
+					auto cached_metadata = nlohmann::json::parse(metadata_file, nullptr, false);
+					if (!cached_metadata.is_discarded())
 					{
-						std::string cached_sha;
-						sha_file >> cached_sha;
-						if (!cached_sha.empty() && _stricmp(cached_sha.c_str(), expected_checksum.c_str()) == 0)
-						{
-							need_download = false;
-						}
+						const std::string cached_checksum = cached_metadata.value("checksum", "");
+						const std::string cached_version = cached_metadata.value("version", "");
+						const bool checksum_matches = expected_checksum.empty()
+						    || (!cached_checksum.empty()
+						        && _stricmp(cached_checksum.c_str(), expected_checksum.c_str()) == 0);
+						const bool version_matches = expected_version.empty()
+						    || cached_version == expected_version;
+						metadata_matches = checksum_matches && version_matches;
 					}
 				}
-				else
+
+				// Backward compatibility: a matching checksum sidecar proves that an
+				// existing encrypted cache contains the current binary payload.
+				if (!metadata_matches)
 				{
-					need_download = false;
+					std::ifstream sha_file(sha256_path);
+					std::string cached_sha;
+					if (sha_file.is_open())
+						sha_file >> cached_sha;
+					metadata_matches = expected_checksum.empty()
+					    || (!cached_sha.empty()
+					        && _stricmp(cached_sha.c_str(), expected_checksum.c_str()) == 0);
 				}
+
+				need_download = !metadata_matches;
 			}
 		}
 
+		auto download_fresh = [&](std::function<void(float)> progress_callback) {
+			auto partial_path = encrypted_path;
+			partial_path += ".part";
+			std::error_code ignored;
+			std::filesystem::remove(partial_path, ignored);
+			if (!encrypted_downloader::download_encrypted_to_file(
+			        environment_manager::get_base_url(), binary_id, token,
+			        partial_path, std::move(progress_callback)))
+			{
+				std::filesystem::remove(partial_path, ignored);
+				return false;
+			}
+
+			std::filesystem::remove(encrypted_path, ignored);
+			std::filesystem::rename(partial_path, encrypted_path, ignored);
+			if (ignored)
+			{
+				ignored.clear();
+				std::filesystem::copy_file(partial_path, encrypted_path,
+				    std::filesystem::copy_options::overwrite_existing, ignored);
+				std::filesystem::remove(partial_path, ignored);
+			}
+			return std::filesystem::exists(encrypted_path);
+		};
+
 		if (need_download)
 		{
-			std::error_code ignored;
-			std::filesystem::remove(encrypted_path, ignored);
-			std::filesystem::remove(sha256_path, ignored);
-
 			set_operation(8, "Downloading encrypted binary");
-			if (!encrypted_downloader::download_encrypted_to_file(
-			        environment_manager::get_base_url(),
-			        binary_id,
-			        token,
-			        encrypted_path,
+			if (!download_fresh(
 			        [](float progress) {
 				        set_operation(10 + static_cast<int>(progress * 65.0f), "Downloading encrypted binary");
 			        }))
 			{
 				set_error("Encrypted binary download failed");
 				set_operation(0, "Download failed", false);
-				std::filesystem::remove(encrypted_path, ignored);
 				return 0;
 			}
 		}
@@ -1057,11 +1228,7 @@ GV_API int __cdecl gv_download_and_inject()
 			std::filesystem::remove(sha256_path, ignored);
 
 			set_operation(20, "Cached binary payload invalid, re-downloading fresh payload");
-			if (!encrypted_downloader::download_encrypted_to_file(
-			        environment_manager::get_base_url(),
-			        binary_id,
-			        token,
-			        encrypted_path,
+			if (!download_fresh(
 			        [](float progress) {
 				        set_operation(20 + static_cast<int>(progress * 55.0f), "Re-downloading encrypted binary");
 			        }))
@@ -1099,11 +1266,7 @@ GV_API int __cdecl gv_download_and_inject()
 				std::filesystem::remove(decrypted_path, ignored);
 
 				set_operation(20, "Checksum mismatch, re-downloading fresh payload");
-				if (!encrypted_downloader::download_encrypted_to_file(
-				        environment_manager::get_base_url(),
-				        binary_id,
-				        token,
-				        encrypted_path,
+				if (!download_fresh(
 				        [](float progress) {
 					        set_operation(20 + static_cast<int>(progress * 55.0f), "Re-downloading fresh encrypted binary");
 				        }))
@@ -1137,10 +1300,21 @@ GV_API int __cdecl gv_download_and_inject()
 				}
 			}
 
-			// Save verified checksum sidecar
+			// Save the legacy checksum sidecar for compatibility.
 			std::ofstream sha_out(sha256_path);
 			if (sha_out.is_open())
 				sha_out << expected_checksum;
+		}
+
+		// Cache identity is validated against both server version and checksum.
+		std::ofstream metadata_out(metadata_path, std::ios::trunc);
+		if (metadata_out.is_open())
+		{
+			metadata_out << nlohmann::json{
+			    {"binary_id", binary_id},
+			    {"version", expected_version},
+			    {"checksum", expected_checksum}}
+			                        .dump(2);
 		}
 
 		set_operation(92, "Starting native operation");
@@ -1301,4 +1475,3 @@ GV_API int __cdecl gv_apply_update(const wchar_t* runner_exe, const wchar_t* new
 
 	return ShellExecuteExW(&sei) ? 1 : 0;
 }
-

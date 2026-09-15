@@ -38,6 +38,14 @@ function nativePath() {
   return path.join(__dirname, "..", "out", "build", "electron", "bin", "Release", "native-core.dll");
 }
 
+function dataPath() {
+  if (app.isPackaged) {
+    const executableDir = process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath);
+    return path.join(executableDir, "data");
+  }
+  return path.join(__dirname, "..", "data");
+}
+
 function updateRunnerPath() {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, "native", "update-runner.exe");
@@ -75,7 +83,7 @@ function loadNative() {
   const restoreSession = library.func("int __cdecl gv_restore_session()");
   const refreshBinaries = library.func("str __cdecl gv_refresh_binaries()");
   const profileJson = library.func("str __cdecl gv_profile_json()");
-  const selectBinary = library.func("int __cdecl gv_select_binary(int index)");
+  const selectBinaryById = library.func("int __cdecl gv_select_binary_by_id(str binary_id)");
   const saveBinarySettings = library.func("int __cdecl gv_save_binary_settings(str binary_id, str target_process, int mode)");
   const downloadAndInject = library.func("int __cdecl gv_download_and_inject()");
   const lastError = library.func("str __cdecl gv_last_error()");
@@ -95,7 +103,7 @@ function loadNative() {
     isWindowReady = library.func("bool __cdecl gv_is_window_ready(uint32_t pid)");
   } catch (_) {}
 
-  if (!initialize(path.join(app.getPath("appData"), "Ellohim Menu"))) {
+  if (!initialize(dataPath())) {
     throw new Error(lastError() || "Native DLL initialization failed");
   }
 
@@ -175,8 +183,9 @@ function loadNative() {
         });
       });
     },
-    selectBinary(index) {
-      if (!selectBinary(index)) throw new Error(lastError() || "Could not select binary");
+    selectBinary(binaryId) {
+      if (typeof binaryId !== "string" || !binaryId.trim()) throw new TypeError("Invalid binary ID");
+      if (!selectBinaryById(binaryId.trim())) throw new Error(lastError() || "Could not select binary");
     },
     saveBinarySettings(binaryId, targetProcess, mode) {
       return new Promise((resolve, reject) => {
@@ -389,8 +398,8 @@ function registerIpc() {
     const addon = requireNative();
     addon.setTarget(request.processName, request.pid);
     addon.setInjectionMode(request.mode);
-    if (!Number.isInteger(request.binaryIndex) || request.binaryIndex < 0) throw new TypeError("Invalid binary selection");
-    addon.selectBinary(request.binaryIndex);
+    if (typeof request.binaryId !== "string" || !request.binaryId.trim()) throw new TypeError("Invalid binary selection");
+    addon.selectBinary(request.binaryId);
     return await addon.downloadAndInject();
   });
 
@@ -450,13 +459,13 @@ function registerIpc() {
   });
 
   ipcMain.handle("game:play-and-inject", async (_event, params) => {
-    const { launchUri, exePath, targetProcess, binaryIndex, mode } = params || {};
+    const { launchUri, exePath, targetProcess, binaryId, mode } = params || {};
     const addon = requireNative();
 
     // 1. Configure binary if provided (default to Mode 0: CreateRemoteThread which is rock-solid)
-    const hasBinary = Number.isInteger(binaryIndex) && binaryIndex >= 0;
+    const hasBinary = typeof binaryId === "string" && binaryId.trim().length > 0;
     if (hasBinary) {
-      addon.selectBinary(binaryIndex);
+      addon.selectBinary(binaryId);
       addon.setInjectionMode(Number.isInteger(mode) ? mode : 0);
     }
 
@@ -481,8 +490,11 @@ function registerIpc() {
     if (!effectiveTarget && hasBinary) {
       try {
         const binList = addon.refreshBinaries ? await addon.refreshBinaries() : [];
-        if (Array.isArray(binList) && binList[binaryIndex]) {
-          effectiveTarget = (binList[binaryIndex].target_process || binList[binaryIndex].target || "").trim();
+        const selectedBinary = Array.isArray(binList)
+          ? binList.find(item => item && item.id === binaryId)
+          : null;
+        if (selectedBinary) {
+          effectiveTarget = (selectedBinary.target_process || selectedBinary.target || "").trim();
         }
       } catch (_) {}
     }

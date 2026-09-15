@@ -73,11 +73,39 @@ export const useAuthStore = defineStore('auth', () => {
     }, 10000);
   }
 
+function cleanReasonMessage(input: any): string {
+  if (!input) return 'Session terminated by server or administrator.';
+  let str = String(input).trim();
+
+  if ((str.startsWith('"{') && str.endsWith('}"')) || (str.startsWith('\'{"') && str.endsWith('"}'))) {
+    try {
+      str = JSON.parse(str);
+    } catch (_) {}
+  }
+
+  if (str.startsWith('{') && str.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(str);
+      if (parsed && typeof parsed === 'object') {
+        const msg = parsed.message || parsed.reason || parsed.error || parsed.msg || parsed.detail;
+        if (msg) return String(msg);
+      }
+    } catch (_) {
+      const match = str.match(/"(?:message|reason|error|msg|detail)"\s*:\s*"([^"]+)"/i);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+  }
+
+  return str;
+}
+
   function handleKick(reason: string) {
-    const finalReason = reason || 'Session terminated by server or administrator.';
+    const finalReason = cleanReasonMessage(reason);
     isKicked.value = true;
     kickReason.value = finalReason;
-    errorMessage.value = `Disconnected: ${finalReason}`;
+    errorMessage.value = '';
     diagnostics.addLog(`[SECURITY KICK] Server terminated session: ${finalReason}`, 'error');
 
     // Stop background socket and heartbeat

@@ -68,7 +68,7 @@ namespace gottvergessen
 	class logger : public server_monitor
 	{
 	public:
-		explicit logger(std::string window_name) :
+		explicit logger(std::string window_name, std::filesystem::path base_path = {}) :
 			m_window_name(window_name),
 			m_file_path(std::getenv("appdata")),
 			m_worker(g3::LogWorker::createLogWorker())
@@ -92,7 +92,10 @@ namespace gottvergessen
 				}
 			}
 
-			m_file_path /= "Ellohim Menu";
+			if (!base_path.empty())
+				m_file_path = std::move(base_path);
+			else
+				m_file_path /= "Ellohim Menu";
 			std::filesystem::path m_backup_path = m_file_path;
 			m_backup_path /= "Backup";
 			try

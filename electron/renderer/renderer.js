@@ -698,7 +698,7 @@ async function executeInjection() {
     const success = await window.loader.inject({
       pid: selectedProcess.pid,
       processName: selectedProcess.name,
-      binaryIndex: selectedBinaryIndex,
+      binaryId: binaries[selectedBinaryIndex].id,
       mode: Number(modeSelect.value)
     });
 

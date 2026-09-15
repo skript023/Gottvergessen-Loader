@@ -129,7 +129,48 @@ class SocketAuthService {
         const raw = typeof event.data === 'string' ? event.data : '';
         console.log('[SocketAuth] Received socket message:', raw);
 
-        // 1. Plain text unauthorized or termination from server
+        // 1. Structured JSON kick event (must parse first so data.message is extracted)
+        try {
+          const data = JSON.parse(raw);
+          if (data && typeof data === 'object') {
+            const ev = String(data?.event || data?.type || data?.action || '').toUpperCase();
+            if (
+              ev === 'FORCE_LOGOUT' ||
+              ev === 'KICK' ||
+              ev === 'USER_KICKED' ||
+              ev === 'LOGOUT' ||
+              ev === 'DISCONNECTED'
+            ) {
+              const reason =
+                data.message ||
+                data.reason ||
+                data.error ||
+                'Your session was terminated or device unlinked by administrator.';
+              console.warn('[SocketAuth] FORCE_LOGOUT received from server:', reason);
+              this.triggerKick(String(reason));
+              return;
+            }
+
+            // Also handle JSON payloads containing termination messages
+            const content = String(data?.message || data?.reason || data?.error || '');
+            const contentLower = content.toLowerCase();
+            if (
+              contentLower.includes('unauthorized') ||
+              contentLower.includes('session terminated') ||
+              contentLower.includes('revoked') ||
+              contentLower.includes('force_logout') ||
+              contentLower.includes('logged out')
+            ) {
+              console.warn('[SocketAuth] Termination message inside JSON:', content);
+              this.triggerKick(content || 'Session terminated by server.');
+              return;
+            }
+          }
+        } catch (_) {
+          // Not valid JSON, proceed to plain text checks
+        }
+
+        // 2. Plain text unauthorized or termination from server
         const lower = raw.toLowerCase();
         if (
           lower.includes('unauthorized') ||
@@ -140,28 +181,6 @@ class SocketAuthService {
           console.warn('[SocketAuth] Termination plain text message:', raw);
           this.triggerKick(raw || 'Session terminated or unlinked by administrator.');
           return;
-        }
-
-        // 2. Structured JSON kick event
-        try {
-          const data = JSON.parse(raw);
-          const ev = String(data?.event || data?.type || data?.action || '').toUpperCase();
-          if (
-            ev === 'FORCE_LOGOUT' ||
-            ev === 'KICK' ||
-            ev === 'USER_KICKED' ||
-            ev === 'LOGOUT' ||
-            ev === 'DISCONNECTED'
-          ) {
-            const reason =
-              data.message ||
-              data.reason ||
-              'Your session was terminated or device unlinked by administrator.';
-            console.warn('[SocketAuth] FORCE_LOGOUT received from server:', reason);
-            this.triggerKick(reason);
-          }
-        } catch (_) {
-          // Plain message like "Connected to server successfully"
         }
       };
 

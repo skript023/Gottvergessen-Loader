@@ -4,6 +4,7 @@ import type { InstalledGameItem, BinaryItem } from '../types/loader';
 import { useDiagnosticsStore } from './diagnostics';
 import { useBinariesStore } from './binaries';
 import { useProcessStore } from './process';
+import { useInjectionStore } from './injection';
 
 export type GameLaunchState = 'idle' | 'launching' | 'waiting' | 'injecting' | 'running' | 'error';
 
@@ -11,6 +12,7 @@ export const useGamesStore = defineStore('games', () => {
   const diagnostics = useDiagnosticsStore();
   const binariesStore = useBinariesStore();
   const processStore = useProcessStore();
+  const injectionStore = useInjectionStore();
 
   const games = ref<InstalledGameItem[]>([]);
   const selectedGameId = ref<string | null>(null);
@@ -223,8 +225,20 @@ export const useGamesStore = defineStore('games', () => {
         const matched = getGameMatchedBinary(selectedGame.value);
         if (matched) {
           selectedBinaryId.value = matched.id;
+          const targetProc =
+            matched.target_process ||
+            (matched as any).target ||
+            selectedGame.value.exeName ||
+            '';
+          customTargetProcess.value = targetProc;
+          selectedMode.value = matched.injection_mode ?? 0;
+
           const bIdx = binariesStore.binaries.findIndex((b) => b.id === matched.id);
           if (bIdx >= 0) binariesStore.selectBinary(bIdx);
+
+          if (targetProc) {
+            processStore.setManualTarget(targetProc, false);
+          }
         } else {
           selectedBinaryId.value = null;
         }
@@ -308,12 +322,24 @@ export const useGamesStore = defineStore('games', () => {
 
     const binary = matchedBinary.value;
     const targetProc = customTargetProcess.value || game.exeName || (binary?.target_process || (binary as any)?.target) || '';
-    const binaryIndex = binary
-      ? binariesStore.binaries.findIndex((b) => b.id === binary.id)
-      : -1;
 
     launchStatus.value = 'launching';
     launchMessage.value = `Opening ${game.name} via ${game.platform.toUpperCase()}...`;
+    if (binary) {
+      injectionStore.isInjecting = true;
+      injectionStore.showProgress = true;
+      injectionStore.progress = 1;
+      injectionStore.stage = 'Launching game and waiting for target process...';
+      injectionStore.feedbackStatus = 'idle';
+      injectionStore.feedbackMessage = 'Auto-injection operation in progress...';
+    } else {
+      injectionStore.isInjecting = false;
+      injectionStore.showProgress = false;
+      injectionStore.progress = 0;
+      injectionStore.stage = 'Launch only';
+      injectionStore.feedbackStatus = 'idle';
+      injectionStore.feedbackMessage = '';
+    }
     diagnostics.addLog(
       `Launching ${game.name} [Target: ${targetProc || 'None'}, DLL: ${binary ? binary.file_name : 'None'}]...`,
       'info'
@@ -326,6 +352,19 @@ export const useGamesStore = defineStore('games', () => {
       }
     }, 1800);
 
+    const operationTimer = binary
+      ? setInterval(async () => {
+          try {
+            if (!window.loader?.operationStatus) return;
+            const status = await window.loader.operationStatus();
+            if (status.active) {
+              injectionStore.progress = Math.max(0, Math.min(100, Number(status.progress) || 0));
+              injectionStore.stage = status.stage || 'Executing operation...';
+            }
+          } catch (_) {}
+        }, 120)
+      : null;
+
     try {
       if (!window.loader?.playAndInject) {
         throw new Error('Game launcher API is not available');
@@ -335,13 +374,19 @@ export const useGamesStore = defineStore('games', () => {
         launchUri: game.launchUri,
         exePath: game.platform === 'custom' ? game.launchUri : undefined,
         targetProcess: targetProc,
-        binaryIndex: binaryIndex >= 0 ? binaryIndex : undefined,
+        binaryId: binary?.id,
         mode: selectedMode.value
       });
 
       clearTimeout(stateTimer);
 
       if (result.success) {
+        if (binary) {
+          injectionStore.progress = 100;
+          injectionStore.stage = result.injected ? 'Injection Complete' : 'Game Launched';
+          injectionStore.feedbackStatus = 'success';
+          injectionStore.feedbackMessage = result.message || 'Operation completed successfully.';
+        }
         launchStatus.value = 'running';
         runningPid.value = result.pid || null;
         if (result.processName) {
@@ -364,15 +409,30 @@ export const useGamesStore = defineStore('games', () => {
           startProcessLivenessMonitor(result.pid, result.processName || targetProc);
         }
       } else {
+        if (binary) {
+          injectionStore.progress = 0;
+          injectionStore.stage = 'Failed';
+          injectionStore.feedbackStatus = 'error';
+          injectionStore.feedbackMessage = result.message || 'Auto-injection failed.';
+        }
         launchStatus.value = 'error';
         launchMessage.value = result.message || 'Failed to start or hook game.';
         diagnostics.addLog(`Launch failed: ${result.message}`, 'error');
       }
     } catch (err: any) {
       clearTimeout(stateTimer);
+      if (binary) {
+        injectionStore.progress = 0;
+        injectionStore.stage = 'Error';
+        injectionStore.feedbackStatus = 'error';
+        injectionStore.feedbackMessage = `Error: ${err.message}`;
+      }
       launchStatus.value = 'error';
       launchMessage.value = err.message || 'Launch error occurred.';
       diagnostics.addLog(`Launch error for ${game.name}: ${err.message}`, 'error');
+    } finally {
+      if (operationTimer) clearInterval(operationTimer);
+      if (binary) injectionStore.isInjecting = false;
     }
   }
 

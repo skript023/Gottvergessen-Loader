@@ -20,19 +20,12 @@
 #define GH_INJ_VERSIONW L"4.0"
 #define GH_INJ_VERSIONA "4.0"
 
-#define GH_INJ_MOD_NAME64W L"GH Injector - x64.dll"
-#define GH_INJ_MOD_NAME86W L"GH Injector - x86.dll"
-
-#define GH_INJ_MOD_NAME64A "GH Injector - x64.dll"
-#define GH_INJ_MOD_NAME86A "GH Injector - x86.dll"
-
-#ifdef _WIN64
-#define GH_INJ_MOD_NAMEW GH_INJ_MOD_NAME64W
-#define GH_INJ_MOD_NAMEA GH_INJ_MOD_NAME64A
-#else
-#define GH_INJ_MOD_NAMEW GH_INJ_MOD_NAME86W
-#define GH_INJ_MOD_NAMEA GH_INJ_MOD_NAME86A
+#ifndef _WIN64
+#error "The injection runtime integration is x64-only"
 #endif
+
+#define GH_INJ_MOD_NAMEW L"injection-core.dll"
+#define GH_INJ_MOD_NAMEA "injection-core.dll"
 
 #ifdef UNICODE
 #define GH_INJ_MOD_NAME GH_INJ_MOD_NAMEW
@@ -43,6 +36,22 @@
 #endif
 
 #include <Windows.h>
+#include <filesystem>
+
+inline HINSTANCE load_injector_library()
+{
+	HMODULE owner = GetModuleHandleW(L"native-core.dll");
+	if (!owner)
+		owner = GetModuleHandleW(nullptr);
+
+	wchar_t owner_path[MAX_PATH] = {};
+	const DWORD length = GetModuleFileNameW(owner, owner_path, MAX_PATH);
+	if (length == 0 || length >= MAX_PATH)
+		return nullptr;
+
+	const auto injector_path = std::filesystem::path(owner_path).parent_path() / GH_INJ_MOD_NAMEW;
+	return LoadLibraryW(injector_path.c_str());
+}
 
 enum class INJECTION_MODE
 {

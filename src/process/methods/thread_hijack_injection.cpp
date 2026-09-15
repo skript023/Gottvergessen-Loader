@@ -6,7 +6,7 @@ namespace gottvergessen
 {
 	bool thread_hijack_injection::inject(const std::string& process_name, std::uint32_t pid, const std::filesystem::path& dll_path)
 	{
-		HINSTANCE injection_module = LoadLibraryA(GH_INJ_MOD_NAMEA);
+		HINSTANCE injection_module = load_injector_library();
 		if (!injection_module)
 		{
 			LOG(WARNING) << "Thread Hijack failed: Injector library not found.";

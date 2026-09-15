@@ -59,7 +59,7 @@ export const useInjectionStore = defineStore('injection', () => {
       const success = await window.loader.inject({
         pid: proc.pid,
         processName: proc.name,
-        binaryIndex: binaryIdx,
+        binaryId: activeBin.id,
         mode
       });
 

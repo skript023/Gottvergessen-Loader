@@ -11,6 +11,7 @@ const password = ref('');
 const rememberMe = ref(true);
 
 async function handleLogin() {
+  auth.kickReason = '';
   if (!username.value.trim() || !password.value) {
     auth.errorMessage = 'Username and password are required.';
     return;
@@ -119,7 +120,7 @@ async function handleLogin() {
             </template>
           </button>
 
-          <p v-if="auth.errorMessage" class="form-message error">
+          <p v-if="auth.errorMessage && !auth.kickReason" class="form-message error">
             {{ auth.errorMessage }}
           </p>
           <p v-else-if="auth.isLoading" class="form-message pending-text">

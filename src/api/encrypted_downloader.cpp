@@ -33,7 +33,9 @@ namespace gottvergessen
         auto sessionRes = cpr::Post(sessionUrl, sessionHeader);
         if (sessionRes.status_code != 200)
         {
-            LOG(WARNING) << "Encrypted downloader: Failed to create session, HTTP status: " << sessionRes.status_code;
+            const auto detail = sessionRes.text.substr(0, 512);
+            LOG(WARNING) << "Encrypted downloader: Failed to create session, HTTP status: "
+                         << sessionRes.status_code << ", response: " << detail;
             return false;
         }
 
@@ -80,7 +82,11 @@ namespace gottvergessen
 
         if (downloadRes.status_code != 200 || downloadRes.text.size() <= crypto::win_aes::TAG_SIZE)
         {
-            LOG(WARNING) << "Encrypted downloader: Download failed or payload too small, status: " << downloadRes.status_code;
+            const auto detail = downloadRes.status_code == 200
+                ? std::string{"payload too small"}
+                : downloadRes.text.substr(0, 512);
+            LOG(WARNING) << "Encrypted downloader: Download failed or payload too small, status: "
+                         << downloadRes.status_code << ", response: " << detail;
             return false;
         }
 

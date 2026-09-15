@@ -87,12 +87,13 @@ export interface LoginResult {
 export interface OperationStatus {
   progress: number;
   stage: string;
+  active: boolean;
 }
 
 export interface InjectRequest {
   pid: number;
   processName: string;
-  binaryIndex: number;
+  binaryId: string;
   mode: number;
 }
 
@@ -120,7 +121,7 @@ export interface PlayAndInjectParams {
   launchUri?: string;
   exePath?: string;
   targetProcess?: string;
-  binaryIndex?: number;
+  binaryId?: string;
   mode?: number;
 }
 
@@ -208,5 +209,3 @@ declare global {
     };
   }
 }
-
-

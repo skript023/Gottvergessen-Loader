@@ -4,6 +4,7 @@ import { useGamesStore } from '../../../stores/games';
 import { useBinariesStore } from '../../../stores/binaries';
 import { useAuthStore } from '../../../stores/auth';
 import { useDiagnosticsStore } from '../../../stores/diagnostics';
+import ProgressHUD from '../../../components/ProgressHUD.vue';
 
 const gamesStore = useGamesStore();
 const binariesStore = useBinariesStore();
@@ -120,8 +121,8 @@ function handleRemoveCustom() {
           </div>
         </div>
 
-        <!-- Big Action Bar: Only shown when game has a linked mod payload -->
-        <div v-if="binary" class="game-action-bar">
+        <!-- Every game can launch; only linked games execute payload injection. -->
+        <div class="game-action-bar">
           <div class="play-btn-wrapper">
             <button
               class="btn-wand-play"
@@ -140,7 +141,9 @@ function handleRemoveCustom() {
                   <span class="play-main-text">
                     {{ gamesStore.launchStatus === 'launching' ? 'LAUNCHING...' : 'INITIALIZING...' }}
                   </span>
-                  <span class="play-sub-text">Connecting to Mod Core</span>
+                  <span class="play-sub-text">
+                    {{ binary ? 'Connecting to Mod Core' : 'Starting without injection' }}
+                  </span>
                 </div>
               </template>
 
@@ -151,7 +154,9 @@ function handleRemoveCustom() {
                 </svg>
                 <div class="play-btn-text-block">
                   <span class="play-main-text">STOP GAME</span>
-                  <span class="play-sub-text">PID: {{ gamesStore.runningPid }} • MOD ACTIVE</span>
+                  <span class="play-sub-text">
+                    PID: {{ gamesStore.runningPid }} • {{ binary ? 'MOD ACTIVE' : 'NO INJECTION' }}
+                  </span>
                 </div>
               </template>
 
@@ -176,7 +181,7 @@ function handleRemoveCustom() {
                 <div class="play-btn-text-block">
                   <span class="play-main-text">PLAY</span>
                   <span class="play-sub-text">
-                    Launch & Inject {{ binary.file_name || 'DLL' }}
+                    {{ binary ? `Launch & Inject ${binary.file_name || 'DLL'}` : 'Launch game without injection' }}
                   </span>
                 </div>
               </template>
@@ -187,12 +192,19 @@ function handleRemoveCustom() {
           <div class="launch-status-pill" :class="`status-${gamesStore.launchStatus}`">
             <span class="status-indicator-dot"></span>
             <span class="status-indicator-text">
-              {{ gamesStore.launchMessage || `Ready to inject ${binary.name} into ${gamesStore.customTargetProcess || game.exeName}` }}
+              {{
+                gamesStore.launchMessage ||
+                (binary
+                  ? `Ready to inject ${binary.name} into ${gamesStore.customTargetProcess || game.exeName}`
+                  : 'Unsupported by Quantum Mod — launch only, no injection')
+              }}
             </span>
           </div>
         </div>
       </div>
     </div>
+
+    <ProgressHUD />
 
     <!-- Quantum Mod Unsupported Notice View (Matches Image 3) -->
     <div v-if="!binary" class="unsupported-mod-view">
@@ -209,7 +221,8 @@ function handleRemoveCustom() {
         </div>
         <div class="unsupported-card-body">
           <p class="unsupported-message-text">
-            This game is <strong>not supported by Quantum Mod</strong>. This is due either to technical aspects that make it impractical to mod or to the possible multiplayer nature of the game.
+            This game is <strong>not supported by Quantum Mod</strong>. You can
+            still launch it normally, but no payload will be downloaded or injected.
           </p>
         </div>
       </div>
@@ -310,7 +323,7 @@ function handleRemoveCustom() {
           <p class="config-desc">Execution hook method for target process:</p>
           <select v-model="gamesStore.selectedMode" class="wand-select">
             <option :value="0">CreateRemoteThread (Standard) [Recommended]</option>
-            <option :value="2">Manual Map (Kernel/Stealth - requires GH Injector)</option>
+            <option :value="2">Manual Map (Advanced - requires injection runtime)</option>
             <option :value="1">Thread Hijack (Evasion)</option>
             <option :value="3">Reflective DLL Injection</option>
           </select>

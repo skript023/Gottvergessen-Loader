@@ -5,6 +5,9 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 project(GottvergessenLoader CXX ASM_MASM)
 
 option(BUILD_IMGUI_FRONTEND "Build the legacy ImGui executable" OFF)
+set(GH_INJECTOR_X64_DLL
+    "${PROJECT_SOURCE_DIR}/vendor/gh-injector/GH Injector - x64.dll"
+    CACHE FILEPATH "Path to the locally built x64 GuidedHacking Injector DLL")
 
 set(SRC_DIR "${PROJECT_SOURCE_DIR}/src")
 
@@ -68,6 +71,10 @@ endif()
 # Standard C ABI DLL loaded by Electron through FFI. It is a normal CMake
 # target and has no dependency on Node.js or Electron headers.
 if(WIN32)
+    if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+        message(FATAL_ERROR "GottvergessenNative and its injector dependency are x64-only")
+    endif()
+
     set(NATIVE_DLL_SOURCES
         "${SRC_DIR}/electron/native_dll.cpp"
         "${SRC_DIR}/process/injection.cpp"
@@ -106,6 +113,21 @@ if(WIN32)
         bcrypt
         shell32
     )
+
+    if(EXISTS "${GH_INJECTOR_X64_DLL}")
+        add_custom_command(TARGET GottvergessenNative POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${GH_INJECTOR_X64_DLL}"
+                "$<TARGET_FILE_DIR:GottvergessenNative>/injection-core.dll"
+            COMMENT "Copying x64 injection runtime as injection-core.dll"
+            VERBATIM
+        )
+    else()
+        message(WARNING
+            "The x64 injection runtime was not found at '${GH_INJECTOR_X64_DLL}'. "
+            "Manual Map and Thread Hijack will be unavailable. Set "
+            "GH_INJECTOR_X64_DLL to a locally built GH Injector x64 DLL.")
+    endif()
 
     add_executable(GottvergessenUpdater WIN32 "${SRC_DIR}/electron/updater_runner.cpp")
     set_target_properties(GottvergessenUpdater PROPERTIES

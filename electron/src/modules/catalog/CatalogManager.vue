@@ -1,12 +1,24 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { useBinariesStore } from '../../stores/binaries';
+import { useGamesStore } from '../../stores/games';
 
 const router = useRouter();
 const binariesStore = useBinariesStore();
+const gamesStore = useGamesStore();
 
 function selectAndConfigure(index: number) {
   binariesStore.selectBinary(index);
+  const binary = binariesStore.binaries[index];
+  const matchedGame = gamesStore.games.find(
+    (game) => gamesStore.getGameMatchedBinary(game)?.id === binary?.id
+  );
+
+  if (matchedGame) {
+    gamesStore.selectGame(matchedGame.id);
+  } else {
+    gamesStore.selectGame(null);
+  }
   router.push('/dashboard');
 }
 
@@ -61,6 +73,11 @@ function handleRefresh() {
         :key="binary.id || index"
         class="catalog-card"
         :class="{ selected: index === binariesStore.selectedBinaryIndex }"
+        role="button"
+        tabindex="0"
+        @click="selectAndConfigure(index)"
+        @keydown.enter.prevent="selectAndConfigure(index)"
+        @keydown.space.prevent="selectAndConfigure(index)"
       >
         <div class="catalog-card-header">
           <span class="catalog-game-tag">{{ (binary.arch || 'x64').toUpperCase() }}</span>
@@ -98,7 +115,7 @@ function handleRefresh() {
           </div>
         </div>
 
-        <button class="btn-select-binary" @click="selectAndConfigure(index)">
+        <button class="btn-select-binary" @click.stop="selectAndConfigure(index)">
           {{ index === binariesStore.selectedBinaryIndex ? '✓ Selected' : 'Select & Configure' }}
         </button>
       </div>

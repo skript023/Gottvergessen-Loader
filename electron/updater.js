@@ -62,9 +62,9 @@ class ClientUpdater {
   }
 
   resolveCurrentVersion() {
-    let pkgVer = "1.0.5";
+    let pkgVer = "1.0.0";
     try {
-      pkgVer = require("./package.json").version || "1.0.5";
+      pkgVer = require("./package.json").version || "1.0.0";
     } catch (_) {}
 
     let baseVer = "";
@@ -83,7 +83,7 @@ class ClientUpdater {
         baseVer = match[1];
       }
     } catch (_) {}
-    return baseVer || "1.0.5";
+    return baseVer || "1.0.0";
   }
 
   getHistoryFilePath() {
