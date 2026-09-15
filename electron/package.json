@@ -1,6 +1,6 @@
 {
   "name": "gottvergessen-electron",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Electron frontend for the Gottvergessen native C++ core",
   "main": "main.js",
