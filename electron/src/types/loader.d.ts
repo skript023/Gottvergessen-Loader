@@ -181,11 +181,7 @@ export interface UpdaterApi {
 
 export interface ServerStatus {
   state: 'online' | 'degraded' | 'offline';
-  host: string;
-  protocol: string;
   pingMs: number | null;
-  httpStatus: number | null;
-  server: string | null;
   checkedAt: string;
   error: string | null;
 }

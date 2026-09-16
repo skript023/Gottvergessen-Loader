@@ -1,42 +1,74 @@
-# Electron frontend
+﻿# Astra Electron development
 
-This frontend loads the standard C ABI `native-core.dll` through
-Koffi. The DLL is built directly by the root `CMakeLists.txt` and has no
-dependency on Electron or Node.js headers.
+Astra uses Electron, Vue 3, TypeScript, and Pinia. The main process loads the standard C ABI `native-core.dll` through Koffi. The native library is built by the root CMake project and does not depend on Node.js or Electron headers.
+
+See the [main README](../README.md) for prerequisites, features, packaging, and the command reference. All commands below run from this directory.
 
 ## Development
 
-From this directory:
-
 ```powershell
-npm install
+npm ci
 npm run dev
 ```
 
-The native build is generated in `../out/build/electron/bin/Release` and is
-x64-only. The Electron target currently uses the in-house native strategies
-(`CreateRemoteThread`, `Thread Hijack`, `QueueUserAPC`, and `Reflective DLL
-Injection`) and does not package a GuidedHacking runtime. The legacy
-`manual_map_injection.cpp` wrapper is intentionally not part of the Electron
-CMake target until it is replaced by an independently implemented mapper.
+For UI changes with an existing native build:
 
-Do not copy or redistribute GuidedHacking source, binaries, or derivative
-implementations merely to bypass its license. If that runtime is used for
-private testing, keep it outside distributable packages and obtain permission
-for any broader distribution.
+```powershell
+npm start
+```
 
-## Astra builds
+For Vite hot reload, run `npm run dev:ui` in one terminal. In a second PowerShell terminal, launch Electron against that server:
 
-The application version starts at 1.0.0 in package.json. Run npm run dist to
-build Astra-1.0.0-portable.exe in dist. Packaging preserves the configured
-version; use npm run version:bump explicitly when preparing the next release.
-The updater reads this same version, regardless of the executable filename.
+```powershell
+$env:VITE_DEV_SERVER_URL = "http://localhost:5173"
+npx electron .
+```
 
-Hover or focus the connection badge to see the server host, HTTP response
-latency, protocol, response status, server software (when advertised), and
-last check time. Checks use the configured backend's /client/check-update
-endpoint without session credentials, every 15 seconds with a 5-second
-deadline. HTTP latency is not ICMP ping or a measure of full backend health.
-Non-2xx responses show DEGRADED; network failures show OFFLINE.
+Build the native components first with `npm run native:build`. Use the actual Vite URL if port 5173 is occupied. The browser-only Vite view has no native bridge.
 
-Run node --test scripts/serverStatus.test.cjs to test connection monitoring.
+## Native build outputs
+
+The build script configures x64 and Win32 Release builds with the `Visual Studio 18 2026` generator.
+
+| Output | Location relative to the repository root |
+| --- | --- |
+| x64 native library | `out/build/electron/bin/Release/native-core.dll` |
+| x86 native library | `out/build/electron-x86/bin/Release/native-core-x86.dll` |
+| Update helper | `out/build/electron/bin/Release/update-runner.exe` |
+
+The x86 library is also copied into the x64 output directory. The current Electron package is x64 and packages `native-core.dll` and `update-runner.exe`; it does not include the x86 library in its `extraResources` list.
+
+The Electron target builds the in-house CreateRemoteThread, Thread Hijack, QueueUserAPC, and Reflective DLL implementations. It does not package the GuidedHacking runtime, and the legacy `manual_map_injection.cpp` wrapper is excluded from this target. Any use or redistribution of third-party runtime components must follow their applicable licenses.
+
+## Backend and local data
+
+The updater and connection monitor resolve their backend in this order:
+
+1. `VITE_BACKEND_URL` environment variable.
+2. `BACKEND_URL` environment variable.
+3. The native core's configured backend URL.
+4. The fallback `https://apie.rena.my.id`.
+
+These environment overrides apply to the updater and connection monitor. Native authentication uses the configuration in [environment.hpp](../src/api/environment.hpp); Release builds currently select its production backend.
+
+Native application data is stored in the repository's `data` directory during development. Portable builds use a `data` directory beside the portable executable. Update downloads are stored under Electron's `userData` directory in `updates`.
+
+Automatic application update checks are bypassed in unpackaged development runs. The connection badge still probes the backend independently.
+
+## Versioning and packaging
+
+```powershell
+npm run dist
+```
+
+The version in [package.json](package.json) is currently `1.0.0`, producing `dist/Astra-1.0.0-portable.exe`. Packaging does not change the version. Use `npm run version:bump` explicitly when preparing the next patch release.
+
+## Verification
+
+```powershell
+npx vue-tsc --noEmit
+node --test scripts/serverStatus.test.cjs
+npm run build:ui
+```
+
+The connection tests use a local HTTP server to cover successful responses, HTTP failures, timeouts, invalid configuration, deduplicated/cached requests, and exclusion of server identity from connection-status responses.

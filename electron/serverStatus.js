@@ -5,18 +5,15 @@ const { performance } = require('node:perf_hooks');
 function probeServer(baseUrl, version, timeoutMs = 5000) {
   return new Promise((resolve) => {
     const result = {
-      state: 'offline', host: '', protocol: '', pingMs: null,
-      httpStatus: null, server: null, checkedAt: '', error: null
+      state: 'offline', pingMs: null, checkedAt: '', error: null
     };
     let url;
     try {
       url = new URL(`${baseUrl.replace(/\/+$/, '')}/client/check-update`);
       if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Invalid protocol');
-      result.host = url.host;
-      result.protocol = url.protocol.slice(0, -1).toUpperCase();
       url.searchParams.set('version', version);
     } catch (_) {
-      resolve({ ...result, checkedAt: new Date().toISOString(), error: 'Server address unavailable' });
+      resolve({ ...result, checkedAt: new Date().toISOString(), error: 'Connection information unavailable' });
       return;
     }
     const started = performance.now();
@@ -35,9 +32,7 @@ function probeServer(baseUrl, version, timeoutMs = 5000) {
       finish({
         state: status >= 200 && status < 300 ? 'online' : 'degraded',
         pingMs: Math.round(performance.now() - started),
-        httpStatus: status,
-        server: typeof response.headers.server === 'string' ? response.headers.server.slice(0, 128) : null,
-        error: status >= 200 && status < 300 ? null : `HTTP ${status}`
+        error: status >= 200 && status < 300 ? null : 'Service temporarily unavailable'
       });
       response.destroy();
     });
@@ -45,7 +40,7 @@ function probeServer(baseUrl, version, timeoutMs = 5000) {
       finish({ error: 'Connection timed out' });
       request.destroy();
     }, timeoutMs);
-    request.on('error', () => finish({ error: 'Could not reach server' }));
+    request.on('error', () => finish({ error: 'Unable to connect' }));
   });
 }
 

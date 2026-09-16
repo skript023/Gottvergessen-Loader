@@ -33,18 +33,15 @@ onUnmounted(() => { disposed = true; clearInterval(timer); });
       <span>{{ state.toUpperCase() }}</span>
     </button>
     <div v-if="open" id="server-status-tooltip" class="server-status-tooltip" role="tooltip">
-      <strong>Server connection</strong>
+      <strong>Connection overview</strong>
       <dl v-if="status">
-        <div><dt>Server</dt><dd>{{ status.host || 'Unavailable' }}</dd></div>
-        <div><dt>Ping (HTTP)</dt><dd>{{ status.pingMs === null ? 'Unavailable' : `${status.pingMs} ms` }}</dd></div>
-        <div><dt>Protocol</dt><dd>{{ status.protocol || 'Unavailable' }}</dd></div>
-        <div><dt>HTTP status</dt><dd>{{ status.httpStatus ?? 'No response' }}</dd></div>
-        <div><dt>Server software</dt><dd>{{ status.server || 'Not provided' }}</dd></div>
+        <div><dt>Status</dt><dd>{{ state.toUpperCase() }}</dd></div>
+        <div><dt>Response time</dt><dd>{{ status.pingMs === null ? 'Unavailable' : `${status.pingMs} ms` }}</dd></div>
         <div><dt>Last checked</dt><dd>{{ new Date(status.checkedAt).toLocaleTimeString() }}</dd></div>
       </dl>
       <p v-if="status?.error">{{ status.error }}</p>
-      <p v-if="!status">{{ failed ? 'Connection information unavailable.' : 'Checking server connection...' }}</p>
-      <small>HTTP response time. Refreshes every 15 seconds.</small>
+      <p v-if="!status">{{ failed ? 'Connection information unavailable.' : 'Checking connection...' }}</p>
+      <small>Automatically refreshes every 15 seconds.</small>
     </div>
   </div>
 </template>

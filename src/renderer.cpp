@@ -249,7 +249,7 @@ namespace gottvergessen
 
 		ImGui::GetIO().Fonts->Build();
 
-		if (!textures::load_from_memory(quantum_icons, _ARRAYSIZE(quantum_icons), m_device, &m_icons, &m_icons_size.x, &m_icons_size.y))
+		if (!textures::load_from_memory(astra_icons, _ARRAYSIZE(astra_icons), m_device, &m_icons, &m_icons_size.x, &m_icons_size.y))
 		{
 			LOG(WARNING) << "Failed load textures";
 		}

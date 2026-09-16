@@ -97,8 +97,8 @@ function handleRemoveCustom() {
               <span v-if="binary" class="badge-server-linked" title="Payload linked from Cloud Security Network">
                 ⚡ CLOUD MOD LINKED
               </span>
-              <span v-else class="badge-unsupported" title="This game is not supported by Quantum Mod">
-                🛡️ NOT SUPPORTED BY QUANTUM MOD
+              <span v-else class="badge-unsupported" title="This game is not supported by Astra">
+                🛡️ NOT SUPPORTED BY ASTRA
               </span>
               <span v-if="isRunning" class="badge-running-pulse">
                 <span class="pulse-dot-green"></span>
@@ -194,7 +194,7 @@ function handleRemoveCustom() {
                 gamesStore.launchMessage ||
                 (binary
                   ? `Ready to inject ${binary.name} into ${gamesStore.customTargetProcess || game.exeName}`
-                  : 'Unsupported by Quantum Mod — launch only, no injection')
+                  : 'Unsupported by Astra — launch only, no injection')
               }}
             </span>
           </div>
@@ -204,7 +204,7 @@ function handleRemoveCustom() {
 
     <ProgressHUD />
 
-    <!-- Quantum Mod Unsupported Notice View (Matches Image 3) -->
+    <!-- Astra Unsupported Notice View (Matches Image 3) -->
     <div v-if="!binary" class="unsupported-mod-view">
       <div class="unsupported-notice-card">
         <div class="unsupported-card-header">
@@ -219,7 +219,7 @@ function handleRemoveCustom() {
         </div>
         <div class="unsupported-card-body">
           <p class="unsupported-message-text">
-            This game is <strong>not supported by Quantum Mod</strong>. You can
+            This game is <strong>not supported by Astra</strong>. You can
             still launch it normally, but no payload will be downloaded or injected.
           </p>
         </div>

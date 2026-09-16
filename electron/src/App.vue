@@ -150,8 +150,8 @@ onMounted(async () => {
         <div class="splash-info">
           <span class="splash-eyebrow">
             {{ startupPhase === 'updating'
-                ? (updater.isMandatory ? 'CRITICAL SYSTEM GATE • v' + updater.latestVersion : 'QUANTUM AUTO-UPDATER • v' + updater.latestVersion)
-                : 'QUANTUM SECURITY GATEWAY' }}
+                ? (updater.isMandatory ? 'CRITICAL SYSTEM GATE • v' + updater.latestVersion : 'ASTRA AUTO-UPDATER • v' + updater.latestVersion)
+                : 'ASTRA SECURITY GATEWAY' }}
           </span>
           <h2 class="splash-title">
             {{ startupPhase === 'updating' ? 'Updating Astra' : 'Astra' }}

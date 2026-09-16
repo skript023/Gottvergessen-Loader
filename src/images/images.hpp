@@ -1,3 +1,3 @@
 #pragma once
 
-extern unsigned char quantum_icons[10638];
+extern unsigned char astra_icons[10638];

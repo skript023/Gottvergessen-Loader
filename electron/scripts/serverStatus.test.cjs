@@ -8,7 +8,7 @@ async function serve(t, handler) {
   t.after(() => { server.closeAllConnections(); server.close(); });
   return `http://127.0.0.1:${server.address().port}`;
 }
-test('successful probe reports measured HTTP latency and public metadata', async t => {
+test('successful probe reports latency without exposing server identity', async t => {
   const url = await serve(t, (req, res) => {
     assert.equal(req.url, '/client/check-update?version=1.0.0');
     assert.equal(req.headers['user-agent'], 'Astra/1.0.0');
@@ -18,9 +18,9 @@ test('successful probe reports measured HTTP latency and public metadata', async
   });
   const result = await probeServer(url, '1.0.0');
   assert.equal(result.state, 'online');
-  assert.equal(result.httpStatus, 200);
-  assert.equal(result.protocol, 'HTTP');
-  assert.equal(result.server, 'Astra test');
+  assert.deepEqual(Object.keys(result).sort(), ['checkedAt', 'error', 'pingMs', 'state']);
+  assert.ok(!JSON.stringify(result).includes('127.0.0.1'));
+  assert.ok(!JSON.stringify(result).includes('Astra test'));
   assert.ok(result.pingMs >= 0);
   assert.ok(Date.parse(result.checkedAt));
 });
@@ -28,7 +28,8 @@ test('HTTP errors are degraded rather than online', async t => {
   const url = await serve(t, (_, res) => { res.writeHead(503); res.end(); });
   const result = await probeServer(url, '1.0.0');
   assert.equal(result.state, 'degraded');
-  assert.equal(result.httpStatus, 503);
+  assert.equal(result.error, 'Service temporarily unavailable');
+  assert.deepEqual(Object.keys(result).sort(), ['checkedAt', 'error', 'pingMs', 'state']);
 });
 test('deadline returns offline with no fabricated ping', async t => {
   const url = await serve(t, () => {});
