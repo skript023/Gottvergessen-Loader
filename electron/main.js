@@ -503,8 +503,12 @@ function registerIpc() {
       return { success: true, message: "Game launched." };
     }
 
+    // Process APIs can return either `name.exe` or a bare image name.
+    // Compare normalized stems so a configured `valheim.exe` also matches
+    // a process reported as `valheim` (and vice versa).
     const targetLower = effectiveTarget.toLowerCase();
     const targetStem = targetLower.replace(/\.exe$/i, "");
+    const normalizedProcessName = (name) => String(name || "").toLowerCase().replace(/\.exe$/i, "");
     const isLauncherCandidate = !targetLower.includes("shipping") && !targetLower.includes("win64");
 
     // 4. Poll process list for target process (up to 45 seconds)
@@ -518,11 +522,11 @@ function registerIpc() {
         const procs = addon.listProcesses();
 
         // 4a. Check exact match on targetProcess
-        let match = procs.find(p => p.name.toLowerCase() === targetLower);
+        let match = procs.find(p => normalizedProcessName(p.name) === targetStem);
 
         // 4b. If targetProcess might be a launcher (e.g. Game.exe), check if a shipping child has spawned (e.g. Game-Win64-Shipping.exe)
         const shippingMatch = procs.find(p => {
-          const nl = p.name.toLowerCase();
+          const nl = normalizedProcessName(p.name);
           return nl.startsWith(targetStem) && (nl.includes("shipping") || nl.includes("win64"));
         });
 

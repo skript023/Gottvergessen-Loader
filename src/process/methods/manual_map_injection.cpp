@@ -21,6 +21,17 @@ namespace gottvergessen
 			return false;
 		}
 
+		DWORD symbol_state = 0;
+		DWORD import_state = 0;
+		if (!prepare_injector_library(injection_module, symbol_state, import_state))
+		{
+			LOG(WARNING) << "Manual Map failed: injection runtime initialization failed. "
+			             << "Symbol state: 0x" << std::hex << symbol_state
+			             << ", import state: 0x" << import_state;
+			FreeLibrary(injection_module);
+			return false;
+		}
+
 		INJECTIONDATAA data = {};
 		data.ProcessID = pid;
 		data.Mode = INJECTION_MODE::IM_ManualMap;
@@ -30,6 +41,8 @@ namespace gottvergessen
 		strncpy_s(data.szDllPath, sizeof(data.szDllPath), dll_path.string().c_str(), _TRUNCATE);
 
 		DWORD result = inject_library_fn(&data);
+		if (result != 0)
+			LOG(WARNING) << "Manual Map runtime returned error: 0x" << std::hex << result;
 		FreeLibrary(injection_module);
 
 		return result == 0;

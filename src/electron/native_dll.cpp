@@ -1317,13 +1317,30 @@ GV_API int __cdecl gv_download_and_inject()
 			                        .dump(2);
 		}
 
-		set_operation(92, "Starting native operation");
 		// Only set target process from binary payload if no target process has been explicitly locked by caller
 		if (injection::get_target_process().empty() && !target.empty())
 			injection::set_target_process(target);
+		const auto injection_mode = injection::get_injection_mode();
+		const char* operation_name = "Process detected; starting DLL injection";
+		switch (injection_mode)
+		{
+		case InjectionMode::CreateRemoteThread:
+			operation_name = "Process detected; starting remote-thread injection";
+			break;
+		case InjectionMode::ThreadHijack:
+			operation_name = "Process detected; starting thread-hijack injection";
+			break;
+		case InjectionMode::QueueUserAPC:
+			operation_name = "Process detected; starting QueueUserAPC injection";
+			break;
+		case InjectionMode::ReflectiveInjection:
+			operation_name = "Process detected; starting reflective injection";
+			break;
+		}
+		set_operation(92, operation_name);
 		LOG(HACKER) << "[gv_download_and_inject] Target process: " << injection::get_target_process()
 		            << ", PID: " << injection::get_target_pid()
-		            << ", Method Mode: " << static_cast<int>(injection::get_injection_mode());
+		            << ", Method Mode: " << static_cast<int>(injection_mode);
 		const bool success = injection::inject_library(decrypted_path);
 		// Clean up plaintext decrypted temporary DLL: Try direct delete, fallback to delayed delete WITHOUT renaming
 		std::error_code ec;

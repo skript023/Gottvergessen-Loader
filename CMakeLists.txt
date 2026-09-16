@@ -5,9 +5,6 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 project(GottvergessenLoader CXX ASM_MASM)
 
 option(BUILD_IMGUI_FRONTEND "Build the legacy ImGui executable" OFF)
-set(GH_INJECTOR_X64_DLL
-    "${PROJECT_SOURCE_DIR}/vendor/gh-injector/GH Injector - x64.dll"
-    CACHE FILEPATH "Path to the locally built x64 GuidedHacking Injector DLL")
 
 set(SRC_DIR "${PROJECT_SOURCE_DIR}/src")
 
@@ -78,9 +75,10 @@ if(WIN32)
     set(NATIVE_DLL_SOURCES
         "${SRC_DIR}/electron/native_dll.cpp"
         "${SRC_DIR}/process/injection.cpp"
+        "${SRC_DIR}/process/process_handle.cpp"
         "${SRC_DIR}/process/methods/remote_thread_injection.cpp"
         "${SRC_DIR}/process/methods/thread_hijack_injection.cpp"
-        "${SRC_DIR}/process/methods/manual_map_injection.cpp"
+        "${SRC_DIR}/process/methods/queue_apc_injection.cpp"
         "${SRC_DIR}/process/methods/reflective_injection.cpp"
         "${SRC_DIR}/file_manager.cpp"
         "${SRC_DIR}/file_manager/file.cpp"
@@ -113,21 +111,6 @@ if(WIN32)
         bcrypt
         shell32
     )
-
-    if(EXISTS "${GH_INJECTOR_X64_DLL}")
-        add_custom_command(TARGET GottvergessenNative POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                "${GH_INJECTOR_X64_DLL}"
-                "$<TARGET_FILE_DIR:GottvergessenNative>/injection-core.dll"
-            COMMENT "Copying x64 injection runtime as injection-core.dll"
-            VERBATIM
-        )
-    else()
-        message(WARNING
-            "The x64 injection runtime was not found at '${GH_INJECTOR_X64_DLL}'. "
-            "Manual Map and Thread Hijack will be unavailable. Set "
-            "GH_INJECTOR_X64_DLL to a locally built GH Injector x64 DLL.")
-    endif()
 
     add_executable(GottvergessenUpdater WIN32 "${SRC_DIR}/electron/updater_runner.cpp")
     set_target_properties(GottvergessenUpdater PROPERTIES

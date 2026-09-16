@@ -12,7 +12,7 @@ namespace gottvergessen
 	{
 		CreateRemoteThread = 0,
 		ThreadHijack = 1,
-		ManualMap = 2,
+		QueueUserAPC = 2,
 		ReflectiveInjection = 3
 	};
 
@@ -87,7 +87,7 @@ namespace gottvergessen
 			{
 				do
 				{
-					if (!_stricmp(entry.szExeFile, process_name.c_str()))
+					if (process_name_matches(entry.szExeFile, process_name))
 					{
 						HANDLE hProc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, entry.th32ProcessID);
 						if (hProc != NULL)
@@ -119,9 +119,9 @@ namespace gottvergessen
 
 			if (Process32First(snapshot, &entry))
 			{
-				do
+					do
 				{
-					if (!_stricmp(entry.szExeFile, process_name.c_str()))
+					if (process_name_matches(entry.szExeFile, process_name))
 					{
 						// Verify process is actually active and accessible (not a zombie)
 						HANDLE hProc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, entry.th32ProcessID);
@@ -142,6 +142,22 @@ namespace gottvergessen
 
 			CloseHandle(snapshot);
 			return 0;
+		}
+
+		static bool process_name_matches(const char* actual_name, const std::string& requested_name)
+		{
+			if (!actual_name)
+				return false;
+
+			std::string actual = actual_name;
+			std::string requested = requested_name;
+			const auto strip_exe = [](std::string& value) {
+				if (value.size() >= 4 && _stricmp(value.c_str() + value.size() - 4, ".exe") == 0)
+					value.resize(value.size() - 4);
+			};
+			strip_exe(actual);
+			strip_exe(requested);
+			return _stricmp(actual.c_str(), requested.c_str()) == 0;
 		}
 	};
 }

@@ -24,9 +24,9 @@ export const useBinariesStore = defineStore('binaries', () => {
     switch (Number(mode)) {
       case 0: return 'CreateRemoteThread';
       case 1: return 'Thread Hijack';
-      case 2: return 'Manual Map (Kernel/Stealth)';
+      case 2: return 'QueueUserAPC + Handle Hijack';
       case 3: return 'Reflective DLL';
-      default: return 'Manual Map';
+      default: return 'CreateRemoteThread';
     }
   }
 
@@ -34,7 +34,7 @@ export const useBinariesStore = defineStore('binaries', () => {
     switch (Number(mode)) {
       case 0: return 'Remote Thread';
       case 1: return 'Thread Hijack';
-      case 2: return 'Manual Map';
+      case 2: return 'QueueUserAPC';
       case 3: return 'Reflective';
       default: return 'Remote Thread';
     }
@@ -65,6 +65,7 @@ export const useBinariesStore = defineStore('binaries', () => {
   }
 
   function setBinaries(items: BinaryItem[]) {
+    const selectedId = activeBinary.value?.id || null;
     binaries.value = items.map((b) => {
       const clone = { ...b };
       if (!clone.target_process && (b as any).target) {
@@ -74,13 +75,9 @@ export const useBinariesStore = defineStore('binaries', () => {
       return clone;
     });
 
-    if (binaries.value.length > 0) {
-      if (selectedBinaryIndex.value < 0 || selectedBinaryIndex.value >= binaries.value.length) {
-        selectBinary(0);
-      }
-    } else {
-      selectedBinaryIndex.value = -1;
-    }
+    selectedBinaryIndex.value = selectedId
+      ? binaries.value.findIndex((binary) => binary.id === selectedId)
+      : -1;
   }
 
   function selectBinary(index: number) {

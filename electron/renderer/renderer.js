@@ -425,11 +425,13 @@ function renderBinaries(items = []) {
     catalogGrid.appendChild(catCard);
   });
 
-  // Default select first item
-  if (selectedBinaryIndex < 0 || selectedBinaryIndex >= items.length) {
-    selectBinary(0);
-  } else {
+  // Never silently select catalog index 0. A binary must be selected
+  // explicitly, or derived from the selected game by the Vue launcher.
+  if (selectedBinaryIndex >= 0 && selectedBinaryIndex < items.length) {
     selectBinary(selectedBinaryIndex);
+  } else {
+    selectedBinaryIndex = -1;
+    updateActionState();
   }
 }
 

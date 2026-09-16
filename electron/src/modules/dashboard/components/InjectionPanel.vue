@@ -18,7 +18,7 @@ const selectedMode = computed({
   get: () => {
     return binariesStore.activeBinary?.injection_mode !== undefined
       ? String(binariesStore.activeBinary.injection_mode)
-      : '2';
+      : '0';
   },
   set: (val: string) => {
     binariesStore.updateActiveMode(parseInt(val, 10));
@@ -131,13 +131,13 @@ function handleExecute() {
         <label class="control-label" for="mode-select">Memory Injection Method</label>
         <div class="select-wrapper">
           <select id="mode-select" v-model="selectedMode">
-            <option value="2">Manual Map (Stealth Kernel / Recommended)</option>
             <option value="0">CreateRemoteThread (Standard Win32)</option>
-            <option value="1">Thread Hijack (APC / Thread Context)</option>
+            <option value="1">Thread Hijack + Handle Hijack</option>
+            <option value="2">QueueUserAPC + Handle Hijack</option>
             <option value="3">Reflective DLL Injection</option>
           </select>
         </div>
-        <span class="input-hint">Manual Map bypasses standard Windows loader hooks.</span>
+        <span class="input-hint">APC execution requires a target thread to enter an alertable wait.</span>
       </div>
 
       <!-- Execute button -->

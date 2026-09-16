@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useGamesStore } from '../../../stores/games';
-import { useBinariesStore } from '../../../stores/binaries';
 import { useAuthStore } from '../../../stores/auth';
 import { useDiagnosticsStore } from '../../../stores/diagnostics';
 import ProgressHUD from '../../../components/ProgressHUD.vue';
 
 const gamesStore = useGamesStore();
-const binariesStore = useBinariesStore();
 const auth = useAuthStore();
 const diagnostics = useDiagnosticsStore();
 
@@ -257,7 +255,7 @@ function handleRemoveCustom() {
               type="text"
               class="wand-input"
               :placeholder="defaultTarget || 'e.g. Game.exe'"
-              :disabled="isRunning"
+              :disabled="isBusy || isRunning"
             />
             <button
               v-if="defaultTarget && gamesStore.customTargetProcess !== defaultTarget && !isRunning"
@@ -288,22 +286,12 @@ function handleRemoveCustom() {
             DLL payload from Cloud Security Network
             <span class="binary-filename-tag">({{ binary.file_name || 'payload.dll' }})</span>:
           </p>
-          <select
-            :value="gamesStore.selectedBinaryId || ''"
-            @change="gamesStore.onBinarySelected(($event.target as HTMLSelectElement).value || null)"
-            class="wand-select"
-          >
-            <option :value="''">
-              Auto-Matched ({{ binary.name }})
-            </option>
-            <option
-              v-for="b in binariesStore.binaries"
-              :key="b.id"
-              :value="b.id"
-            >
-              {{ b.name || b.game || b.file_name }} (v{{ b.version || '1.0' }})
-            </option>
-          </select>
+          <input
+            class="wand-input"
+            type="text"
+            :value="`${binary.name || binary.game || binary.file_name} (v${binary.version || '1.0'}) — Auto-matched to ${game.name}`"
+            disabled
+          />
         </div>
       </div>
 
@@ -321,10 +309,10 @@ function handleRemoveCustom() {
 
         <div class="config-card-body">
           <p class="config-desc">Execution hook method for target process:</p>
-          <select v-model="gamesStore.selectedMode" class="wand-select">
+          <select v-model="gamesStore.selectedMode" class="wand-select" :disabled="isBusy || isRunning">
             <option :value="0">CreateRemoteThread (Standard) [Recommended]</option>
-            <option :value="2">Manual Map (Advanced - requires injection runtime)</option>
-            <option :value="1">Thread Hijack (Evasion)</option>
+            <option :value="1">Thread Hijack + Handle Hijack</option>
+            <option :value="2">QueueUserAPC + Handle Hijack</option>
             <option :value="3">Reflective DLL Injection</option>
           </select>
         </div>
@@ -345,7 +333,7 @@ function handleRemoveCustom() {
       <div class="server-sync-action">
         <button
           class="btn-save-server"
-          :disabled="gamesStore.isSavingServerConfig"
+          :disabled="gamesStore.isSavingServerConfig || isBusy || isRunning"
           @click="handleSaveToServer"
         >
           <span v-if="saveSuccess">✓ Saved to Cloud!</span>

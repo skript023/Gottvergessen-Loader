@@ -3,7 +3,7 @@
 #include "process/injection_method.hpp"
 #include "process/methods/remote_thread_injection.hpp"
 #include "process/methods/thread_hijack_injection.hpp"
-#include "process/methods/manual_map_injection.hpp"
+#include "process/methods/queue_apc_injection.hpp"
 #include "process/methods/reflective_injection.hpp"
 #include <memory>
 #include <cstdint>

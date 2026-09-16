@@ -54,7 +54,7 @@ export const useProcessStore = defineStore('process', () => {
         arch: 'Configured',
         accessible: true
       };
-      diagnostics.addLog(`Target configured: ${trimmed} (Waiting for process to launch...)`, 'warn');
+      diagnostics.addLog(`Auto-attach target configured: ${trimmed}`, 'info');
       if (syncToBinary && binariesStore.activeBinary) {
         binariesStore.updateActiveTarget(trimmed);
       }
@@ -80,7 +80,7 @@ export const useProcessStore = defineStore('process', () => {
         arch: 'Configured',
         accessible: true
       };
-      diagnostics.addLog(`Target configured: ${procName} (Waiting for process to launch...)`, 'warn');
+      diagnostics.addLog(`Auto-attach target configured: ${procName}`, 'info');
     }
   }
 

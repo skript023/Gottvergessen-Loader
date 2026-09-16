@@ -1,6 +1,6 @@
 {
   "name": "gottvergessen-electron",
-  "version": "1.0.1",
+  "version": "1.0.7",
   "private": true,
   "description": "Electron frontend for the Gottvergessen native C++ core",
   "main": "main.js",
@@ -50,10 +50,6 @@
       {
         "from": "../out/build/electron/bin/Release/native-core.dll",
         "to": "native/native-core.dll"
-      },
-      {
-        "from": "../out/build/electron/bin/Release/injection-core.dll",
-        "to": "native/injection-core.dll"
       },
       {
         "from": "../out/build/electron/bin/Release/update-runner.exe",

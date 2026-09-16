@@ -48,8 +48,7 @@ export const useGamesStore = defineStore('games', () => {
    * Find if a game matches any authorized binary from Ellohim-Server.
    * Priority 1: Exact Game Name match (b.name === g.name || b.game === g.name)
    * Priority 2: Exact stem match (e.g. "valheim.exe" stem "valheim" === b.name / b.game)
-   * Priority 3: Title boundary / prefix match (e.g. "Valheim Mod" for "Valheim")
-   * Priority 4: Verified Target Process match (only if compatible with game name)
+   * Priority 3: Verified Target Process match (only if compatible with game name)
    */
   function getGameMatchedBinary(g: InstalledGameItem | null): BinaryItem | null {
     if (!g || !binariesStore.binaries || binariesStore.binaries.length === 0) return null;
@@ -83,18 +82,7 @@ export const useGamesStore = defineStore('games', () => {
       if (stemMatch) return stemMatch;
     }
 
-    // 3. Prefix/Title boundary match (e.g. "Valheim Mod" or "Valheim Internal" for game "Valheim")
-    const boundaryMatch = binariesStore.binaries.find((b) => {
-      const { bName, bGame } = getBinaryTokens(b);
-      const matchName = (token: string, target: string) => {
-        if (!token || !target || token.length < 4 || target.length < 4) return false;
-        return (token.startsWith(target) && target.length >= 4) || (target.startsWith(token) && token.length >= 4);
-      };
-      return matchName(bName, cleanGName) || matchName(bGame, cleanGName);
-    });
-    if (boundaryMatch) return boundaryMatch;
-
-    // 4. Target process match (only if the binary does NOT manifestly belong to a different game)
+    // 3. Target process match (only if the binary does NOT manifestly belong to a different game)
     if (cleanExe) {
       const procMatch = binariesStore.binaries.find((b) => {
         const { bName, bGame, bTarget } = getBinaryTokens(b);
@@ -121,10 +109,6 @@ export const useGamesStore = defineStore('games', () => {
 
   // Active matched binary for currently selected game
   const matchedBinary = computed<BinaryItem | null>(() => {
-    if (selectedBinaryId.value) {
-      const explicit = binariesStore.binaries.find((b) => b.id === selectedBinaryId.value);
-      if (explicit) return explicit;
-    }
     return getGameMatchedBinary(selectedGame.value);
   });
 
@@ -176,44 +160,8 @@ export const useGamesStore = defineStore('games', () => {
         }
       }
     } else {
+      selectedBinaryId.value = null;
       diagnostics.addLog('Returned to Control Center Overview', 'info');
-    }
-  }
-
-  function onBinarySelected(binaryId: string | null) {
-    selectedBinaryId.value = binaryId;
-    if (binaryId) {
-      const b = binariesStore.binaries.find((item) => item.id === binaryId);
-      if (b) {
-        const targetProc = b.target_process || (b as any).target || '';
-        if (targetProc) {
-          customTargetProcess.value = targetProc;
-        } else if (selectedGame.value?.exeName) {
-          customTargetProcess.value = selectedGame.value.exeName;
-        }
-        if (b.injection_mode !== undefined) {
-          selectedMode.value = b.injection_mode;
-        }
-        const bIdx = binariesStore.binaries.findIndex((item) => item.id === binaryId);
-        if (bIdx >= 0) binariesStore.selectBinary(bIdx);
-        diagnostics.addLog(`Selected binary payload: ${b.name} (${b.file_name || 'payload.dll'})`, 'info');
-      }
-    } else if (selectedGame.value) {
-      const matched = getGameMatchedBinary(selectedGame.value);
-      if (matched) {
-        selectedBinaryId.value = matched.id;
-        const targetProc = matched.target_process || (matched as any).target || selectedGame.value.exeName || '';
-        customTargetProcess.value = targetProc;
-        selectedMode.value = matched.injection_mode ?? 0;
-        const bIdx = binariesStore.binaries.findIndex((item) => item.id === matched.id);
-        if (bIdx >= 0) binariesStore.selectBinary(bIdx);
-      } else {
-        selectedBinaryId.value = null;
-        customTargetProcess.value = selectedGame.value.exeName || '';
-      }
-    }
-    if (customTargetProcess.value) {
-      processStore.setManualTarget(customTargetProcess.value, false);
     }
   }
 
@@ -320,7 +268,14 @@ export const useGamesStore = defineStore('games', () => {
     const game = selectedGame.value;
     if (!game) return;
 
-    const binary = matchedBinary.value;
+    // Resolve again at click time. Never reuse the global catalog selection:
+    // the payload identity must be derived from the game being launched.
+    const binary = getGameMatchedBinary(game);
+    selectedBinaryId.value = binary?.id || null;
+    if (binary) {
+      const binaryIndex = binariesStore.binaries.findIndex((item) => item.id === binary.id);
+      if (binaryIndex >= 0) binariesStore.selectBinary(binaryIndex);
+    }
     const targetProc = customTargetProcess.value || game.exeName || (binary?.target_process || (binary as any)?.target) || '';
 
     launchStatus.value = 'launching';
@@ -341,7 +296,7 @@ export const useGamesStore = defineStore('games', () => {
       injectionStore.feedbackMessage = '';
     }
     diagnostics.addLog(
-      `Launching ${game.name} [Target: ${targetProc || 'None'}, DLL: ${binary ? binary.file_name : 'None'}]...`,
+      `Launching ${game.name} [Target: ${targetProc || 'None'}, DLL: ${binary ? binary.file_name : 'None'}, Binary ID: ${binary?.id || 'None'}]...`,
       'info'
     );
 
@@ -358,8 +313,13 @@ export const useGamesStore = defineStore('games', () => {
             if (!window.loader?.operationStatus) return;
             const status = await window.loader.operationStatus();
             if (status.active) {
+              // Native work starts only after main.js has found the target.
+              // Replace the launch timer's stale Waiting message.
+              clearTimeout(stateTimer);
+              launchStatus.value = 'injecting';
               injectionStore.progress = Math.max(0, Math.min(100, Number(status.progress) || 0));
               injectionStore.stage = status.stage || 'Executing operation...';
+              launchMessage.value = injectionStore.stage;
             }
           } catch (_) {}
         }, 120)
@@ -507,7 +467,6 @@ export const useGamesStore = defineStore('games', () => {
     getGameMatchedBinary,
     scanGames,
     selectGame,
-    onBinarySelected,
     saveGameMappingToServer,
     launchAndInject,
     stopGame,

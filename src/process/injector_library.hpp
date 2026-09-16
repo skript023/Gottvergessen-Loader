@@ -17,8 +17,8 @@
 
 #pragma once
 
-#define GH_INJ_VERSIONW L"4.0"
-#define GH_INJ_VERSIONA "4.0"
+#define GH_INJ_VERSIONW L"4.8"
+#define GH_INJ_VERSIONA "4.8"
 
 #ifndef _WIN64
 #error "The injection runtime integration is x64-only"
@@ -170,3 +170,55 @@ using f_InterruptDownload = void(__stdcall*)();
 
 using f_raw_print_callback = void(__stdcall*)(const char* szText);
 using f_SetRawPrintCallback = DWORD(__stdcall*)(f_raw_print_callback callback);
+
+inline bool prepare_injector_library(
+	HINSTANCE injection_module,
+	DWORD& symbol_state,
+	DWORD& import_state,
+	DWORD timeout_ms = 120000)
+{
+	symbol_state = ERROR_PROC_NOT_FOUND;
+	import_state = ERROR_PROC_NOT_FOUND;
+	if (!injection_module)
+		return false;
+
+	const auto start_download =
+	    reinterpret_cast<f_StartDownload>(GetProcAddress(injection_module, "StartDownload"));
+	const auto get_symbol_state =
+	    reinterpret_cast<f_GetSymbolState>(GetProcAddress(injection_module, "GetSymbolState"));
+	const auto get_import_state =
+	    reinterpret_cast<f_GetImportState>(GetProcAddress(injection_module, "GetImportState"));
+	const auto interrupt_download =
+	    reinterpret_cast<f_InterruptDownload>(GetProcAddress(injection_module, "InterruptDownload"));
+
+	if (!start_download || !get_symbol_state || !get_import_state)
+		return false;
+
+	// GH Injector 4.8 starts its download manager asynchronously during
+	// DllMain. Upstream requires a short delay before StartDownload.
+	Sleep(500);
+	start_download();
+
+	constexpr DWORD symbol_initializing = 0x0000001C;
+	constexpr DWORD imports_initializing = 0x00000037;
+	const ULONGLONG deadline = GetTickCount64() + timeout_ms;
+	do
+	{
+		symbol_state = get_symbol_state();
+		import_state = get_import_state();
+		if (symbol_state == 0 && import_state == 0)
+			return true;
+
+		// Only documented "not done" values are transient.
+		if (symbol_state != 0 && symbol_state != symbol_initializing)
+			break;
+		if (import_state != 0 && import_state != imports_initializing)
+			break;
+		Sleep(50);
+	}
+	while (GetTickCount64() < deadline);
+
+	if (interrupt_download)
+		interrupt_download();
+	return false;
+}

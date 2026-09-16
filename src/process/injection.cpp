@@ -39,8 +39,8 @@ namespace gottvergessen
 			return std::make_unique<remote_thread_injection>();
 		case InjectionMode::ThreadHijack:
 			return std::make_unique<thread_hijack_injection>();
-		case InjectionMode::ManualMap:
-			return std::make_unique<manual_map_injection>();
+		case InjectionMode::QueueUserAPC:
+			return std::make_unique<queue_apc_injection>();
 		case InjectionMode::ReflectiveInjection:
 			return std::make_unique<reflective_injection>();
 		default:
