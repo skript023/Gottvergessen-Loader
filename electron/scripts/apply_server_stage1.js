@@ -552,7 +552,7 @@ namespace ellohim
 		bool isMandatory = (params["is_mandatory"] == "true" || params["is_mandatory"] == "1");
 
 		std::string fileName = file.getFileName();
-		if (fileName.empty()) fileName = fmt::format("Gottvergessen-Loader-{}.exe", version);
+		if (fileName.empty()) fileName = fmt::format("Astra-{}.exe", version);
 
 		std::string fileContent(file.fileData(), file.fileLength());
 		if (fileContent.empty()) throw BadRequestException("File payload is empty");

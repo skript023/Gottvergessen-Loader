@@ -48,7 +48,7 @@ async function proceedToSession() {
 async function startStartupDownload() {
   startupPhase.value = 'updating';
   if (updater.isReadyToInstall) {
-    startupStatusText.value = 'Update verified. Relaunching Gottvergessen Loader...';
+    startupStatusText.value = 'Update verified. Relaunching Astra...';
     setTimeout(() => updater.installUpdate(), 600);
     return;
   }
@@ -154,7 +154,7 @@ onMounted(async () => {
                 : 'QUANTUM SECURITY GATEWAY' }}
           </span>
           <h2 class="splash-title">
-            {{ startupPhase === 'updating' ? 'Updating Gottvergessen Loader' : 'Gottvergessen Loader' }}
+            {{ startupPhase === 'updating' ? 'Updating Astra' : 'Astra' }}
           </h2>
 
           <div class="splash-status-row">
@@ -214,7 +214,7 @@ onMounted(async () => {
             class="splash-skip-btn"
             @click="skipStartupUpdate"
           >
-            Skip update & continue to Loader
+            Skip update & continue to Astra
           </button>
         </div>
 

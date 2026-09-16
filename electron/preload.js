@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("loader", Object.freeze({
+  getServerStatus: () => ipcRenderer.invoke("server:status"),
   listProcesses: () => ipcRenderer.invoke("native:list-processes"),
   operationStatus: () => ipcRenderer.invoke("native:operation-status"),
   login: (credentials) => ipcRenderer.invoke("native:login", credentials),

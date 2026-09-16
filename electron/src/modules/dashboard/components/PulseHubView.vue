@@ -91,7 +91,7 @@ function selectGame(id: string) {
             <div class="gem-glint"></div>
             <span class="gem-text-icon">G</span>
           </div>
-          <span class="badge-gem-label">GOTTVERGESSEN</span>
+          <span class="badge-gem-label">ASTRA</span>
         </div>
 
         <div class="badge-gem-item">

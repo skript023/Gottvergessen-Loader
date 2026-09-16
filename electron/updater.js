@@ -62,28 +62,7 @@ class ClientUpdater {
   }
 
   resolveCurrentVersion() {
-    let pkgVer = "1.0.0";
-    try {
-      pkgVer = require("./package.json").version || "1.0.0";
-    } catch (_) {}
-
-    let baseVer = "";
-    try {
-      baseVer = app.getVersion();
-    } catch (_) {}
-    if (!baseVer || baseVer === "1.0.0") {
-      baseVer = pkgVer;
-    }
-
-    try {
-      const exeTarget = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath || "";
-      const exeName = path.basename(exeTarget);
-      const match = exeName.match(/(\d+\.\d+\.\d+)/);
-      if (match && this.isVersionNewer(baseVer, match[1])) {
-        baseVer = match[1];
-      }
-    } catch (_) {}
-    return baseVer || "1.0.0";
+    return require("./package.json").version;
   }
 
   getHistoryFilePath() {
@@ -228,7 +207,7 @@ class ClientUpdater {
 
       // Check if update is already downloaded and verified
       if (this.updateState.hasUpdate && this.updateState.latestRelease) {
-        const targetExe = path.join(this.getUpdateDir(), `Gottvergessen-Loader-${this.updateState.latestVersion}.exe`);
+        const targetExe = path.join(this.getUpdateDir(), `Astra-${this.updateState.latestVersion}.exe`);
         if (fs.existsSync(targetExe)) {
           const stats = fs.statSync(targetExe);
           if (stats.size === this.updateState.latestRelease.file_size) {
@@ -273,9 +252,9 @@ class ClientUpdater {
 
     const release = this.updateState.latestRelease;
     const updateDir = this.getUpdateDir();
-    const finalExePath = path.join(updateDir, `Gottvergessen-Loader-${release.version}.exe`);
-    const partPath = path.join(updateDir, `Gottvergessen-Loader-${release.version}.exe.part`);
-    const metaPath = path.join(updateDir, `Gottvergessen-Loader-${release.version}.json`);
+    const finalExePath = path.join(updateDir, `Astra-${release.version}.exe`);
+    const partPath = path.join(updateDir, `Astra-${release.version}.exe.part`);
+    const metaPath = path.join(updateDir, `Astra-${release.version}.json`);
 
     // Determine starting byte offset for resumption
     let startByte = 0;
@@ -299,7 +278,7 @@ class ClientUpdater {
       : `${backendUrl}${release.download_url}`;
 
     const headers = {
-      "User-Agent": "Gottvergessen-Loader-AutoUpdater/1.0"
+      "User-Agent": "Astra-AutoUpdater/1.0.0"
     };
 
     if (startByte > 0) {
@@ -496,8 +475,8 @@ class ClientUpdater {
     this.pauseDownload(mainWindow);
 
     if (this.updateState.latestRelease) {
-      const partPath = path.join(this.getUpdateDir(), `Gottvergessen-Loader-${this.updateState.latestRelease.version}.exe.part`);
-      const metaPath = path.join(this.getUpdateDir(), `Gottvergessen-Loader-${this.updateState.latestRelease.version}.json`);
+      const partPath = path.join(this.getUpdateDir(), `Astra-${this.updateState.latestRelease.version}.exe.part`);
+      const metaPath = path.join(this.getUpdateDir(), `Astra-${this.updateState.latestRelease.version}.json`);
       if (fs.existsSync(partPath)) try { fs.unlinkSync(partPath); } catch (_) {}
       if (fs.existsSync(metaPath)) try { fs.unlinkSync(metaPath); } catch (_) {}
     }
@@ -517,7 +496,7 @@ class ClientUpdater {
 
     const downloadedExe = path.join(
       this.getUpdateDir(),
-      `Gottvergessen-Loader-${this.updateState.latestRelease.version}.exe`
+      `Astra-${this.updateState.latestRelease.version}.exe`
     );
 
     if (!fs.existsSync(downloadedExe)) {

@@ -1,5 +1,5 @@
 /* =========================================================
-   GOTTVERGESSEN LOADER - CYBER DASHBOARD DESIGN SYSTEM
+   ASTRA - CYBER DASHBOARD DESIGN SYSTEM
    ========================================================= */
 
 :root {
@@ -2573,6 +2573,8 @@ button, input, select {
 
 /* --- Wand Top Navigation Bar --- */
 .wand-top-bar {
+  position: relative;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;

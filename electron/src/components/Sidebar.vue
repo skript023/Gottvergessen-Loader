@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { version } from '../../package.json';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useBinariesStore } from '../stores/binaries';
@@ -44,8 +45,8 @@ async function handleLogout() {
         </svg>
       </div>
       <div class="brand-text">
-        <span class="brand-name">GOTTVERGESSEN</span>
-        <span class="brand-version">QUANTUM GATEWAY</span>
+        <span class="brand-name">ASTRA</span>
+        <span class="brand-version">v{{ version }}</span>
       </div>
     </div>
 

@@ -41,7 +41,7 @@ function handleClear() {
         <span class="term-dot red"></span>
         <span class="term-dot yellow"></span>
         <span class="term-dot green"></span>
-        <span class="term-title">Gottvergessen Loader Engine Trace</span>
+        <span class="term-title">Astra Engine Trace</span>
       </div>
       <div ref="terminalRef" class="terminal-content">
         <div

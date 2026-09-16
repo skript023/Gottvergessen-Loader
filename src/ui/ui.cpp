@@ -133,12 +133,12 @@ namespace gottvergessen
 		// Brand Logo & Title Header
 		ImGui::Spacing();
 		ImGui::SetCursorPosX(16.0f);
-		ImGui::TextColored(ImVec4(0.23f, 0.51f, 0.96f, 1.0f), ICON_FA_SHIELD_ALT "  ELLOHIM");
+		ImGui::TextColored(ImVec4(0.23f, 0.51f, 0.96f, 1.0f), ICON_FA_SHIELD_ALT "  ASTRA");
 		ImGui::SameLine();
 		ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.9f, 1.0f), "DASHBOARD");
 
 		ImGui::SetCursorPosX(16.0f);
-		ImGui::TextDisabled("Loader v1.0.4 Web Suite");
+		ImGui::TextDisabled("Astra v1.0.0");
 
 		ImGui::Spacing();
 		ImGui::Separator();

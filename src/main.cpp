@@ -13,7 +13,7 @@ int main()
 {
 	using namespace gottvergessen;
 
-	auto logger_instance = std::make_unique<logger>("Gottvergessen Loader");
+	auto logger_instance = std::make_unique<logger>("Astra");
 	logger_instance->enable();
 
 	std::filesystem::path base_dir = std::getenv("appdata");

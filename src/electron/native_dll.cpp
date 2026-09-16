@@ -101,7 +101,7 @@ namespace
 	std::string g_operation_stage{"Idle"};
 	bool g_operation_active{false};
 
-	constexpr const char* user_agent = "Gottvergessen-Loader/1.0";
+	constexpr const char* user_agent = "Astra/1.0.0";
 
 	std::string authorization_value(std::string token)
 	{
@@ -286,7 +286,7 @@ GV_API bool __cdecl gv_initialize(const wchar_t* base_directory)
 		g_session_path = base_dir / "Config" / "session.dat";
 		if (!g_native_logger)
 		{
-			g_native_logger = std::make_unique<logger>("Gottvergessen Electron", base_dir);
+			g_native_logger = std::make_unique<logger>("Astra", base_dir);
 			g_native_logger->enable();
 		}
 		clear_error();

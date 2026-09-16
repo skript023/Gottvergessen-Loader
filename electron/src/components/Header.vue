@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
+import ServerStatus from './ServerStatus.vue';
 import { useAuthStore } from '../stores/auth';
 import { useGamesStore } from '../stores/games';
 
@@ -69,10 +70,7 @@ async function handleLogout() {
     <!-- Right: System Status & User PRO Badge -->
     <div class="top-bar-right">
       <div class="system-pills">
-        <div class="sys-pill pill-online">
-          <span class="pulse-dot"></span>
-          <span>ONLINE</span>
-        </div>
+        <ServerStatus />
         <div class="sys-pill pill-secure">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>

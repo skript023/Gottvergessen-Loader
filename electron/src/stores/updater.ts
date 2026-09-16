@@ -92,7 +92,7 @@ export const useUpdaterStore = defineStore('updater', {
         if (res.hasUpdate && showModal && this.allowModal) {
           this.modalVisible = true;
         } else if (!silent && !res.hasUpdate) {
-          console.log('[AutoUpdater] Gottvergessen Loader is already on the latest version.');
+          console.log('[AutoUpdater] Astra is already on the latest version.');
         }
 
         // Sync auxiliary modules if needed

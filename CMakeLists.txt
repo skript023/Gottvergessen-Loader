@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
-project(GottvergessenLoader CXX ASM_MASM)
+project(Astra VERSION 1.0.0 LANGUAGES CXX ASM_MASM)
 
 option(BUILD_IMGUI_FRONTEND "Build the legacy ImGui executable" OFF)
 
@@ -23,7 +23,7 @@ endif()
 
 
 if(BUILD_IMGUI_FRONTEND)
-    message(STATUS "GottvergessenLoader legacy ImGui frontend")
+    message(STATUS "Astra legacy ImGui frontend")
     file(GLOB_RECURSE SRC_MAIN
         "${SRC_DIR}/**.hpp"
         "${SRC_DIR}/**.h"
@@ -45,20 +45,20 @@ if(BUILD_IMGUI_FRONTEND)
       set(ICON "${SRC_DIR}/gottvergessen_loader.rc")
     endif()
 
-    add_executable(GottvergessenLoader ${SRC_MAIN} ${ICON})
+    add_executable(Astra ${SRC_MAIN} ${ICON})
     set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-    set_property(TARGET GottvergessenLoader PROPERTY CXX_STANDARD 23)
+    set_property(TARGET Astra PROPERTY CXX_STANDARD 23)
     source_group(TREE ${SRC_DIR} PREFIX "src" FILES ${SRC_MAIN})
-    target_include_directories(GottvergessenLoader PRIVATE
+    target_include_directories(Astra PRIVATE
         "${SRC_DIR}"
         "${json_SOURCE_DIR}/single_include"
         "${stbi_SOURCE_DIR}"
         "${imgui_SOURCE_DIR}"
     )
-    target_precompile_headers(GottvergessenLoader PRIVATE "${SRC_DIR}/common.hpp")
-    target_link_libraries(GottvergessenLoader PRIVATE g3log imgui cpr crypt32 bcrypt)
-    set_property(TARGET GottvergessenLoader PROPERTY COMPILE_WARNING_AS_ERROR ON)
-    target_compile_definitions(GottvergessenLoader PRIVATE
+    target_precompile_headers(Astra PRIVATE "${SRC_DIR}/common.hpp")
+    target_link_libraries(Astra PRIVATE g3log imgui cpr crypt32 bcrypt)
+    set_property(TARGET Astra PROPERTY COMPILE_WARNING_AS_ERROR ON)
+    target_compile_definitions(Astra PRIVATE
         _CRT_SECURE_NO_WARNINGS
         NOMINMAX
         WIN32_LEAN_AND_MEAN
@@ -89,24 +89,24 @@ if(WIN32)
         "${SRC_DIR}/crypto/win_aes.cpp"
     )
 
-    add_library(GottvergessenNative SHARED ${NATIVE_DLL_SOURCES})
-    set_target_properties(GottvergessenNative PROPERTIES
+    add_library(AstraNative SHARED ${NATIVE_DLL_SOURCES})
+    set_target_properties(AstraNative PROPERTIES
         OUTPUT_NAME "${NATIVE_DLL_OUTPUT_NAME}"
         CXX_STANDARD 23
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     )
-    target_compile_definitions(GottvergessenNative PRIVATE
+    target_compile_definitions(AstraNative PRIVATE
         GOTTVERGESSEN_NATIVE_ADDON
         _CRT_SECURE_NO_WARNINGS
         NOMINMAX
         WIN32_LEAN_AND_MEAN
     )
-    target_include_directories(GottvergessenNative PRIVATE
+    target_include_directories(AstraNative PRIVATE
         "${SRC_DIR}"
         "${json_SOURCE_DIR}/single_include"
     )
-    target_link_libraries(GottvergessenNative PRIVATE
+    target_link_libraries(AstraNative PRIVATE
         g3log
         cpr
         crypt32
@@ -114,18 +114,18 @@ if(WIN32)
         shell32
     )
 
-    add_executable(GottvergessenUpdater WIN32 "${SRC_DIR}/electron/updater_runner.cpp")
-    set_target_properties(GottvergessenUpdater PROPERTIES
+    add_executable(AstraUpdater WIN32 "${SRC_DIR}/electron/updater_runner.cpp")
+    set_target_properties(AstraUpdater PROPERTIES
         OUTPUT_NAME "update-runner"
         CXX_STANDARD 23
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     )
-    target_compile_definitions(GottvergessenUpdater PRIVATE
+    target_compile_definitions(AstraUpdater PRIVATE
         _CRT_SECURE_NO_WARNINGS
         NOMINMAX
         WIN32_LEAN_AND_MEAN
     )
-    target_link_libraries(GottvergessenUpdater PRIVATE
+    target_link_libraries(AstraUpdater PRIVATE
         shell32
         user32
     )

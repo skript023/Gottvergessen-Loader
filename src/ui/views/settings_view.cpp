@@ -89,7 +89,7 @@ namespace gottvergessen
 			ImGui::TextColored(ImVec4(0.95f, 0.95f, 0.98f, 1.0f), "Live System Log Window");
 			ImGui::BeginChild("LogConsoleArea", ImVec2(0, 180.0f), true);
 			{
-				ImGui::TextDisabled("[INFO] Gottvergessen UI Wrapper v1.0 initialized.");
+				ImGui::TextDisabled("[INFO] Astra v1.0.0 initialized.");
 				ImGui::TextDisabled("[INFO] Active API endpoint: %s", active_url.c_str());
 				ImGui::TextDisabled("[STAGE 1] Product catalog loaded (3 available items).");
 				ImGui::TextDisabled("[STAGE 2] Mock payment gateway initialized for QRIS / VA.");

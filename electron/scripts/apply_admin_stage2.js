@@ -178,7 +178,7 @@ const vueContent = `<template>
             <div>
               <h1 class="text-2xl font-bold tracking-tight text-base-content flex items-center gap-2">
                 Client Management & Auto-Update
-                <span class="badge badge-primary badge-sm font-mono">Gottvergessen Loader</span>
+                <span class="badge badge-primary badge-sm font-mono">Astra</span>
               </h1>
               <p class="text-xs text-base-content/70 mt-0.5">
                 Distribute versioned portable client executables, enforce mandatory updates, and hot-deploy dynamic binary modules.
@@ -277,7 +277,7 @@ const vueContent = `<template>
           <div class="flex justify-between items-center mb-4">
             <div>
               <h2 class="text-base font-bold text-base-content">Versioned Executable Builds</h2>
-              <p class="text-xs text-base-content/60">Upload portable .exe files for Gottvergessen Loader auto-update system.</p>
+              <p class="text-xs text-base-content/60">Upload portable .exe files for Astra auto-update system.</p>
             </div>
           </div>
 
@@ -583,7 +583,7 @@ const vueContent = `<template>
             Upload Client Executable Release
           </h3>
           <p class="text-xs text-base-content/60 mt-1">
-            Upload the compiled portable .exe (e.g. Gottvergessen-Loader-1.0.1-portable.exe).
+            Upload the compiled portable .exe (e.g. Astra-1.0.1-portable.exe).
           </p>
 
           <form class="space-y-4 mt-4" @submit.prevent="submitReleaseUpload">
@@ -926,7 +926,7 @@ function handleReleaseFileSelect(e: Event) {
   const target = e.target as HTMLInputElement
   if (target.files && target.files[0]) {
     releaseFile.value = target.files[0]
-    // Auto-detect version from filename like Gottvergessen-Loader-1.0.1-portable.exe
+    // Auto-detect version from filename like Astra-1.0.1-portable.exe
     const match = releaseFile.value.name.match(/(\\d+\\.\\d+\\.\\d+)/)
     if (match && !releaseForm.value.version) {
       releaseForm.value.version = match[1]

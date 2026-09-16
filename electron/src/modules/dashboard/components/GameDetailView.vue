@@ -248,7 +248,7 @@ function handleRemoveCustom() {
         </div>
 
         <div class="config-card-body">
-          <p class="config-desc">Executable process that loader monitors on startup:</p>
+          <p class="config-desc">Executable process that Astra monitors on startup:</p>
           <div class="input-with-action">
             <input
               v-model="gamesStore.customTargetProcess"

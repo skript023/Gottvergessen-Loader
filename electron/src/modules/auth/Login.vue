@@ -48,7 +48,7 @@ async function handleLogin() {
             </svg>
           </div>
           <p class="login-eyebrow">SECURITY GATEWAY</p>
-          <h1 class="login-title">Gottvergessen Loader</h1>
+          <h1 class="login-title">Astra</h1>
           <p class="login-desc">Sign in with your license credentials to access authorized binaries.</p>
         </div>
 

@@ -5,11 +5,13 @@ const { spawn, exec } = require("node:child_process");
 const koffi = require("koffi");
 const gameScanner = require("./gameScanner");
 const { updater, registerUpdaterIpc } = require("./updater");
+const { createServerMonitor } = require("./serverStatus");
+const getServerStatus = createServerMonitor(() => updater.getBackendUrl(native), require('./package.json').version);
 
 let native;
 let nativeLibrary;
 
-app.setAppUserModelId("com.ellohim.gottvergessen-loader");
+app.setAppUserModelId("com.ellohim.astra");
 
 let mainWindow = null;
 
@@ -297,6 +299,7 @@ function isPidAlive(pid, procName) {
 }
 
 function registerIpc() {
+  ipcMain.handle("server:status", () => getServerStatus());
   ipcMain.handle("native:list-processes", () => requireNative().listProcesses());
   ipcMain.handle("native:operation-status", () => requireNative().operationStatus());
 
@@ -701,7 +704,7 @@ function createWindow() {
     minHeight: 620,
     frame: false,
     backgroundColor: "#080c14",
-    title: "Gottvergessen Loader - Control Center",
+    title: "Astra",
     icon: iconPath(),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),

@@ -94,7 +94,7 @@ namespace gottvergessen
 			ImGui::SameLine(0, 8);
 			ImGui::SetCursorPosY((titlebar_height - ImGui::GetTextLineHeight()) * 0.5f);
 			ImGui::TextColored(ImVec4(0.92f, 0.92f, 0.95f, 1.0f),
-			    "Gottvergessen Dashboard Loader");
+			    "Astra");
 
 			// Status Badge / Version Tag Visual
 			ImGui::SameLine(0, 10);
@@ -102,7 +102,7 @@ namespace gottvergessen
 			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.18f, 0.22f, 1.0f));
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 12.0f);
 			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 2));
-			ImGui::Button("v1.0.4 - ONLINE");
+			ImGui::Button("v1.0.0");
 			ImGui::PopStyleVar(2);
 			ImGui::PopStyleColor();
 

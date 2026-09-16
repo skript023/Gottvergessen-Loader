@@ -44,9 +44,9 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $build = Join-Path $root "out\build\electron"
 $buildX86 = Join-Path $root "out\build\electron-x86"
 $cache = Join-Path $build "CMakeCache.txt"
-$project = Join-Path $build "GottvergessenNative.vcxproj"
+$project = Join-Path $build "AstraNative.vcxproj"
 $cacheX86 = Join-Path $buildX86 "CMakeCache.txt"
-$projectX86 = Join-Path $buildX86 "GottvergessenNative.vcxproj"
+$projectX86 = Join-Path $buildX86 "AstraNative.vcxproj"
 
 # g3log invokes the Windows find.exe while extracting its Git version. Put
 # System32 before Git's Unix tools so `find` cannot accidentally scan C:\.
@@ -80,10 +80,10 @@ if ($ConfigureOnly -or -not (Test-Path -LiteralPath $cacheX86) -or -not (Test-Pa
 }
 
 if (-not $ConfigureOnly) {
-    & $cmake --build $build --config Release --target GottvergessenNative GottvergessenUpdater
+    & $cmake --build $build --config Release --target AstraNative AstraUpdater
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    & $cmake --build $buildX86 --config Release --target GottvergessenNative
+    & $cmake --build $buildX86 --config Release --target AstraNative
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     $x86Dll = Join-Path $buildX86 "bin\Release\native-core-x86.dll"

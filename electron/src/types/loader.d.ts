@@ -179,7 +179,19 @@ export interface UpdaterApi {
   onModuleSync(callback: (data: any) => void): () => void;
 }
 
+export interface ServerStatus {
+  state: 'online' | 'degraded' | 'offline';
+  host: string;
+  protocol: string;
+  pingMs: number | null;
+  httpStatus: number | null;
+  server: string | null;
+  checkedAt: string;
+  error: string | null;
+}
+
 export interface LoaderApi {
+  getServerStatus(): Promise<ServerStatus>;
   listProcesses(): Promise<ProcessItem[]>;
   operationStatus(): Promise<OperationStatus>;
   login(credentials: LoginCredentials): Promise<LoginResult>;

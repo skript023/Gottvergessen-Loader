@@ -29,7 +29,7 @@ function handleAcknowledge() {
       <!-- Header -->
       <h3 class="kick-title">SESSION TERMINATED</h3>
       <p class="kick-sub">
-        Your active loader session was disconnected by the security server.
+        Your active Astra session was disconnected by the security server.
       </p>
 
       <!-- Reason Display -->

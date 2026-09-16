@@ -1,6 +1,6 @@
 <p align="center"><a title="Jeremy Kratz, Public domain, via Wikimedia Commons" href="https://commons.wikimedia.org/wiki/File:ISO_C%2B%2B_Logo.svg"><img width="256" alt="ISO C++ Logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/ISO_C%2B%2B_Logo.svg/256px-ISO_C%2B%2B_Logo.svg.png"></a></p>
 
-<h1 align="center">Gottvergessen Loader</h1>
+<h1 align="center">Astra</h1>
 <p align="center">
   <a href="https://github.com/skript023/Gottvergessen-Loader/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/skript023/Gottvergessen-Loader.svg?style=flat-square"/>
@@ -13,7 +13,7 @@
 </p>
 
 ## Features
-* ImGui–based user interface
+* ImGuiï¿½based user interface
 * Log console
 * Thread pool
 * HTTP Request
@@ -21,7 +21,7 @@
 * Check DLL version
 
 ## Building
-To build Gottvergessen Loader you need:
+To build Astra you need:
 * [Example Laravel API](https://github.com/skript023/Gottvergessen-API)
 * Visual Studio 2022
 * [Premake 5.0](https://premake.github.io) in your PATH

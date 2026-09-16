@@ -1,8 +1,8 @@
 {
-  "name": "gottvergessen-electron",
-  "version": "1.0.13",
+  "name": "astra",
+  "version": "1.0.0",
   "private": true,
-  "description": "Electron frontend for the Gottvergessen native C++ core",
+  "description": "Astra desktop application",
   "main": "main.js",
   "scripts": {
     "native:configure": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/build-native.ps1 -ConfigureOnly",
@@ -12,7 +12,6 @@
     "start": "npm run build:ui && electron .",
     "dev": "npm run build:ui && npm run native:build && electron .",
     "version:bump": "npm version patch --no-git-tag-version",
-    "predist": "npm run version:bump",
     "dist": "npm run build:ui && npm run native:build && electron-builder --win --x64"
   },
   "dependencies": {
@@ -31,9 +30,9 @@
     "vue-tsc": "^2.2.8"
   },
   "build": {
-    "appId": "com.ellohim.gottvergessen-loader",
-    "productName": "Gottvergessen Loader",
-    "artifactName": "Gottvergessen-Loader-${version}-portable.${ext}",
+    "appId": "com.ellohim.astra",
+    "productName": "Astra",
+    "artifactName": "Astra-${version}-portable.${ext}",
     "directories": {
       "buildResources": "../src"
     },
@@ -44,7 +43,8 @@
       "updater.js",
       "dist-renderer/**/*",
       "renderer/**/*",
-      "node_modules/**/*"
+      "node_modules/**/*",
+      "serverStatus.js"
     ],
     "extraResources": [
       {
@@ -65,7 +65,7 @@
       "icon": "logo.ico"
     },
     "portable": {
-      "unpackDirName": "GottvergessenLoader"
+      "unpackDirName": "Astra"
     }
   }
 }

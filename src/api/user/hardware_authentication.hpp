@@ -22,7 +22,7 @@ namespace gottvergessen
 	private:
 		std::string build_user_agent()
 		{
-			return std::format("Gottvergessen-Loader/1.0 (Windows; Threads: {})", m_logical_processor);
+			return std::format("Astra/1.0.0 (Windows; Threads: {})", m_logical_processor);
 		}
 
 		uint32_t m_logical_processor;
