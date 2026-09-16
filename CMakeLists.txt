@@ -68,8 +68,10 @@ endif()
 # Standard C ABI DLL loaded by Electron through FFI. It is a normal CMake
 # target and has no dependency on Node.js or Electron headers.
 if(WIN32)
-    if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
-        message(FATAL_ERROR "GottvergessenNative and its injector dependency are x64-only")
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(NATIVE_DLL_OUTPUT_NAME "native-core")
+    else()
+        set(NATIVE_DLL_OUTPUT_NAME "native-core-x86")
     endif()
 
     set(NATIVE_DLL_SOURCES
@@ -89,7 +91,7 @@ if(WIN32)
 
     add_library(GottvergessenNative SHARED ${NATIVE_DLL_SOURCES})
     set_target_properties(GottvergessenNative PROPERTIES
-        OUTPUT_NAME "native-core"
+        OUTPUT_NAME "${NATIVE_DLL_OUTPUT_NAME}"
         CXX_STANDARD 23
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"

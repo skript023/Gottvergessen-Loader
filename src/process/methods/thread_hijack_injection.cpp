@@ -185,7 +185,6 @@ namespace gottvergessen
 		std::vector<std::uint8_t> build_x64_loader_stub(
 		    std::uint64_t remote_path,
 		    std::uint64_t load_library_ex,
-		    std::uint64_t get_last_error,
 		    std::uint64_t result_address,
 		    std::uint64_t error_address,
 		    std::uint64_t completion_address,
@@ -211,11 +210,8 @@ namespace gottvergessen
 			append_bytes(code, {0x48, 0x89, 0xE5});
 			append_bytes(code, {0x48, 0x83, 0xE4, 0xF0});
 			// Keep the Windows x64 call-site ABI: RSP is 16-byte aligned before
-			// CALL and the first 32 bytes are reserved as shadow space. Keep an
-			// aligned FXSAVE area as well so the interrupted thread's SIMD state
-			// survives the loader call.
-			append_bytes(code, {0x48, 0x81, 0xEC, 0x40, 0x02, 0x00, 0x00});
-			append_bytes(code, {0x48, 0x0F, 0xAE, 0x44, 0x24, 0x40});
+			// CALL and the first 32 bytes are reserved as shadow space.
+			append_bytes(code, {0x48, 0x83, 0xEC, 0x20});
 
 			append_bytes(code, {0x48, 0xB9});
 			append_u64(code, remote_path);
@@ -230,10 +226,9 @@ namespace gottvergessen
 			append_bytes(code, {0x48, 0xBB});
 			append_u64(code, result_address);
 			append_bytes(code, {0x48, 0x89, 0x03});
-			// Capture the target thread's loader error before doing anything else.
-			append_bytes(code, {0x48, 0xB8});
-			append_u64(code, get_last_error);
-			append_bytes(code, {0xFF, 0xD0});
+			// Read the target thread's Win32 error directly from its TEB, as GH.
+			append_bytes(code, {0x65, 0x48, 0x8B, 0x04, 0x25, 0x30, 0x00, 0x00, 0x00});
+			append_bytes(code, {0x8B, 0x40, 0x68});
 			append_bytes(code, {0x48, 0xBB});
 			append_u64(code, error_address);
 			append_bytes(code, {0x89, 0x03});
@@ -241,7 +236,7 @@ namespace gottvergessen
 			append_u64(code, completion_address);
 			append_bytes(code, {0xC6, 0x03, 0x01});
 
-			append_bytes(code, {0x48, 0x0F, 0xAE, 0x4C, 0x24, 0x40});
+			append_bytes(code, {0x48, 0x83, 0xC4, 0x20});
 			append_bytes(code, {0x48, 0x89, 0xEC});
 			append_bytes(code, {
 			    0x41, 0x5F, 0x41, 0x5E, 0x41, 0x5D, 0x41, 0x5C,
@@ -288,9 +283,7 @@ namespace gottvergessen
 
 		const auto load_library_ex = reinterpret_cast<std::uint64_t>(
 		    get_remote_proc_address(pid, L"kernel32.dll", "LoadLibraryExW"));
-		const auto get_last_error = reinterpret_cast<std::uint64_t>(
-		    get_remote_proc_address(pid, L"kernel32.dll", "GetLastError"));
-		if (!load_library_ex || !get_last_error)
+		if (!load_library_ex)
 		{
 			LOG(WARNING) << "Thread Hijack: unable to resolve remote loader functions.";
 			CloseHandle(process);
@@ -371,24 +364,27 @@ namespace gottvergessen
 		const auto code = build_x64_loader_stub(
 		    reinterpret_cast<std::uint64_t>(remote),
 		    load_library_ex,
-		    get_last_error,
 		    reinterpret_cast<std::uint64_t>(remote + result_offset),
 		    reinterpret_cast<std::uint64_t>(remote + error_offset),
 		    reinterpret_cast<std::uint64_t>(remote + completion_offset),
 		    context.Rip);
-		bool written =
-		    WriteProcessMemory(
-		        process,
-		        remote,
-		        absolute_path.c_str(),
-		        path_bytes,
-		        nullptr) &&
-		    WriteProcessMemory(
-		        process,
-		        remote + code_offset,
-		        code.data(),
-		        code.size(),
-		        nullptr);
+		SIZE_T path_written = 0;
+		SIZE_T code_written = 0;
+		const bool written =
+			WriteProcessMemory(
+				process,
+				remote,
+				absolute_path.c_str(),
+				path_bytes,
+				&path_written) &&
+			WriteProcessMemory(
+				process,
+				remote + code_offset,
+				code.data(),
+				code.size(),
+				&code_written) &&
+			path_written == path_bytes &&
+			code_written == code.size();
 		if (!written)
 		{
 			LOG(WARNING) << "Thread Hijack: failed to write remote loader. 0x"
@@ -400,7 +396,16 @@ namespace gottvergessen
 			return false;
 		}
 
-		FlushInstructionCache(process, remote + code_offset, code.size());
+		if (!FlushInstructionCache(process, remote + code_offset, code.size()))
+		{
+			LOG(WARNING) << "Thread Hijack: FlushInstructionCache failed. 0x"
+			             << std::hex << GetLastError();
+			VirtualFreeEx(process, remote, 0, MEM_RELEASE);
+			ResumeThread(thread);
+			CloseHandle(thread);
+			CloseHandle(process);
+			return false;
+		}
 		context.Rip =
 		    reinterpret_cast<DWORD64>(remote + code_offset);
 		if (!SetThreadContext(thread, &context))
