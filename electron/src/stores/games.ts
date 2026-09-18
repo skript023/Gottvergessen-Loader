@@ -23,10 +23,40 @@ export const useGamesStore = defineStore('games', () => {
   const launchStatus = ref<GameLaunchState>('idle');
   const launchMessage = ref('');
   const runningPid = ref<number | null>(null);
+  // The game that owns launchStatus/launchMessage/runningPid. Other games are idle.
+  const activeGameId = ref<string | null>(null);
   const customTargetProcess = ref('');
   const selectedBinaryId = ref<string | null>(null);
   const selectedMode = ref<number>(0);
   const isSavingServerConfig = ref(false);
+
+  // Favorites live per machine in localStorage, keyed by game id.
+  const FAVORITES_KEY = 'astra.favoriteGames';
+  const favoriteIds = ref<string[]>(loadFavoriteIds());
+
+  function loadFavoriteIds(): string[] {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
+      return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function isFavorite(gameId: string) {
+    return favoriteIds.value.includes(gameId);
+  }
+
+  function toggleFavorite(gameId: string) {
+    favoriteIds.value = isFavorite(gameId)
+      ? favoriteIds.value.filter((id) => id !== gameId)
+      : [...favoriteIds.value, gameId];
+    try {
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(favoriteIds.value));
+    } catch (_) {}
+  }
+
+  const favoriteGames = computed(() => games.value.filter((g) => favoriteIds.value.includes(g.id)));
 
   const selectedGame = computed<InstalledGameItem | null>(() => {
     if (!selectedGameId.value) return null;
@@ -112,6 +142,21 @@ export const useGamesStore = defineStore('games', () => {
     return getGameMatchedBinary(selectedGame.value);
   });
 
+  // Artwork comes from the Steam store in the background so the list shows up immediately.
+  async function refreshGameArt() {
+    if (!window.loader?.resolveGameArt) return;
+    try {
+      const withArt = await window.loader.resolveGameArt();
+      const artById = new Map(withArt.map((g) => [g.id, g]));
+      games.value = games.value.map((g) => {
+        const art = artById.get(g.id);
+        return art ? { ...g, iconUrl: art.iconUrl, bannerUrl: art.bannerUrl } : g;
+      });
+    } catch (err: any) {
+      diagnostics.addLog(`Could not load game artwork: ${err.message}`, 'warn');
+    }
+  }
+
   async function scanGames() {
     isScanning.value = true;
     diagnostics.addLog('Scanning installed games across Steam, Epic, and PC library...', 'info');
@@ -123,6 +168,7 @@ export const useGamesStore = defineStore('games', () => {
           'success'
         );
       }
+      void refreshGameArt();
     } catch (err: any) {
       diagnostics.addLog(`Failed scanning installed games: ${err.message}`, 'error');
     } finally {
@@ -222,13 +268,23 @@ export const useGamesStore = defineStore('games', () => {
     }
   }
 
+  function hideProgressCard() {
+    injectionStore.showProgress = false;
+    injectionStore.progress = 0;
+    injectionStore.stage = '';
+    injectionStore.feedbackStatus = 'idle';
+    injectionStore.feedbackMessage = '';
+  }
+
   function handleProcessTerminated(reason?: string) {
     stopProcessLivenessMonitor();
     if (launchStatus.value === 'running') {
-      const gName = selectedGame.value?.name || 'Game';
+      const gName = games.value.find((g) => g.id === activeGameId.value)?.name || 'Game';
       launchStatus.value = 'idle';
       runningPid.value = null;
+      activeGameId.value = null;
       launchMessage.value = '';
+      hideProgressCard();
       diagnostics.addLog(reason || `${gName} process ended. Ready to play again.`, 'info');
     }
   }
@@ -267,6 +323,11 @@ export const useGamesStore = defineStore('games', () => {
   async function launchAndInject() {
     const game = selectedGame.value;
     if (!game) return;
+    if (activeGameId.value && activeGameId.value !== game.id && ['launching', 'waiting', 'injecting', 'running'].includes(launchStatus.value)) {
+      const other = games.value.find((g) => g.id === activeGameId.value);
+      diagnostics.addLog(`Stop ${other?.name || 'the running game'} before launching ${game.name}.`, 'warn');
+      return;
+    }
 
     // Resolve again at click time. Never reuse the global catalog selection:
     // the payload identity must be derived from the game being launched.
@@ -278,6 +339,7 @@ export const useGamesStore = defineStore('games', () => {
     }
     const targetProc = customTargetProcess.value || game.exeName || (binary?.target_process || (binary as any)?.target) || '';
 
+    activeGameId.value = game.id;
     launchStatus.value = 'launching';
     launchMessage.value = `Opening ${game.name} via ${game.platform.toUpperCase()}...`;
     if (binary) {
@@ -400,6 +462,8 @@ export const useGamesStore = defineStore('games', () => {
     stopProcessLivenessMonitor();
     if (!runningPid.value) {
       launchStatus.value = 'idle';
+      activeGameId.value = null;
+      hideProgressCard();
       return;
     }
 
@@ -412,7 +476,9 @@ export const useGamesStore = defineStore('games', () => {
 
     runningPid.value = null;
     launchStatus.value = 'idle';
+    activeGameId.value = null;
     launchMessage.value = '';
+    hideProgressCard();
   }
 
   async function browseAndAddCustom() {
@@ -426,6 +492,7 @@ export const useGamesStore = defineStore('games', () => {
         exePath: fileInfo.exePath
       });
       games.value = updated;
+      void refreshGameArt();
       const added = games.value.find((g) => g.installDir === fileInfo.installDir);
       if (added) {
         selectGame(added.id);
@@ -458,11 +525,15 @@ export const useGamesStore = defineStore('games', () => {
     launchStatus,
     launchMessage,
     runningPid,
+    activeGameId,
     customTargetProcess,
     selectedBinaryId,
     selectedMode,
     isSavingServerConfig,
     filteredGames,
+    favoriteGames,
+    isFavorite,
+    toggleFavorite,
     matchedBinary,
     getGameMatchedBinary,
     scanGames,

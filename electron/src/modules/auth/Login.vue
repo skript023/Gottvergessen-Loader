@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import brandLogo from '../../../../src/logo.ico';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
@@ -37,15 +38,7 @@ async function handleLogin() {
       <div class="login-card">
         <div class="login-header">
           <div class="brand-logo-large">
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="url(#cyan-grad)" />
-              <defs>
-                <linearGradient id="cyan-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#38bdf8"/>
-                  <stop offset="1" stop-color="#818cf8"/>
-                </linearGradient>
-              </defs>
-            </svg>
+            <img :src="brandLogo" alt="Astra" width="40" height="40" />
           </div>
           <p class="login-eyebrow">SECURITY GATEWAY</p>
           <h1 class="login-title">Astra</h1>
@@ -143,8 +136,8 @@ async function handleLogin() {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(255, 77, 95, 0.12);
+  border: 1px solid rgba(255, 77, 95, 0.35);
   border-radius: 12px;
   padding: 12px 14px;
   margin-bottom: 18px;
@@ -152,7 +145,7 @@ async function handleLogin() {
 }
 
 .kick-banner-icon {
-  color: #ef4444;
+  color: #ff4d5f;
   flex-shrink: 0;
   margin-top: 1px;
 }
@@ -161,13 +154,13 @@ async function handleLogin() {
   display: block;
   font-size: 13px;
   font-weight: 700;
-  color: #fca5a5;
+  color: #ff8d99;
   margin-bottom: 3px;
 }
 
 .kick-banner-text p {
   font-size: 11px;
-  color: #fecaca;
+  color: #ffc0c6;
   line-height: 1.4;
   margin: 0;
   word-break: break-word;

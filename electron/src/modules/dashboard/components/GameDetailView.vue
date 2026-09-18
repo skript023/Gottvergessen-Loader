@@ -1,25 +1,35 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useGamesStore } from '../../../stores/games';
 import { useAuthStore } from '../../../stores/auth';
 import { useDiagnosticsStore } from '../../../stores/diagnostics';
 import ProgressHUD from '../../../components/ProgressHUD.vue';
 
+const router = useRouter();
 const gamesStore = useGamesStore();
 const auth = useAuthStore();
 const diagnostics = useDiagnosticsStore();
 
-const failedImage = ref(false);
 const saveSuccess = ref(false);
 
 const game = computed(() => gamesStore.selectedGame);
 const binary = computed(() => gamesStore.matchedBinary);
 
+// Launch state belongs to one game; any other game page shows as idle.
+const isActiveGame = computed(() => !!game.value && gamesStore.activeGameId === game.value.id);
+const launchState = computed(() => (isActiveGame.value ? gamesStore.launchStatus : 'idle'));
+
 const isBusy = computed(() => {
-  return ['launching', 'waiting', 'injecting'].includes(gamesStore.launchStatus);
+  return ['launching', 'waiting', 'injecting'].includes(launchState.value);
 });
 
-const isRunning = computed(() => gamesStore.launchStatus === 'running');
+const isRunning = computed(() => launchState.value === 'running');
+
+// Another game is launching or running, so this one can't start yet.
+const otherGameActive = computed(() =>
+  !isActiveGame.value && !!gamesStore.activeGameId && gamesStore.launchStatus !== 'idle' && gamesStore.launchStatus !== 'error'
+);
 
 const defaultTarget = computed(() => {
   return binary.value?.target_process || (binary.value as any)?.target || game.value?.exeName || '';
@@ -74,18 +84,19 @@ function handleRemoveCustom() {
       <div class="game-hero-overlay"></div>
 
       <div class="game-hero-content">
+        <button
+          type="button"
+          class="btn-hero-favorite"
+          :class="{ active: gamesStore.isFavorite(game.id) }"
+          :title="gamesStore.isFavorite(game.id) ? 'Remove from Favorites' : 'Add to Favorites'"
+          :aria-pressed="gamesStore.isFavorite(game.id)"
+          @click="gamesStore.toggleFavorite(game.id)"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" :fill="gamesStore.isFavorite(game.id) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        </button>
         <div class="game-hero-header">
-          <div class="game-hero-avatar">
-            <img 
-              v-if="game.iconUrl && !failedImage" 
-              :src="game.iconUrl" 
-              :alt="game.name"
-              @error="failedImage = true"
-            />
-            <div v-else class="game-hero-avatar-fallback">
-              {{ game.name.substring(0, 2).toUpperCase() }}
-            </div>
-          </div>
 
           <div class="game-hero-meta">
             <div class="game-tags-row">
@@ -95,10 +106,10 @@ function handleRemoveCustom() {
               <span v-if="game.appId" class="badge-appid">ID: {{ game.appId }}</span>
               <span v-if="game.isCustom" class="badge-custom">CUSTOM EXECUTABLE</span>
               <span v-if="binary" class="badge-server-linked" title="Payload linked from Cloud Security Network">
-                ⚡ CLOUD MOD LINKED
+                CLOUD MOD LINKED
               </span>
               <span v-else class="badge-unsupported" title="This game is not supported by Astra">
-                🛡️ NOT SUPPORTED BY ASTRA
+                NOT SUPPORTED BY ASTRA
               </span>
               <span v-if="isRunning" class="badge-running-pulse">
                 <span class="pulse-dot-green"></span>
@@ -127,9 +138,10 @@ function handleRemoveCustom() {
               :class="{
                 'btn-busy': isBusy,
                 'btn-running': isRunning,
-                'btn-error': gamesStore.launchStatus === 'error'
+                'btn-error': launchState === 'error'
               }"
-              :disabled="isBusy"
+              :disabled="isBusy || otherGameActive"
+              :title="otherGameActive ? 'Stop the running game first' : undefined"
               @click="handlePlay"
             >
               <!-- State: Busy / Launching -->
@@ -137,7 +149,7 @@ function handleRemoveCustom() {
                 <div class="wand-spinner"></div>
                 <div class="play-btn-text-block">
                   <span class="play-main-text">
-                    {{ gamesStore.launchStatus === 'launching' ? 'LAUNCHING...' : 'INITIALIZING...' }}
+                    {{ launchState === 'launching' ? 'LAUNCHING...' : 'INITIALIZING...' }}
                   </span>
                   <span class="play-sub-text">
                     {{ binary ? 'Connecting to Mod Core' : 'Starting without injection' }}
@@ -159,7 +171,7 @@ function handleRemoveCustom() {
               </template>
 
               <!-- State: Error / Retry -->
-              <template v-else-if="gamesStore.launchStatus === 'error'">
+              <template v-else-if="launchState === 'error'">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="8" x2="12" y2="12" />
@@ -187,11 +199,11 @@ function handleRemoveCustom() {
           </div>
 
           <!-- Status Indicator Pill -->
-          <div class="launch-status-pill" :class="`status-${gamesStore.launchStatus}`">
+          <div class="launch-status-pill" :class="`status-${launchState}`">
             <span class="status-indicator-dot"></span>
             <span class="status-indicator-text">
               {{
-                gamesStore.launchMessage ||
+                (isActiveGame && gamesStore.launchMessage) ||
                 (binary
                   ? `Ready to inject ${binary.name} into ${gamesStore.customTargetProcess || game.exeName}`
                   : 'Unsupported by Astra — launch only, no injection')
@@ -202,7 +214,7 @@ function handleRemoveCustom() {
       </div>
     </div>
 
-    <ProgressHUD />
+    <ProgressHUD v-if="isActiveGame" />
 
     <!-- Astra Unsupported Notice View (Matches Image 3) -->
     <div v-if="!binary" class="unsupported-mod-view">
@@ -241,7 +253,7 @@ function handleRemoveCustom() {
             </svg>
             <h3>Target Process</h3>
           </div>
-          <span v-if="gamesStore.runningPid" class="config-status-tag tag-ready">
+          <span v-if="isRunning && gamesStore.runningPid" class="config-status-tag tag-ready">
             LOCKED (PID: {{ gamesStore.runningPid }})
           </span>
           <span v-else class="config-status-tag">AUTO-ATTACH</span>
@@ -266,32 +278,6 @@ function handleRemoveCustom() {
               Reset
             </button>
           </div>
-        </div>
-      </div>
-
-      <!-- Associated Binary / Mod Card -->
-      <div class="config-card">
-        <div class="config-card-header">
-          <div class="config-title-wrap">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-            </svg>
-            <h3>Cloud Mod Payload</h3>
-          </div>
-          <span class="config-status-tag tag-ready">SYNCED</span>
-        </div>
-
-        <div class="config-card-body">
-          <p class="config-desc">
-            DLL payload from Cloud Security Network
-            <span class="binary-filename-tag">({{ binary.file_name || 'payload.dll' }})</span>:
-          </p>
-          <input
-            class="wand-input"
-            type="text"
-            :value="`${binary.name || binary.game || binary.file_name} (v${binary.version || '1.0'}) — Auto-matched to ${game.name}`"
-            disabled
-          />
         </div>
       </div>
 
@@ -327,7 +313,7 @@ function handleRemoveCustom() {
         <span>•</span>
         <span>User: <strong>{{ auth.displayName }}</strong> ({{ auth.role || 'Member' }})</span>
         <span>•</span>
-        <span>Assigned DLL: <strong style="color: #38bdf8;">{{ binary.file_name || 'payload.dll' }}</strong></span>
+        <span>Assigned DLL: <strong style="color: #29b6f6;">{{ binary.file_name || 'payload.dll' }}</strong></span>
       </div>
 
       <div class="server-sync-action">
@@ -347,14 +333,22 @@ function handleRemoveCustom() {
     <div class="game-log-panel">
       <div class="game-log-header">
         <span class="log-title">Live Engine Log</span>
-        <span class="log-count">{{ diagnostics.logs.length }} events</span>
+        <div class="log-header-actions">
+          <span class="log-count">{{ diagnostics.logs.length }} events</span>
+          <button class="btn-log-open" title="Open Diagnostics" @click="router.push('/diagnostics')">
+            <span>View all</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </button>
+        </div>
       </div>
       <div class="game-log-stream">
         <div v-if="diagnostics.logs.length === 0" class="log-empty">
           Engine initialized. Ready to launch {{ game.name }}.
         </div>
         <div
-          v-for="(item, idx) in diagnostics.logs.slice(-5)"
+          v-for="(item, idx) in diagnostics.logs.slice(-10)"
           :key="idx"
           class="log-row"
           :class="`log-${item.type}`"

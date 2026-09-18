@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import loadingArtwork from '../../src/frame_loading.svg';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthStore } from './stores/auth';
 import { useBinariesStore } from './stores/binaries';
@@ -43,10 +44,13 @@ async function proceedToSession() {
   // Smooth visual transition delay
   await new Promise(r => setTimeout(r, 350));
   startupPhase.value = 'ready';
+  await nextTick();
+  await window.loader?.window?.setStartupMode?.('ready');
 }
 
 async function startStartupDownload() {
   startupPhase.value = 'updating';
+  await window.loader?.window?.setStartupMode?.('updating');
   if (updater.isReadyToInstall) {
     startupStatusText.value = 'Update verified. Relaunching Astra...';
     setTimeout(() => updater.installUpdate(), 600);
@@ -117,77 +121,35 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="app-root-shell">
+  <div class="app-root-shell" :class="{ 'is-starting': isStartupActive }">
     <!-- Windows 11 Custom TitleBar Strip (Ellohim-Explorer Style) -->
-    <TitleBar />
+    <TitleBar v-if="!isStartupActive" />
 
     <div class="app-root-body">
       <!-- Global Neon Top Progress Bar (Active during any HTTP / Native task) -->
-      <div v-if="isGlobalLoading" class="global-top-progress">
+      <div v-if="isGlobalLoading && !isStartupActive" class="global-top-progress">
         <div class="global-top-bar-indeterminate"></div>
       </div>
 
-  <!-- High-Tech Startup Splash Loader with Discord-Style Updater & Download Indicator -->
-  <transition name="splash-fade">
+  <!-- Compact artwork splash; the card itself fills the startup window. -->
     <div v-if="isStartupActive" class="startup-splash-overlay">
-      <div class="splash-backdrop-glow"></div>
       <div class="splash-card">
-        <div class="splash-logo-wrap">
-          <div class="splash-spinner-ring"></div>
-          <div class="splash-logo-inner">
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="url(#splash-cyan-grad)" />
-              <defs>
-                <linearGradient id="splash-cyan-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#38bdf8"/>
-                  <stop offset="1" stop-color="#818cf8"/>
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
+        <img class="splash-artwork" :src="loadingArtwork" alt="Astra" draggable="false" />
+        <div class="splash-progress-track" role="progressbar" aria-label="Startup progress"
+          :aria-valuenow="startupPhase === 'updating' ? updater.percent : undefined"
+          :aria-valuemin="0" :aria-valuemax="100">
+          <div v-if="startupPhase !== 'updating'" class="splash-progress-bar"></div>
+          <div v-else class="splash-progress-fill"
+            :class="{ 'fill-paused': updater.isPaused, 'fill-verifying': updater.isVerifying || updater.isReadyToInstall }"
+            :style="{ width: `${updater.percent}%` }"></div>
         </div>
-
         <div class="splash-info">
-          <span class="splash-eyebrow">
-            {{ startupPhase === 'updating'
-                ? (updater.isMandatory ? 'CRITICAL SYSTEM GATE • v' + updater.latestVersion : 'ASTRA AUTO-UPDATER • v' + updater.latestVersion)
-                : 'ASTRA SECURITY GATEWAY' }}
-          </span>
-          <h2 class="splash-title">
-            {{ startupPhase === 'updating' ? 'Updating Astra' : 'Astra' }}
-          </h2>
-
-          <div class="splash-status-row">
-            <span class="splash-pulsing-dot" :class="{ 'dot-amber': updater.isPaused, 'dot-danger': updater.state === 'error' }"></span>
-            <span class="splash-status-text">{{ startupStatusText }}</span>
-          </div>
-        </div>
-
-        <!-- Indeterminate Progress Track for Checking & Session Restoring -->
-        <div v-if="startupPhase !== 'updating'" class="splash-progress-track">
-          <div class="splash-progress-bar"></div>
-        </div>
-
-        <!-- Determinate Discord-Style Progress & Metrics for Updating -->
-        <div v-else class="splash-updater-box">
-          <div class="splash-progress-header">
-            <span class="splash-metric-val">
-              {{ updater.isVerifying ? 'Verifying Integrity' : (updater.isReadyToInstall ? 'Ready to Install' : 'Downloading') }}
-            </span>
-            <span class="splash-progress-percent font-mono">{{ updater.percent }}%</span>
-          </div>
-
-          <div class="splash-progress-track determinate">
-            <div
-              class="splash-progress-fill"
-              :class="{
-                'fill-paused': updater.isPaused,
-                'fill-verifying': updater.isVerifying || updater.isReadyToInstall
-              }"
-              :style="{ width: `${updater.percent}%` }"
-            ></div>
-          </div>
-
+          <p class="splash-status-text" role="status" aria-live="polite">{{ startupStatusText }}</p>
+          <div v-if="startupPhase === 'updating'" class="splash-updater-box">
+            <div class="splash-progress-header">
+              <span>{{ updater.isVerifying ? 'Verifying Integrity' : (updater.isReadyToInstall ? 'Ready to Install' : 'Downloading') }}</span>
+              <span class="splash-progress-percent font-mono">{{ updater.percent }}%</span>
+            </div>
           <div class="splash-metrics-row">
             <span class="splash-metric-numbers font-mono">
               <span>{{ updater.formattedDownloaded }}</span>
@@ -220,17 +182,17 @@ onMounted(async () => {
 
       </div>
     </div>
-  </transition>
+        </div>
 
   <!-- Main Application Router View with Smooth Fade Transitions -->
-  <div v-if="isAuthRoute" class="auth-wrapper">
+  <div v-if="!isStartupActive && isAuthRoute" class="auth-wrapper">
     <router-view v-slot="{ Component }">
       <transition name="page-fade" mode="out-in">
         <component :is="Component" />
       </transition>
     </router-view>
   </div>
-  <div v-else class="app-layout">
+  <div v-else-if="!isStartupActive" class="app-layout">
     <Sidebar />
     <main class="main-wrapper">
       <Header />
@@ -245,10 +207,10 @@ onMounted(async () => {
   </div>
 
     <!-- Real-time Kick / Force-Logout Notification Modal -->
-    <KickModal />
+    <KickModal v-if="!isStartupActive" />
 
     <!-- Client Auto-Updater Resumable Modal -->
-    <UpdateModal />
+    <UpdateModal v-if="!isStartupActive" />
     </div>
   </div>
 </template>

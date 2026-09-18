@@ -99,7 +99,7 @@ function handleRefresh() {
           </div>
           <div class="catalog-detail">
             <span>SAVED TARGET</span>
-            <strong style="color: #7dd3fc;">{{ binary.target_process || 'Not set' }}</strong>
+            <strong style="color: var(--primary-cyan);">{{ binary.target_process || 'Not set' }}</strong>
           </div>
           <div class="catalog-detail">
             <span>METHOD</span>
@@ -109,7 +109,7 @@ function handleRefresh() {
           </div>
           <div v-if="binary.expiry_date" class="catalog-detail">
             <span>LICENSE EXPIRY</span>
-            <strong style="color: #34d399;">
+            <strong style="color: #4ef0a8;">
               {{ binary.expiry_date }}
             </strong>
           </div>

@@ -48,19 +48,27 @@ onUnmounted(() => { disposed = true; clearInterval(timer); });
 
 <style scoped>
 .server-status { position: relative; }
-.server-status-button { cursor: help; font-family: inherit; background: #94a3b812; border-color: #94a3b840; }
-.server-status-button:focus-visible { outline: 2px solid #38bdf8; outline-offset: 3px; }
-.status-online { color: #4ade80; background: #10b9811f; border-color: #10b9814d; }
-.status-degraded { color: #fbbf24; }
-.status-offline { color: #f87171; }
-.status-checking, .status-unknown { color: #94a3b8; }
-.server-status-button .pulse-dot { background: currentColor; }
+.server-status-button { cursor: help; font-family: inherit; }
+.server-status-button:focus-visible { outline: 2px solid var(--primary-cyan); outline-offset: 2px; }
+.server-status-button { border: none; color: #fff; }
+.status-online { background: rgba(var(--accent-emerald-rgb), 0.85); }
+.status-degraded { background: rgba(var(--accent-amber-rgb), 0.85); }
+.status-offline { background: rgba(var(--accent-rose-rgb), 0.85); }
+.status-checking, .status-unknown { background: rgba(255, 255, 255, 0.12); }
+.server-status-button .pulse-dot { background: #fff; }
 .server-status-button:not(.status-online) .pulse-dot { animation: none; box-shadow: none; }
-.server-status-tooltip { position: absolute; z-index: 1000; top: 100%; right: 0; width: 300px; max-width: calc(100vw - 32px); padding: 16px; border: 1px solid #334155; border-radius: 12px; background: #111827; color: #e2e8f0; box-shadow: 0 12px 32px #0008; font-size: 12px; text-transform: none; letter-spacing: normal; }
-.server-status-tooltip strong { font-size: 13px; }
-dl { margin: 12px 0; }
-dl div { display: flex; justify-content: space-between; gap: 16px; margin: 8px 0; }
-dt, small { color: #94a3b8; }
-dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
-p { color: #fbbf24; margin: 8px 0; }
+.server-status-tooltip {
+  position: absolute; z-index: 1000; top: calc(100% + 8px); right: 0;
+  width: 280px; max-width: calc(100vw - 32px); padding: 14px;
+  border: 1px solid var(--border-subtle); border-radius: 12px;
+  background: var(--bg-popover); color: var(--text-main);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+  font-size: 12px; font-weight: 500; text-transform: none; letter-spacing: normal;
+}
+.server-status-tooltip strong { font-size: 13px; font-weight: 700; }
+dl { margin: 10px 0; padding: 4px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); }
+dl div { display: flex; justify-content: space-between; gap: 16px; margin: 6px 0; }
+dt, small { color: var(--text-dim); }
+dd { margin: 0; text-align: right; overflow-wrap: anywhere; font-weight: 600; }
+p { color: var(--accent-amber); margin: 8px 0; }
 </style>

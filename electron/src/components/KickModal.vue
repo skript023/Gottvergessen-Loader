@@ -61,7 +61,7 @@ function handleAcknowledge() {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(4, 6, 12, 0.88);
+  background: rgba(12,13,14, 0.88);
   backdrop-filter: blur(16px);
   display: grid;
   place-items: center;
@@ -72,11 +72,11 @@ function handleAcknowledge() {
 .kick-modal-box {
   position: relative;
   width: min(460px, 95vw);
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  border-radius: 20px;
+  background: rgba(27,28,30, 0.95);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
   padding: 32px 28px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 35px rgba(239, 68, 68, 0.2);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -91,27 +91,28 @@ function handleAcknowledge() {
   transform: translateX(-50%);
   width: 250px;
   height: 200px;
-  background: radial-gradient(circle, rgba(239, 68, 68, 0.35) 0%, transparent 70%);
+  background: none;
   filter: blur(40px);
   pointer-events: none;
+  display: none;
 }
 
 .kick-icon-wrapper {
   width: 68px;
   height: 68px;
-  border-radius: 20px;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #ef4444;
+  border-radius: var(--radius-panel);
+  background: rgba(255, 77, 95, 0.12);
+  border: 1px solid rgba(255, 77, 95, 0.35);
+  color: #ff4d5f;
   display: grid;
   place-items: center;
   margin-bottom: 18px;
-  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.25);
+  box-shadow: none;
 }
 
 .kick-title {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 700;
   color: #fff;
   letter-spacing: 0.04em;
   margin-bottom: 6px;
@@ -119,15 +120,15 @@ function handleAcknowledge() {
 
 .kick-sub {
   font-size: 13px;
-  color: #94a3b8;
+  color: #a1a2a6;
   line-height: 1.5;
   margin-bottom: 20px;
 }
 
 .kick-reason-box {
   width: 100%;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: rgba(255, 77, 95, 0.08);
+  border: 1px solid rgba(255, 77, 95, 0.25);
   border-radius: 12px;
   padding: 12px 16px;
   margin-bottom: 16px;
@@ -136,8 +137,8 @@ function handleAcknowledge() {
 
 .kick-reason-label {
   font-size: 10px;
-  font-weight: 800;
-  color: #ef4444;
+  font-weight: 700;
+  color: #ff4d5f;
   letter-spacing: 0.12em;
   margin-bottom: 4px;
 }
@@ -145,13 +146,13 @@ function handleAcknowledge() {
 .kick-reason-text {
   font-size: 13px;
   font-weight: 600;
-  color: #fca5a5;
+  color: #ff8d99;
   word-break: break-word;
 }
 
 .kick-details {
   font-size: 11px;
-  color: #64748b;
+  color: #898b90;
   line-height: 1.5;
   margin-bottom: 24px;
 }
@@ -159,10 +160,10 @@ function handleAcknowledge() {
 .btn-kick-ack {
   width: 100%;
   padding: 13px 20px;
-  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  background: #ededee;
   border: none;
   border-radius: 12px;
-  color: #fff;
+  color: #202123;
   font-size: 13px;
   font-weight: 700;
   display: flex;
@@ -170,14 +171,14 @@ function handleAcknowledge() {
   justify-content: center;
   gap: 8px;
   cursor: pointer;
-  box-shadow: 0 4px 18px rgba(239, 68, 68, 0.4);
+  box-shadow: none;
   transition: all 0.2s ease;
 }
 
 .btn-kick-ack:hover {
   filter: brightness(1.12);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 22px rgba(239, 68, 68, 0.55);
+  transform: none;
+  box-shadow: none;
 }
 
 @keyframes fadeIn {

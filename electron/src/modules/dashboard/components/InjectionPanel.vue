@@ -162,7 +162,7 @@ function handleExecute() {
         v-if="injection.feedbackMessage"
         class="status-feedback"
         :style="{
-          color: injection.feedbackStatus === 'success' ? '#34d399' : injection.feedbackStatus === 'error' ? '#f87171' : 'var(--text-muted)'
+          color: injection.feedbackStatus === 'success' ? '#34d399' : injection.feedbackStatus === 'error' ? '#ff5b6b' : 'var(--text-muted)'
         }"
       >
         {{ injection.feedbackMessage }}

@@ -40,6 +40,7 @@
       "main.js",
       "preload.js",
       "gameScanner.js",
+      "gameArt.js",
       "updater.js",
       "dist-renderer/**/*",
       "renderer/**/*",

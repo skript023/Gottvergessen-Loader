@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld("loader", Object.freeze({
   inject: (request) => ipcRenderer.invoke("native:inject", request),
   getSessionInfo: () => ipcRenderer.invoke("native:get-session-info"),
   listInstalledGames: () => ipcRenderer.invoke("game:list-installed"),
+  resolveGameArt: () => ipcRenderer.invoke("game:resolve-art"),
   browseGameExecutable: () => ipcRenderer.invoke("game:browse-executable"),
   addCustomGame: (data) => ipcRenderer.invoke("game:add-custom", data),
   removeCustomGame: (gameId) => ipcRenderer.invoke("game:remove-custom", gameId),
@@ -25,6 +26,7 @@ contextBridge.exposeInMainWorld("loader", Object.freeze({
     return () => ipcRenderer.removeListener("game:process-exited", sub);
   },
   window: {
+    setStartupMode: (mode) => ipcRenderer.invoke("window:startup-mode", mode),
     minimize: () => ipcRenderer.invoke("window:minimize"),
     maximize: () => ipcRenderer.invoke("window:maximize"),
     close: () => ipcRenderer.invoke("window:close"),

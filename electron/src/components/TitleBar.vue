@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
+import ServerStatus from './ServerStatus.vue';
 
 const auth = useAuthStore();
 const isMaximized = ref(false);
@@ -67,13 +68,7 @@ async function handleClose() {
   <header class="custom-titlebar">
     <!-- Left: App Icon & Title Strip -->
     <div class="titlebar-left">
-      <div class="titlebar-logo-icon">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2">
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-        </svg>
-      </div>
-      <span class="titlebar-title-text">Astra</span>
-      <span class="titlebar-badge-core">SECURITY CORE</span>
+      <span class="titlebar-title-text">Astra Launcher</span>
     </div>
 
     <!-- Draggable Middle Area -->
@@ -81,11 +76,9 @@ async function handleClose() {
 
     <!-- Right: Account Status & Window Action Controls -->
     <div class="titlebar-right">
-      <!-- Session Status Pill (when authenticated) -->
-      <div v-if="auth.isAuthenticated" class="titlebar-user-pill">
-        <span class="titlebar-status-dot"></span>
-        <span class="titlebar-username">{{ auth.displayHandle }}</span>
-        <span class="titlebar-role-badge">{{ auth.role }}</span>
+      <!-- System Status Pills (when authenticated) -->
+      <div v-if="auth.isAuthenticated" class="system-pills titlebar-pills">
+        <ServerStatus />
       </div>
 
       <!-- Windows 11 Style Controls (Minimize, Maximize/Restore, Close) -->

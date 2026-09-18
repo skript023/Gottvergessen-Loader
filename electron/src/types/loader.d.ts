@@ -137,6 +137,7 @@ export interface WindowControlsApi {
   minimize(): Promise<boolean>;
   maximize(): Promise<boolean>;
   close(): Promise<boolean>;
+  setStartupMode?(mode: 'updating' | 'ready'): Promise<void>;
   isMaximized(): Promise<boolean>;
 }
 
@@ -198,6 +199,7 @@ export interface LoaderApi {
   inject(request: InjectRequest): Promise<boolean>;
   getSessionInfo(): Promise<SessionInfo>;
   listInstalledGames(): Promise<InstalledGameItem[]>;
+  resolveGameArt?: () => Promise<InstalledGameItem[]>;
   browseGameExecutable(): Promise<BrowseExecutableResult | null>;
   addCustomGame(data: { name: string; exePath: string }): Promise<InstalledGameItem[]>;
   removeCustomGame(gameId: string): Promise<InstalledGameItem[]>;

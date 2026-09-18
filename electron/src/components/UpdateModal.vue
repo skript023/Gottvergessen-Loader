@@ -17,13 +17,13 @@ const updater = useUpdaterStore();
         <div class="modal-header">
           <div class="header-icon-wrap" :class="{ 'icon-danger': updater.isMandatory }">
             <svg v-if="updater.isReadyToInstall" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M20 6L9 17l-5-5" stroke="#10b981" />
+              <path d="M20 6L9 17l-5-5" stroke="#1fd98a" />
             </svg>
             <svg v-else-if="updater.isMandatory" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="#ef4444" />
+              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="#ff4d5f" />
             </svg>
             <svg v-else width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="#38bdf8" />
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="#29b6f6" />
             </svg>
           </div>
 
@@ -72,7 +72,7 @@ const updater = useUpdaterStore();
             </div>
             <div class="version-sep">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M5 12h14M12 5l7 7-7 7" stroke="#38bdf8" />
+                <path d="M5 12h14M12 5l7 7-7 7" stroke="#29b6f6" />
               </svg>
             </div>
             <div class="version-item">
@@ -85,8 +85,8 @@ const updater = useUpdaterStore();
           <div v-if="updater.releaseNotes" class="release-notes-box">
             <div class="notes-header">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#94a3b8" />
-                <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="#94a3b8" />
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#a1a2a6" />
+                <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="#a1a2a6" />
               </svg>
               <span>Changelog & Release Notes</span>
             </div>
@@ -136,7 +136,7 @@ const updater = useUpdaterStore();
           <!-- Ready To Install Success Banner -->
           <div v-else-if="updater.isReadyToInstall" class="ready-banner">
             <div class="ready-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1fd98a" stroke-width="2.5">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                 <path d="M22 4L12 14.01l-3-3" />
               </svg>
@@ -149,7 +149,7 @@ const updater = useUpdaterStore();
 
           <!-- Error Alert -->
           <div v-if="updater.error" class="error-alert">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff4d5f" stroke-width="2">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -259,22 +259,20 @@ const updater = useUpdaterStore();
   width: 100%;
   max-width: 540px;
   background: #080d18;
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  border-radius: 20px;
+  border: 1px solid rgba(41, 182, 246, 0.25);
+  border-radius: var(--radius-panel);
   box-shadow:
-    0 25px 60px -15px rgba(0, 0, 0, 0.9),
-    0 0 35px rgba(56, 189, 248, 0.12);
+    none;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  color: #f8fafc;
+  color: #f4f4f5;
 }
 
 .update-modal-card.is-mandatory {
-  border-color: rgba(239, 68, 68, 0.35);
+  border-color: rgba(255, 77, 95, 0.35);
   box-shadow:
-    0 25px 60px -15px rgba(0, 0, 0, 0.9),
-    0 0 45px rgba(239, 68, 68, 0.15);
+    none;
 }
 
 .modal-glow {
@@ -284,12 +282,12 @@ const updater = useUpdaterStore();
   transform: translateX(-50%);
   width: 320px;
   height: 160px;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, transparent 70%);
+  background: none;
   pointer-events: none;
 }
 
 .modal-glow.glow-danger {
-  background: radial-gradient(circle, rgba(239, 68, 68, 0.3) 0%, transparent 70%);
+  background: none;
 }
 
 .modal-header {
@@ -303,9 +301,9 @@ const updater = useUpdaterStore();
 .header-icon-wrap {
   width: 52px;
   height: 52px;
-  border-radius: 14px;
-  background: rgba(56, 189, 248, 0.08);
-  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: var(--radius-panel);
+  background: rgba(41, 182, 246, 0.08);
+  border: 1px solid rgba(41, 182, 246, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -313,8 +311,8 @@ const updater = useUpdaterStore();
 }
 
 .header-icon-wrap.icon-danger {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(255, 77, 95, 0.08);
+  border-color: rgba(255, 77, 95, 0.25);
 }
 
 .header-info {
@@ -334,19 +332,19 @@ const updater = useUpdaterStore();
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #38bdf8;
+  color: #29b6f6;
 }
 
 .badge-eyebrow.eyebrow-danger {
-  color: #ef4444;
+  color: #ff4d5f;
 }
 
 .mandatory-tag {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #f87171;
+  background: rgba(255, 77, 95, 0.15);
+  border: 1px solid rgba(255, 77, 95, 0.3);
+  color: #ff5b6b;
   font-size: 0.6rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.05em;
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
@@ -355,14 +353,14 @@ const updater = useUpdaterStore();
 .modal-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #f8fafc;
+  color: #f4f4f5;
   line-height: 1.2;
   margin: 0 0 0.35rem;
 }
 
 .modal-subtitle {
   font-size: 0.8rem;
-  color: #94a3b8;
+  color: #a1a2a6;
   line-height: 1.4;
   margin: 0;
 }
@@ -370,7 +368,7 @@ const updater = useUpdaterStore();
 .btn-close-modal {
   background: transparent;
   border: none;
-  color: #64748b;
+  color: #898b90;
   cursor: pointer;
   padding: 0.25rem;
   border-radius: 6px;
@@ -378,7 +376,7 @@ const updater = useUpdaterStore();
 }
 
 .btn-close-modal:hover {
-  color: #f8fafc;
+  color: #f4f4f5;
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -393,8 +391,8 @@ const updater = useUpdaterStore();
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(56, 189, 248, 0.15);
+  background: rgba(27,28,30, 0.6);
+  border: 1px solid rgba(41, 182, 246, 0.15);
   border-radius: 12px;
   padding: 0.75rem 1.25rem;
 }
@@ -408,27 +406,27 @@ const updater = useUpdaterStore();
   font-size: 0.65rem;
   font-weight: 600;
   text-transform: uppercase;
-  color: #64748b;
+  color: #898b90;
   margin-bottom: 0.15rem;
 }
 
 .v-val {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #e2e8f0;
+  color: #dedee0;
 }
 
 .v-val.target-val {
-  color: #38bdf8;
+  color: #29b6f6;
 }
 
 .text-cyan {
-  color: #38bdf8;
+  color: #29b6f6;
 }
 
 .release-notes-box {
-  background: rgba(11, 19, 36, 0.7);
-  border: 1px solid rgba(56, 189, 248, 0.12);
+  background: rgba(24,25,27, 0.7);
+  border: 1px solid rgba(41, 182, 246, 0.12);
   border-radius: 12px;
   padding: 0.75rem 1rem;
 }
@@ -439,7 +437,7 @@ const updater = useUpdaterStore();
   gap: 0.5rem;
   font-size: 0.7rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: #a1a2a6;
   margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -447,7 +445,7 @@ const updater = useUpdaterStore();
 
 .notes-content {
   font-size: 0.8rem;
-  color: #cbd5e1;
+  color: #c5c6c8;
   line-height: 1.5;
   white-space: pre-line;
   max-height: 110px;
@@ -455,9 +453,9 @@ const updater = useUpdaterStore();
 }
 
 .download-status-card {
-  background: rgba(11, 19, 36, 0.8);
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  border-radius: 14px;
+  background: rgba(24,25,27, 0.8);
+  border: 1px solid rgba(41, 182, 246, 0.2);
+  border-radius: var(--radius-panel);
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -484,32 +482,32 @@ const updater = useUpdaterStore();
 }
 
 .dot-cyan {
-  background: #38bdf8;
-  box-shadow: 0 0 8px #38bdf8;
+  background: #29b6f6;
+  box-shadow: none;
   animation: pulse 1.5s infinite ease-in-out;
 }
 
 .dot-amber {
-  background: #f59e0b;
-  box-shadow: 0 0 8px #f59e0b;
+  background: #ffc22e;
+  box-shadow: none;
 }
 
 .status-txt {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #e2e8f0;
+  color: #dedee0;
 }
 
 .progress-percent {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #38bdf8;
+  color: #29b6f6;
 }
 
 .progress-track {
   width: 100%;
   height: 8px;
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(27,28,30, 0.8);
   border-radius: 999px;
   overflow: hidden;
   position: relative;
@@ -517,18 +515,18 @@ const updater = useUpdaterStore();
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #0284c7 0%, #38bdf8 100%);
+  background: linear-gradient(90deg, #29b6f6 0%, #29b6f6 100%);
   border-radius: 999px;
   transition: width 0.3s ease;
   position: relative;
 }
 
 .progress-bar-fill.bar-paused {
-  background: linear-gradient(90deg, #d97706 0%, #fbbf24 100%);
+  background: linear-gradient(90deg, #e08600 0%, #ffd24a 100%);
 }
 
 .progress-bar-fill.bar-verifying {
-  background: linear-gradient(90deg, #4f46e5 0%, #818cf8 100%);
+  background: linear-gradient(90deg, #29b6f6 0%, #29b6f6 100%);
 }
 
 .progress-bar-glow {
@@ -547,11 +545,11 @@ const updater = useUpdaterStore();
   justify-content: space-between;
   align-items: center;
   font-size: 0.72rem;
-  color: #94a3b8;
+  color: #a1a2a6;
 }
 
 .metric-num {
-  color: #e2e8f0;
+  color: #dedee0;
   font-weight: 600;
 }
 
@@ -561,7 +559,7 @@ const updater = useUpdaterStore();
 }
 
 .metric-speed {
-  color: #38bdf8;
+  color: #29b6f6;
   font-weight: 600;
 }
 
@@ -569,8 +567,8 @@ const updater = useUpdaterStore();
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(31, 217, 138, 0.08);
+  border: 1px solid rgba(31, 217, 138, 0.3);
   border-radius: 12px;
   padding: 0.85rem 1rem;
 }
@@ -578,13 +576,13 @@ const updater = useUpdaterStore();
 .ready-text h4 {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #10b981;
+  color: #1fd98a;
   margin: 0 0 0.15rem;
 }
 
 .ready-text p {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: #a1a2a6;
   margin: 0;
 }
 
@@ -592,12 +590,12 @@ const updater = useUpdaterStore();
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(255, 77, 95, 0.1);
+  border: 1px solid rgba(255, 77, 95, 0.3);
   border-radius: 10px;
   padding: 0.75rem;
   font-size: 0.75rem;
-  color: #fca5a5;
+  color: #ff8d99;
 }
 
 .modal-footer {
@@ -605,7 +603,7 @@ const updater = useUpdaterStore();
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  border-top: 1px solid rgba(56, 189, 248, 0.08);
+  border-top: 1px solid rgba(41, 182, 246, 0.08);
 }
 
 .btn-action {
@@ -622,46 +620,46 @@ const updater = useUpdaterStore();
 }
 
 .btn-secondary {
-  background: rgba(15, 23, 42, 0.8);
-  color: #94a3b8;
+  background: rgba(27,28,30, 0.8);
+  color: #a1a2a6;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: #f8fafc;
+  color: #f4f4f5;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
-  color: #030712;
-  box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+  background: #ededee;
+  color: #202123;
+  box-shadow: none;
 }
 
 .btn-primary:hover {
   filter: brightness(1.1);
-  box-shadow: 0 0 25px rgba(56, 189, 248, 0.45);
+  box-shadow: none;
 }
 
 .btn-pause {
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  color: #fbbf24;
+  background: rgba(255, 194, 46, 0.15);
+  border: 1px solid rgba(255, 194, 46, 0.35);
+  color: #ffd24a;
 }
 
 .btn-pause:hover {
-  background: rgba(245, 158, 11, 0.25);
+  background: rgba(255, 194, 46, 0.25);
 }
 
 .btn-install {
-  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-  color: #030712;
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  background: #ededee;
+  color: #202123;
+  box-shadow: none;
 }
 
 .btn-install:hover {
   filter: brightness(1.1);
-  box-shadow: 0 0 25px rgba(16, 185, 129, 0.45);
+  box-shadow: none;
 }
 
 /* Animations */

@@ -4,6 +4,7 @@ const path = require("node:path");
 const { spawn, exec } = require("node:child_process");
 const koffi = require("koffi");
 const gameScanner = require("./gameScanner");
+const gameArt = require("./gameArt");
 const { updater, registerUpdaterIpc } = require("./updater");
 const { createServerMonitor } = require("./serverStatus");
 const getServerStatus = createServerMonitor(() => updater.getBackendUrl(native), require('./package.json').version);
@@ -14,6 +15,7 @@ let nativeLibrary;
 app.setAppUserModelId("com.ellohim.astra");
 
 let mainWindow = null;
+let startupWindowState = null;
 
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
@@ -340,6 +342,28 @@ function registerIpc() {
     return { binaries, profile, token, hwid, backendUrl, deviceName };
   });
 
+  ipcMain.handle("window:startup-mode", (event, mode) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || win !== mainWindow || !startupWindowState) return;
+    if (mode === "updating") {
+      win.setSize(640, 620);
+      win.center();
+    } else if (mode === "ready") {
+      const state = startupWindowState;
+      win.setResizable(true);
+      win.setMaximizable(true);
+      win.setMinimumSize(960, 620);
+      win.setSize(state.width, state.height);
+      if (typeof state.x === "number" && typeof state.y === "number") {
+        win.setPosition(state.x, state.y);
+      } else {
+        win.center();
+      }
+      if (state.isMaximized) win.maximize();
+      startupWindowState = null;
+    }
+  });
+
   // ==================== WINDOW CONTROLS IPC ====================
   ipcMain.handle("window:minimize", (event) => {
     const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
@@ -408,7 +432,11 @@ function registerIpc() {
 
   // ==================== GAME SCANNER & LAUNCHER IPC ====================
   ipcMain.handle("game:list-installed", () => {
-    return gameScanner.getAllGames();
+    return gameArt.applyCachedArt(gameScanner.getAllGames());
+  });
+
+  ipcMain.handle("game:resolve-art", () => {
+    return gameArt.resolveArt(gameScanner.getAllGames());
   });
 
   ipcMain.handle("game:browse-executable", async () => {
@@ -452,13 +480,13 @@ function registerIpc() {
     };
     custom.push(newGame);
     gameScanner.saveCustomGames(custom);
-    return gameScanner.getAllGames();
+    return gameArt.applyCachedArt(gameScanner.getAllGames());
   });
 
   ipcMain.handle("game:remove-custom", (_event, gameId) => {
     const custom = gameScanner.loadCustomGames().filter(g => g.id !== gameId);
     gameScanner.saveCustomGames(custom);
-    return gameScanner.getAllGames();
+    return gameArt.applyCachedArt(gameScanner.getAllGames());
   });
 
   ipcMain.handle("game:play-and-inject", async (_event, params) => {
@@ -674,7 +702,7 @@ function loadWindowState() {
 }
 
 function saveWindowState(win) {
-  if (!win || win.isDestroyed()) return;
+  if (!win || win.isDestroyed() || startupWindowState) return;
   try {
     const isMaximized = win.isMaximized();
     let bounds;
@@ -696,14 +724,17 @@ function saveWindowState(win) {
 
 function createWindow() {
   const state = loadWindowState();
+  startupWindowState = state;
 
   const options = {
-    width: state.width,
-    height: state.height,
-    minWidth: 960,
-    minHeight: 620,
+    width: 640,
+    height: 460,
+    resizable: false,
+    maximizable: false,
+    transparent: true,
+    show: false,
     frame: false,
-    backgroundColor: "#080c14",
+    backgroundColor: "#00000000",
     title: "Astra",
     icon: iconPath(),
     webPreferences: {
@@ -722,9 +753,8 @@ function createWindow() {
   mainWindow = new BrowserWindow(options);
   mainWindow.setMenuBarVisibility(false);
 
-  if (state.isMaximized) {
-    mainWindow.maximize();
-  }
+  mainWindow.center();
+  mainWindow.once("ready-to-show", () => mainWindow?.show());
 
   let saveTimer = null;
   const debouncedSave = () => {

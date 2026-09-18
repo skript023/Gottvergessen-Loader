@@ -27,7 +27,7 @@ function handleClear() {
 </script>
 
 <template>
-  <div class="tab-pane active">
+  <div class="tab-pane active diagnostics-pane">
     <div class="pane-header">
       <div>
         <h2 class="pane-title">Live Diagnostic Console</h2>

@@ -1,17 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import brandLogo from '../../../src/logo.ico';
 import { version } from '../../package.json';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useBinariesStore } from '../stores/binaries';
 import { useGamesStore } from '../stores/games';
+import SidebarGameItem from './SidebarGameItem.vue';
 
 const router = useRouter();
 const auth = useAuthStore();
 const binariesStore = useBinariesStore();
 const gamesStore = useGamesStore();
 
-const failedIcons = ref<Record<string, boolean>>({});
+const gamesCollapsed = ref(false);
+const favoritesCollapsed = ref(false);
+
+// Favorited games are listed only under FAVORITES.
+const myGames = computed(() => gamesStore.games.filter((g) => !gamesStore.isFavorite(g.id)));
+const myFilteredGames = computed(() => gamesStore.filteredGames.filter((g) => !gamesStore.isFavorite(g.id)));
 
 onMounted(() => {
   gamesStore.scanGames();
@@ -27,12 +34,6 @@ function handleSelectGame(gameId: string) {
   router.push('/dashboard');
 }
 
-async function handleLogout() {
-  const confirmed = confirm('Are you sure you want to sign out?');
-  if (!confirmed) return;
-  await auth.logout();
-  router.push('/login');
-}
 </script>
 
 <template>
@@ -40,13 +41,11 @@ async function handleLogout() {
     <!-- Brand Header -->
     <div class="sidebar-brand">
       <div class="brand-badge-icon">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#38bdf8" />
-        </svg>
+        <img :src="brandLogo" alt="" width="38" height="38" />
       </div>
       <div class="brand-text">
         <span class="brand-name">ASTRA</span>
-        <span class="brand-version">v{{ version }}</span>
+        <span class="brand-version">DEVELOPMENT BUILD</span>
       </div>
     </div>
 
@@ -57,26 +56,67 @@ async function handleLogout() {
         <button
           class="pulse-nav-btn"
           :class="{ active: !gamesStore.selectedGameId && $route.path === '/dashboard' }"
+          :aria-current="!gamesStore.selectedGameId && $route.path === '/dashboard' ? 'page' : undefined"
           @click="handleHomeClick"
         >
           <div class="pulse-icon-flame">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
               <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
             </svg>
           </div>
           <span class="pulse-nav-label">Control Hub</span>
-          <span class="pulse-sparkle">⚡</span>
         </button>
+      </div>
+
+      <!-- FAVORITES Section -->
+      <div v-if="gamesStore.favoriteGames.length" class="my-games-section favorites-section">
+        <div class="my-games-header">
+          <button
+            type="button"
+            class="my-games-title-group my-games-toggle"
+            :aria-expanded="!favoritesCollapsed"
+            aria-controls="sidebar-favorites-list"
+            :title="favoritesCollapsed ? 'Expand Favorites' : 'Minimize Favorites'"
+            @click="favoritesCollapsed = !favoritesCollapsed"
+          >
+            <svg class="my-games-toggle-icon" :class="{ collapsed: favoritesCollapsed }" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="M2 8h12" />
+              <path v-if="favoritesCollapsed" d="M8 2v12" />
+            </svg>
+            <span class="my-games-label">FAVORITES</span>
+            <span class="my-games-counter">{{ gamesStore.favoriteGames.length }}</span>
+          </button>
+        </div>
+
+        <div v-show="!favoritesCollapsed" id="sidebar-favorites-list" class="games-list-container">
+          <SidebarGameItem
+            v-for="game in gamesStore.favoriteGames"
+            :key="game.id"
+            :game="game"
+            @select="handleSelectGame"
+          />
+        </div>
       </div>
 
       <!-- MY GAMES Section -->
       <div class="my-games-section">
         <div class="my-games-header">
-          <div class="my-games-title-group">
+          <button
+            type="button"
+            class="my-games-title-group my-games-toggle"
+            :aria-expanded="!gamesCollapsed"
+            aria-controls="sidebar-games-search sidebar-games-list"
+            :title="gamesCollapsed ? 'Expand My Games' : 'Minimize My Games'"
+            @click="gamesCollapsed = !gamesCollapsed"
+          >
+            <svg class="my-games-toggle-icon" :class="{ collapsed: gamesCollapsed }" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="M2 8h12" />
+              <path v-if="gamesCollapsed" d="M8 2v12" />
+            </svg>
             <span class="my-games-label">MY GAMES</span>
-            <span class="my-games-counter">{{ gamesStore.games.length }}</span>
-          </div>
+            <span class="my-games-counter">{{ myGames.length }}</span>
+          </button>
           <div class="my-games-actions">
             <button
               class="btn-sidebar-icon"
@@ -101,7 +141,7 @@ async function handleLogout() {
         </div>
 
         <!-- Games Search Bar -->
-        <div class="sidebar-search-box">
+        <div v-show="!gamesCollapsed" id="sidebar-games-search" class="sidebar-search-box">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
@@ -114,58 +154,22 @@ async function handleLogout() {
         </div>
 
         <!-- Scanned Games List -->
-        <div class="games-list-container">
+        <div v-show="!gamesCollapsed" id="sidebar-games-list" class="games-list-container">
           <div v-if="gamesStore.isScanning" class="games-loading-shimmer">
             <div v-for="i in 5" :key="i" class="game-item-skeleton"></div>
           </div>
 
-          <div v-else-if="gamesStore.filteredGames.length === 0" class="games-empty-state">
+          <div v-else-if="myFilteredGames.length === 0" class="games-empty-state">
             No games found.
           </div>
 
-          <div
+          <SidebarGameItem
             v-else
-            v-for="game in gamesStore.filteredGames"
+            v-for="game in myFilteredGames"
             :key="game.id"
-            class="game-list-item"
-            :class="{
-              active: gamesStore.selectedGameId === game.id,
-              running: gamesStore.launchStatus === 'running' && gamesStore.selectedGameId === game.id
-            }"
-            @click="handleSelectGame(game.id)"
-          >
-            <div class="game-item-thumb">
-              <img
-                v-if="game.iconUrl && !failedIcons[game.id]"
-                :src="game.iconUrl"
-                :alt="game.name"
-                loading="lazy"
-                @error="failedIcons[game.id] = true"
-              />
-              <div v-else class="game-thumb-fallback">
-                {{ game.name.substring(0, 1).toUpperCase() }}
-              </div>
-            </div>
-
-            <div class="game-item-text-wrap">
-              <span class="game-item-name" :title="game.name">
-                {{ game.name }}
-              </span>
-              <span
-                v-if="gamesStore.getGameMatchedBinary(game)"
-                class="badge-game-mod"
-                title="Assigned Cloud Mod Payload"
-              >
-                MOD
-              </span>
-            </div>
-
-            <span
-              v-if="gamesStore.launchStatus === 'running' && gamesStore.selectedGameId === game.id"
-              class="game-playing-pulse"
-              title="Playing Now"
-            ></span>
-          </div>
+            :game="game"
+            @select="handleSelectGame"
+          />
         </div>
       </div>
 
@@ -198,27 +202,6 @@ async function handleLogout() {
           <span>Diagnostics</span>
         </RouterLink>
       </nav>
-    </div>
-
-    <!-- User Profile & Logout -->
-    <div class="sidebar-footer">
-      <div class="user-profile-box">
-        <div class="user-avatar">{{ auth.avatarInitial }}</div>
-        <div class="user-info">
-          <div class="user-name-badge-row">
-            <span class="user-name" :title="auth.displayName">{{ auth.displayName }}</span>
-            <span class="user-badge-pro">PRO</span>
-          </div>
-          <span class="user-handle">{{ auth.displayHandle }}</span>
-        </div>
-      </div>
-
-      <button class="btn-logout" @click="handleLogout" title="Sign out of account">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-          <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
-      </button>
     </div>
   </aside>
 </template>
