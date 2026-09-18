@@ -1,15 +1,23 @@
 <script setup lang="ts">
 import brandLogo from '../../../../src/logo.ico';
-import { ref } from 'vue';
+import { nextTick, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 
 const router = useRouter();
 const auth = useAuthStore();
 
+const usernameInput = ref<HTMLInputElement | null>(null);
 const username = ref('');
 const password = ref('');
 const rememberMe = ref(true);
+
+// `autofocus` only fires on the initial document parse, so returning here
+// after a sign-out would leave the form without focus.
+onMounted(async () => {
+  await nextTick();
+  usernameInput.value?.focus();
+});
 
 async function handleLogin() {
   auth.kickReason = '';
@@ -70,10 +78,10 @@ async function handleLogin() {
             </label>
             <input
               id="username"
+              ref="usernameInput"
               v-model="username"
               autocomplete="username"
               placeholder="Enter username"
-              autofocus
               required
             />
           </div>

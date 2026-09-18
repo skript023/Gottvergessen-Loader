@@ -1768,6 +1768,33 @@ html:has(.is-starting), body:has(.is-starting),
   justify-content: center;
   align-items: center;
   z-index: 99998;
+  opacity: 1;
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+/* Fades out just before the window is resized to its full size. */
+.startup-splash-overlay.is-leaving {
+  opacity: 0;
+  transform: scale(0.98);
+  pointer-events: none;
+}
+
+/* The shell mounts at the final window size, so it only needs to fade in. */
+.app-root-shell.is-entering:not(.is-starting) {
+  animation: shellFadeIn 240ms ease both;
+}
+
+@keyframes shellFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .startup-splash-overlay,
+  .app-root-shell.is-entering:not(.is-starting) {
+    transition: none;
+    animation: none;
+  }
 }
 
 .splash-card {

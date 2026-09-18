@@ -13,6 +13,8 @@ import KickModal from './components/KickModal.vue';
 import TitleBar from './components/TitleBar.vue';
 import UpdateModal from './components/UpdateModal.vue';
 
+const SPLASH_FADE_MS = 200;
+
 const route = useRoute();
 const auth = useAuthStore();
 const binariesStore = useBinariesStore();
@@ -31,6 +33,15 @@ type StartupPhase = 'checking' | 'updating' | 'restoring' | 'ready';
 const startupPhase = ref<StartupPhase>('checking');
 const startupStatusText = ref('Checking for client updates...');
 const isStartupActive = computed(() => startupPhase.value !== 'ready');
+// Splash fades out before the window is resized; the shell fades in after.
+const isSplashLeaving = ref(false);
+const isShellEntering = ref(false);
+
+function afterPaint() {
+  return new Promise<void>(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+}
 
 async function proceedToSession() {
   startupPhase.value = 'restoring';
@@ -41,16 +52,28 @@ async function proceedToSession() {
     await auth.restoreSession();
   }
 
-  // Smooth visual transition delay
+  // Let the last status line register before handing over to the app.
   await new Promise(r => setTimeout(r, 350));
+
+  // Fade the splash out while the window is still small and transparent, so
+  // the resize that follows happens on an empty frame.
+  isSplashLeaving.value = true;
+  await new Promise(r => setTimeout(r, SPLASH_FADE_MS));
+
+  await window.loader?.window?.setStartupMode?.('ready');
+  await afterPaint();
+
+  // Only now mount the dashboard, at the window's final size: no reflow.
+  isShellEntering.value = true;
   startupPhase.value = 'ready';
   await nextTick();
-  await window.loader?.window?.setStartupMode?.('ready');
 }
 
 async function startStartupDownload() {
-  startupPhase.value = 'updating';
+  // Grow the window first, then reveal the updater box inside it.
   await window.loader?.window?.setStartupMode?.('updating');
+  startupPhase.value = 'updating';
+  await nextTick();
   if (updater.isReadyToInstall) {
     startupStatusText.value = 'Update verified. Relaunching Astra...';
     setTimeout(() => updater.installUpdate(), 600);
@@ -121,7 +144,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="app-root-shell" :class="{ 'is-starting': isStartupActive }">
+  <div class="app-root-shell" :class="{ 'is-starting': isStartupActive, 'is-entering': isShellEntering }">
     <!-- Windows 11 Custom TitleBar Strip (Ellohim-Explorer Style) -->
     <TitleBar v-if="!isStartupActive" />
 
@@ -132,7 +155,7 @@ onMounted(async () => {
       </div>
 
   <!-- Compact artwork splash; the card itself fills the startup window. -->
-    <div v-if="isStartupActive" class="startup-splash-overlay">
+    <div v-if="isStartupActive" class="startup-splash-overlay" :class="{ 'is-leaving': isSplashLeaving }">
       <div class="splash-card">
         <img class="splash-artwork" :src="loadingArtwork" alt="Astra" draggable="false" />
         <div class="splash-progress-track" role="progressbar" aria-label="Startup progress"

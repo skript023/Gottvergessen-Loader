@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, screen, shell } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawn, exec } = require("node:child_process");
@@ -342,26 +342,42 @@ function registerIpc() {
     return { binaries, profile, token, hwid, backendUrl, deviceName };
   });
 
-  ipcMain.handle("window:startup-mode", (event, mode) => {
+  ipcMain.handle("window:startup-mode", async (event, mode) => {
     const win = BrowserWindow.fromWebContents(event.sender);
-    if (!win || win !== mainWindow || !startupWindowState) return;
+    if (!win || win !== mainWindow || !startupWindowState) return false;
+
     if (mode === "updating") {
-      win.setSize(640, 620);
-      win.center();
-    } else if (mode === "ready") {
+      // The splash grows to make room for the updater box; animate it so the
+      // window does not snap to its new height in a single frame.
+      await animateBounds(win, centeredBounds(win, 640, 620));
+      return true;
+    }
+
+    if (mode === "ready") {
       const state = startupWindowState;
+      startupWindowState = null;
+
+      // The renderer has already faded the splash out, so the window is fully
+      // transparent here: swap to the opaque shell and jump to the final
+      // bounds in one step, before any dashboard markup is mounted.
+      win.setBackgroundColor(SHELL_BACKGROUND);
       win.setResizable(true);
       win.setMaximizable(true);
       win.setMinimumSize(960, 620);
-      win.setSize(state.width, state.height);
-      if (typeof state.x === "number" && typeof state.y === "number") {
-        win.setPosition(state.x, state.y);
+
+      if (state.isMaximized) {
+        win.setBounds(centeredBounds(win, state.width, state.height));
+        win.maximize();
       } else {
-        win.center();
+        const hasPosition = typeof state.x === "number" && typeof state.y === "number";
+        win.setBounds(hasPosition
+          ? { x: state.x, y: state.y, width: state.width, height: state.height }
+          : centeredBounds(win, state.width, state.height));
       }
-      if (state.isMaximized) win.maximize();
-      startupWindowState = null;
+      return true;
     }
+
+    return false;
   });
 
   // ==================== WINDOW CONTROLS IPC ====================
@@ -720,6 +736,44 @@ function saveWindowState(win) {
     };
     fs.writeFileSync(getWindowStateFile(), JSON.stringify(state, null, 2), "utf8");
   } catch (_) {}
+}
+
+const SHELL_BACKGROUND = "#101112";
+
+// Bounds of the given size, centred on the display the window currently sits on.
+function centeredBounds(win, width, height) {
+  const area = screen.getDisplayMatching(win.getBounds()).workArea;
+  return {
+    width,
+    height,
+    x: Math.round(area.x + (area.width - width) / 2),
+    y: Math.round(area.y + (area.height - height) / 2)
+  };
+}
+
+// Short eased tween between the current bounds and the target, so a resize the
+// user can actually see reads as motion instead of a jump.
+function animateBounds(win, target, duration = 220) {
+  return new Promise((resolve) => {
+    const from = win.getBounds();
+    const start = Date.now();
+    const lerp = (a, b, t) => Math.round(a + (b - a) * t);
+
+    const step = () => {
+      if (!win || win.isDestroyed()) return resolve(false);
+      const t = Math.min(1, (Date.now() - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      win.setBounds({
+        x: lerp(from.x, target.x, eased),
+        y: lerp(from.y, target.y, eased),
+        width: lerp(from.width, target.width, eased),
+        height: lerp(from.height, target.height, eased)
+      });
+      if (t >= 1) return resolve(true);
+      setTimeout(step, 16);
+    };
+    step();
+  });
 }
 
 function createWindow() {
