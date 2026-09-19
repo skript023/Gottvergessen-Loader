@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../../stores/auth';
 import { useGamesStore } from '../../../stores/games';
 import { useBinariesStore } from '../../../stores/binaries';
 
+const router = useRouter();
 const auth = useAuthStore();
 const gamesStore = useGamesStore();
 const binariesStore = useBinariesStore();
@@ -15,7 +17,7 @@ const topGames = computed(() => {
 });
 
 function selectGame(id: string) {
-  gamesStore.selectGame(id);
+  router.push({ path: '/dashboard', query: { game: id } });
 }
 </script>
 

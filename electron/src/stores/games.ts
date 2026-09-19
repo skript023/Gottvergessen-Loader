@@ -58,6 +58,42 @@ export const useGamesStore = defineStore('games', () => {
 
   const favoriteGames = computed(() => games.value.filter((g) => favoriteIds.value.includes(g.id)));
 
+  // Recently opened games, newest first, for the header search pop-up.
+  const RECENTS_KEY = 'astra.recentGames';
+  const RECENTS_LIMIT = 4;
+  const recentGameIds = ref<string[]>(loadRecentIds());
+
+  function loadRecentIds(): string[] {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(RECENTS_KEY) || '[]');
+      return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function rememberRecentGame(gameId: string) {
+    recentGameIds.value = [gameId, ...recentGameIds.value.filter((id) => id !== gameId)].slice(0, RECENTS_LIMIT);
+    try {
+      localStorage.setItem(RECENTS_KEY, JSON.stringify(recentGameIds.value));
+    } catch (_) {}
+  }
+
+  // Always four rows: the newest picks first, topped up from the installed
+  // list so the pop-up looks the same on a fresh install.
+  const recentGames = computed(() => {
+    const picked = recentGameIds.value
+      .map((id) => games.value.find((g) => g.id === id))
+      .filter((g): g is InstalledGameItem => !!g)
+      .slice(0, RECENTS_LIMIT);
+
+    for (const game of games.value) {
+      if (picked.length >= RECENTS_LIMIT) break;
+      if (!picked.some((g) => g.id === game.id)) picked.push(game);
+    }
+    return picked;
+  });
+
   const selectedGame = computed<InstalledGameItem | null>(() => {
     if (!selectedGameId.value) return null;
     return games.value.find((g) => g.id === selectedGameId.value) || null;
@@ -179,6 +215,7 @@ export const useGamesStore = defineStore('games', () => {
   function selectGame(gameId: string | null) {
     selectedGameId.value = gameId;
     if (gameId) {
+      rememberRecentGame(gameId);
       const g = games.value.find((item) => item.id === gameId);
       if (g) {
         const matched = getGameMatchedBinary(g);
@@ -532,6 +569,7 @@ export const useGamesStore = defineStore('games', () => {
     isSavingServerConfig,
     filteredGames,
     favoriteGames,
+    recentGames,
     isFavorite,
     toggleFavorite,
     matchedBinary,

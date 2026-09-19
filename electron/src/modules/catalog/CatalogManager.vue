@@ -14,12 +14,9 @@ function selectAndConfigure(index: number) {
     (game) => gamesStore.getGameMatchedBinary(game)?.id === binary?.id
   );
 
-  if (matchedGame) {
-    gamesStore.selectGame(matchedGame.id);
-  } else {
-    gamesStore.selectGame(null);
-  }
-  router.push('/dashboard');
+  router.push(matchedGame
+    ? { path: '/dashboard', query: { game: matchedGame.id } }
+    : { path: '/dashboard' });
 }
 
 function handleRefresh() {

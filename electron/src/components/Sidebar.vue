@@ -18,20 +18,17 @@ const favoritesCollapsed = ref(false);
 
 // Favorited games are listed only under FAVORITES.
 const myGames = computed(() => gamesStore.games.filter((g) => !gamesStore.isFavorite(g.id)));
-const myFilteredGames = computed(() => gamesStore.filteredGames.filter((g) => !gamesStore.isFavorite(g.id)));
 
 onMounted(() => {
   gamesStore.scanGames();
 });
 
 function handleHomeClick() {
-  gamesStore.selectGame(null);
-  router.push('/dashboard');
+  router.push({ path: '/dashboard' });
 }
 
 function handleSelectGame(gameId: string) {
-  gamesStore.selectGame(gameId);
-  router.push('/dashboard');
+  router.push({ path: '/dashboard', query: { game: gameId } });
 }
 
 </script>
@@ -106,7 +103,7 @@ function handleSelectGame(gameId: string) {
             type="button"
             class="my-games-title-group my-games-toggle"
             :aria-expanded="!gamesCollapsed"
-            aria-controls="sidebar-games-search sidebar-games-list"
+            aria-controls="sidebar-games-list"
             :title="gamesCollapsed ? 'Expand My Games' : 'Minimize My Games'"
             @click="gamesCollapsed = !gamesCollapsed"
           >
@@ -140,32 +137,19 @@ function handleSelectGame(gameId: string) {
           </div>
         </div>
 
-        <!-- Games Search Bar -->
-        <div v-show="!gamesCollapsed" id="sidebar-games-search" class="sidebar-search-box">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input
-            v-model="gamesStore.searchQuery"
-            type="text"
-            placeholder="Filter games..."
-            class="sidebar-search-input"
-          />
-        </div>
-
         <!-- Scanned Games List -->
         <div v-show="!gamesCollapsed" id="sidebar-games-list" class="games-list-container">
           <div v-if="gamesStore.isScanning" class="games-loading-shimmer">
             <div v-for="i in 5" :key="i" class="game-item-skeleton"></div>
           </div>
 
-          <div v-else-if="myFilteredGames.length === 0" class="games-empty-state">
+          <div v-else-if="myGames.length === 0" class="games-empty-state">
             No games found.
           </div>
 
           <SidebarGameItem
             v-else
-            v-for="game in myFilteredGames"
+            v-for="game in myGames"
             :key="game.id"
             :game="game"
             @select="handleSelectGame"

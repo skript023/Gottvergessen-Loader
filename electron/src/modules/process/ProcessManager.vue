@@ -1,8 +1,21 @@
 <script setup lang="ts">
+import { watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { useProcessStore } from '../../stores/process';
 import type { ProcessItem } from '../../types/loader';
 
+const route = useRoute();
 const processStore = useProcessStore();
+
+// /processes?q=<term> pre-fills the filter, so the header search can hand a
+// PID or executable name straight over to this page.
+watch(
+  () => route.query.q,
+  (term) => {
+    if (typeof term === 'string' && term) processStore.searchQuery = term;
+  },
+  { immediate: true }
+);
 
 function handleScan() {
   processStore.scanProcesses();

@@ -424,17 +424,13 @@ button, input, select {
   color: var(--primary-cyan);
 }
 
-.nav-item.active .nav-badge {
-  background: rgba(var(--primary-cyan-rgb), 0.18);
-  color: var(--primary-cyan);
-}
-
+/* Same counter treatment as the MY GAMES / FAVORITES headers. */
 .nav-badge {
   margin-left: auto;
   padding: 2px 7px;
   border-radius: 999px;
-  background: rgba(255,255,255,0.08);
-  color: var(--text-muted);
+  background: rgba(var(--primary-cyan-rgb), 0.16);
+  color: var(--primary-cyan);
   font-size: 11px;
   font-weight: 700;
 }
@@ -634,31 +630,6 @@ button, input, select {
   background: rgba(168, 85, 247, 0.12);
   border-color: rgba(168, 85, 247, 0.28);
   color: #c084fc;
-}
-
-.btn-header-logout {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  box-sizing: border-box;
-  width: var(--header-control-size);
-  height: var(--header-control-size);
-  padding: 0;
-  border-radius: 50%;
-  background: rgba(255, 77, 95, 0.1);
-  border: 1px solid rgba(255, 77, 95, 0.25);
-  color: #ff5b6b;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-header-logout:hover {
-  background: rgba(255, 77, 95, 0.2);
-  color: #fff;
-  border-color: rgba(255, 77, 95, 0.5);
 }
 
 /* Scrollable Container */
@@ -1755,10 +1726,11 @@ button, input, select {
 }
 
 /* ==================== STARTUP SPLASH OVERLAY ==================== */
+/* The splash window is opaque (a transparent window is not resizable on
+   Windows), so match the shell background behind the splash card. */
 html:has(.is-starting), body:has(.is-starting),
 .app-root-shell.is-starting {
-  background: transparent;
-  color-scheme: normal;
+  background: var(--bg-main);
 }
 
 .startup-splash-overlay {
@@ -1797,6 +1769,9 @@ html:has(.is-starting), body:has(.is-starting),
   }
 }
 
+/* The card is the whole splash window, so it stays flush with the edges:
+   its own radius would cut dark corners out of the opaque window frame.
+   Windows rounds the window itself. */
 .splash-card {
   width: 640px;
   max-width: 100vw;
@@ -1804,7 +1779,6 @@ html:has(.is-starting), body:has(.is-starting),
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: var(--radius-panel);
   background: var(--bg-card);
 }
 
@@ -2422,37 +2396,6 @@ html:has(.is-starting), body:has(.is-starting),
   border-color: rgba(var(--primary-cyan-rgb), 0.45);
 }
 
-.sidebar-search-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 6px 10px;
-  border-radius: 8px;
-  color: #898b90;
-  transition: border-color 0.2s ease;
-}
-
-.sidebar-search-box:focus-within {
-  border-color: var(--primary-cyan);
-  background: rgba(var(--primary-cyan-rgb), 0.06);
-  color: var(--primary-cyan);
-}
-
-.sidebar-search-input {
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #ededee;
-  font-size: 12px;
-  width: 100%;
-}
-
-.sidebar-search-input::placeholder {
-  color: #898b90;
-}
-
 /* Games List Items */
 .games-list-container {
   display: flex;
@@ -2667,10 +2610,16 @@ html:has(.is-starting), body:has(.is-starting),
   border-color: transparent;
 }
 
-.nav-arrow-btn:hover, .nav-home-btn:hover {
+.nav-arrow-btn:hover:not(:disabled), .nav-home-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
   border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Nothing to navigate to: keep the arrow inert instead of hover-highlighting. */
+.nav-arrow-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .top-search-container {
@@ -2695,19 +2644,27 @@ html:has(.is-starting), body:has(.is-starting),
   border-color: transparent;
 }
 
-.wand-search-pill:focus-within {
-  background: #303135;
-  border-color: var(--border-active);
-  box-shadow: none;
+.wand-search-pill {
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
 }
 
-.wand-search-input {
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #ededee;
+.wand-search-pill:hover,
+.wand-search-pill.is-open {
+  background: #303135;
+  border-color: var(--border-subtle);
+  color: #c5c6c8;
+}
+
+.wand-search-pill > svg {
+  flex-shrink: 0;
+}
+
+.wand-search-placeholder {
   font-size: 13px;
-  width: 100%;
+  color: #898b90;
 }
 
 
@@ -2728,6 +2685,22 @@ html:has(.is-starting), body:has(.is-starting),
 .header-profile-pill:hover {
   background: #303135;
   border-color: var(--border-subtle);
+}
+
+.header-profile-pill.is-open {
+  background: #303135;
+  border-color: var(--border-subtle);
+}
+
+.header-profile-caret {
+  color: var(--text-dim);
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+}
+
+.header-profile-pill.is-open .header-profile-caret {
+  transform: rotate(180deg);
+  color: var(--text-main);
 }
 
 .header-avatar {
@@ -3213,6 +3186,13 @@ html:has(.is-starting), body:has(.is-starting),
   font-size: 12px;
   color: #a1a2a6;
   line-height: 1.4;
+}
+
+/* The card body is a plain block, so the control right under the description
+   needs its own breathing room. */
+.config-desc + .input-with-action,
+.config-desc + .wand-select {
+  margin-top: 10px;
 }
 
 .wand-input {
@@ -4085,7 +4065,6 @@ html:has(.is-starting), body:has(.is-starting),
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-bottom: 20px;
 }
 
 .unsupported-notice-card {
@@ -4388,4 +4367,331 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
     animation-duration: 0.9s !important;
     animation-iteration-count: infinite !important;
   }
+}
+
+/* =========================================================
+   GAMER PROFILE MENU
+   Anchored drop-down: same card surface as the pop-up cards,
+   but no backdrop — the app behind it stays untouched.
+   ========================================================= */
+.profile-menu-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  -webkit-app-region: no-drag;
+}
+
+/* Same tone as the pop-up overlays, flat: no backdrop-filter. */
+.profile-menu-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(12, 13, 14, 0.82);
+}
+
+.profile-menu {
+  position: fixed;
+  background: var(--bg-popover);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+}
+
+.profile-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.profile-menu-item > svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.profile-menu-item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.profile-menu-item:hover:not(:disabled) > svg {
+  color: var(--text-main);
+}
+
+.profile-menu-item:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.profile-menu-item.is-danger {
+  color: #ff5b6b;
+}
+
+.profile-menu-item.is-danger > svg {
+  color: #ff5b6b;
+}
+
+.profile-menu-item.is-danger:hover:not(:disabled) {
+  background: rgba(255, 77, 95, 0.12);
+}
+
+.profile-menu-item.is-danger:hover:not(:disabled) > svg {
+  color: #ff5b6b;
+}
+
+.profile-menu-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-menu-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #45484f;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Trailing "opens outside the app" arrow. */
+.profile-menu-ext {
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+
+/* Negative side margins cancel the menu's padding, so the rule runs edge to
+   edge instead of floating inside it. */
+.profile-menu-sep {
+  height: 1px;
+  margin: 4px -6px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* The layer fades; only the card itself slides, so the dim stays put. */
+.menu-pop-enter-active,
+.menu-pop-leave-active {
+  transition: opacity 0.14s ease;
+}
+
+.menu-pop-enter-active .profile-menu,
+.menu-pop-leave-active .profile-menu {
+  transition: transform 0.14s ease;
+}
+
+.menu-pop-enter-from,
+.menu-pop-leave-to {
+  opacity: 0;
+}
+
+.menu-pop-enter-from .profile-menu,
+.menu-pop-leave-to .profile-menu {
+  transform: translateY(-6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-pop-enter-active,
+  .menu-pop-leave-active,
+  .menu-pop-enter-active .profile-menu,
+  .menu-pop-leave-active .profile-menu,
+  .header-profile-caret {
+    transition: none;
+  }
+}
+
+/* =========================================================
+   HEADER SEARCH POP-UP
+   Same surface and dim as the profile menu, anchored under
+   the header instead of to a pill.
+   ========================================================= */
+.search-palette-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  -webkit-app-region: no-drag;
+}
+
+.search-palette-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(12, 13, 14, 0.82);
+}
+
+.search-palette {
+  position: absolute;
+  top: 88px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, calc(100vw - 48px));
+  max-height: calc(100vh - 140px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-popover);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+}
+
+.search-palette-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  color: var(--text-muted);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+}
+
+.search-palette-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-main);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.search-palette-input::placeholder {
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.search-palette-body {
+  padding: 8px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.search-palette-label {
+  padding: 8px 10px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.search-palette-empty {
+  padding: 18px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Dead-end escape hatch: carry the term over to the process manager. */
+.search-palette-fallback {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.search-palette-fallback > svg {
+  flex-shrink: 0;
+  color: var(--primary-cyan);
+}
+
+.search-palette-fallback > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-palette-fallback:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-glow);
+}
+
+.search-palette-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-palette-item.is-active {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.search-palette-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #292a2d;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.search-palette-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.search-palette-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The card slides; the dim behind it only fades (see .menu-pop). */
+.menu-pop-enter-from .search-palette,
+.menu-pop-leave-to .search-palette {
+  transform: translateX(-50%) translateY(-6px);
+}
+
+.menu-pop-enter-active .search-palette,
+.menu-pop-leave-active .search-palette {
+  transition: transform 0.14s ease;
 }

@@ -357,9 +357,9 @@ function registerIpc() {
       const state = startupWindowState;
       startupWindowState = null;
 
-      // The renderer has already faded the splash out, so the window is fully
-      // transparent here: swap to the opaque shell and jump to the final
-      // bounds in one step, before any dashboard markup is mounted.
+      // The renderer has already faded the splash out, so the window is empty
+      // here: jump to the final bounds in one step, before any dashboard
+      // markup is mounted.
       win.setBackgroundColor(SHELL_BACKGROUND);
       win.setResizable(true);
       win.setMaximizable(true);
@@ -785,10 +785,12 @@ function createWindow() {
     height: 460,
     resizable: false,
     maximizable: false,
-    transparent: true,
+    // Not transparent: on Windows a transparent window cannot be resized, so
+    // the shell would show a "blocked" cursor on every edge once the splash
+    // handed over. The splash card paints the whole window instead.
     show: false,
     frame: false,
-    backgroundColor: "#00000000",
+    backgroundColor: SHELL_BACKGROUND,
     title: "Astra",
     icon: iconPath(),
     webPreferences: {

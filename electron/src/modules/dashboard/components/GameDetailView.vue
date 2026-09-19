@@ -69,6 +69,7 @@ function handleRemoveCustom() {
   const conf = confirm(`Remove "${game.value.name}" from your games list?`);
   if (conf) {
     gamesStore.removeCustomGame(game.value.id);
+    router.replace({ path: '/dashboard' });
   }
 }
 </script>

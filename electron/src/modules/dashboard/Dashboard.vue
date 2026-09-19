@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { useGamesStore } from '../../stores/games';
 import { useBinariesStore } from '../../stores/binaries';
 import PulseHubView from './components/PulseHubView.vue';
@@ -8,8 +9,19 @@ import MetricsGrid from './components/MetricsGrid.vue';
 import HeroBanner from './components/HeroBanner.vue';
 import InjectionPanel from './components/InjectionPanel.vue';
 
+const route = useRoute();
 const gamesStore = useGamesStore();
 const binariesStore = useBinariesStore();
+
+// The opened game lives in the URL (/dashboard?game=<id>), so each pick is its
+// own history entry and the header arrows can step through them.
+watch(
+  () => route.query.game,
+  (gameId) => {
+    gamesStore.selectGame(typeof gameId === 'string' && gameId ? gameId : null);
+  },
+  { immediate: true }
+);
 
 const viewMode = ref<'launcher' | 'classic'>('launcher');
 
